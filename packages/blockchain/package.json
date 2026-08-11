@@ -1,0 +1,17 @@
+{
+  "name": "@credora/blockchain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@credora/contracts": "workspace:*",
+    "@credora/shared": "workspace:*",
+    "viem": "^2.31.3"
+  }
+}

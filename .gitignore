@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.expo/
+dist/
+build/
+coverage/
+.data/
+out/
+*.tsbuildinfo
+.env
+.env.local
+contracts/cache/
+contracts/out/

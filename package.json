@@ -1,0 +1,26 @@
+{
+  "name": "credora",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @credora/web --filter @credora/api --filter @credora/mobile dev",
+    "dev:web": "pnpm --filter @credora/web dev",
+    "dev:api": "pnpm --filter @credora/api dev",
+    "dev:mobile": "pnpm --filter @credora/mobile start",
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "lint": "pnpm exec prettier --check .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "format": "prettier --write .",
+    "contracts:test": "forge test --root contracts",
+    "contracts:build": "forge build --root contracts",
+    "contracts:deploy": "forge script script/Deploy.s.sol --root contracts --rpc-url http://127.0.0.1:8545 --broadcast"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}

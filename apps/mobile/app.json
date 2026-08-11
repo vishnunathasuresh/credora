@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Credora",
+    "slug": "credora",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": { "package": "org.credora.app" }
+  }
+}

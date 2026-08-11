@@ -1,0 +1,17 @@
+{
+  "name": "@credora/credential-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "tsx --test src/index.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@credora/shared": "workspace:*",
+    "viem": "^2.31.3"
+  }
+}
