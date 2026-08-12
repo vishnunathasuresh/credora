@@ -76,6 +76,11 @@ const migrations: Migration[] = [
       );
     `,
   },
+  {
+    version: 5,
+    name: 'issuance_projection_source',
+    sql: "ALTER TABLE issuances ADD COLUMN projection_source TEXT NOT NULL DEFAULT 'api'",
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {

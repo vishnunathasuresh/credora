@@ -326,8 +326,11 @@ async function reconcileChainEvents(resetFromBlock?: bigint) {
         `UPDATE issuances
          SET transaction_hash = NULL, block_number = NULL,
              state = CASE WHEN metadata_uri IS NULL THEN 'draft' ELSE 'metadata-uploaded' END
-         WHERE block_number >= ?`,
+         WHERE block_number >= ? AND projection_source = 'api'`,
       )
+      .run(Number(fromBlock));
+    database
+      .prepare("DELETE FROM issuances WHERE block_number >= ? AND projection_source = 'chain'")
       .run(Number(fromBlock));
     database
       .prepare('INSERT OR REPLACE INTO chain_sync (id, next_block, updated_at) VALUES (1, ?, ?)')
@@ -360,13 +363,36 @@ async function reconcileChainEvents(resetFromBlock?: bigint) {
             Number(event.logIndex),
             new Date().toISOString(),
           );
-        database
+        const updated = database
           .prepare(
             `UPDATE issuances
              SET transaction_hash = ?, block_number = ?, state = 'confirmed'
              WHERE credential_hash = ?`,
           )
           .run(event.transactionHash, Number(event.blockNumber), event.credentialHash);
+        if (Number(updated.changes) === 0) {
+          const issuedAt = new Date(Number(event.issuedAt) * 1000).toISOString();
+          database
+            .prepare(
+              `INSERT INTO issuances
+                (id, issuer, learner, skill_name, skill_level, issue_date, metadata_uri,
+                 credential_hash, transaction_hash, state, created_at, block_number, projection_source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, 'chain')`,
+            )
+            .run(
+              `chain:${event.credentialHash}`,
+              event.issuer,
+              event.learner,
+              'reconciled',
+              'reconciled',
+              issuedAt,
+              event.metadataUri,
+              event.credentialHash,
+              event.transactionHash,
+              issuedAt,
+              Number(event.blockNumber),
+            );
+        }
         events += 1;
       }
       database
