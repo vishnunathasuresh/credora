@@ -1,5 +1,6 @@
 import {
   createPublicClient,
+  decodeFunctionData,
   http,
   type Address,
   type Chain,
@@ -41,10 +42,18 @@ export type ConfirmedTransaction = {
   status: 'success' | 'reverted';
 };
 
+export type IssuanceTransaction = {
+  from: Address;
+  credentialHash: Hex;
+  learner: Address;
+  metadataUri: string;
+};
+
 export interface BlockchainAdapter {
   isIssuerAuthorized(address: Address): Promise<boolean>;
   issueCredential(input: IssueCredentialInput): Promise<PendingTransaction>;
   getCredential(ref: CredentialReference): Promise<CredentialLookupResult>;
+  getIssuanceTransaction(txHash: Hex): Promise<IssuanceTransaction | undefined>;
   waitForConfirmation(txHash: Hex): Promise<ConfirmedTransaction>;
 }
 
@@ -91,6 +100,29 @@ export class RegistryBlockchainAdapter implements BlockchainAdapter {
     });
     if (!exists) return { state: 'not-found', credentialHash };
     return { state: 'valid', credentialHash, issuer, learner, metadataUri, issuedAt };
+  }
+
+  async getIssuanceTransaction(txHash: Hex): Promise<IssuanceTransaction | undefined> {
+    const transaction = await this.publicClient.getTransaction({ hash: txHash });
+    if (
+      !transaction.to ||
+      transaction.to.toLowerCase() !== this.config.contractAddress.toLowerCase()
+    )
+      return undefined;
+
+    try {
+      const decoded = decodeFunctionData({ abi: credentialRegistryAbi, data: transaction.input });
+      if (decoded.functionName !== 'issueCredential') return undefined;
+      const [credentialHash, learner, metadataUri] = decoded.args;
+      return {
+        from: transaction.from,
+        credentialHash,
+        learner,
+        metadataUri,
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   async waitForConfirmation(txHash: Hex): Promise<ConfirmedTransaction> {

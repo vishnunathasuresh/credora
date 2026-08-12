@@ -38,7 +38,9 @@ contract CredentialRegistryTest is Test {
         vm.prank(issuer);
         registry.issueCredential(credentialHash, learner, "ipfs://metadata");
         vm.prank(issuer);
-        vm.expectRevert(CredentialRegistry.CredentialAlreadyExists.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(CredentialRegistry.CredentialAlreadyExists.selector, credentialHash)
+        );
         registry.issueCredential(credentialHash, learner, "ipfs://other");
     }
 

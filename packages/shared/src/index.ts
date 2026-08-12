@@ -11,7 +11,12 @@ export type OperationState =
   | 'ledger-unavailable';
 
 export type VerificationState =
-  'valid' | 'not-found' | 'metadata-unavailable' | 'ledger-unavailable' | 'malformed';
+  | 'valid'
+  | 'not-found'
+  | 'metadata-unavailable'
+  | 'metadata-invalid'
+  | 'ledger-unavailable'
+  | 'malformed';
 
 export class CredoraError extends Error {
   constructor(

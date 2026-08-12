@@ -10,8 +10,14 @@ import {
   type AuthChallenge,
 } from '@credora/auth';
 import { credentialReferenceFromHash, normalizeAddress } from '@credora/credential-core';
+import {
+  createCredoraPublicClient,
+  RegistryBlockchainAdapter,
+  type BlockchainAdapter,
+} from '@credora/blockchain';
 import { CredoraError, isRecord, type OperationState, type Role } from '@credora/shared';
-import { LocalStorage } from '@credora/storage';
+import { IpfsStorage, LocalStorage, type MetadataStorage } from '@credora/storage';
+import { defineChain, isAddress, type Address, type Hex } from 'viem';
 
 const port = Number(process.env.API_PORT ?? 4000);
 const databasePath = process.env.API_DATABASE_PATH ?? './.data/credora.sqlite';
@@ -41,6 +47,7 @@ database.exec(`
     metadata_uri TEXT,
     credential_hash TEXT,
     transaction_hash TEXT,
+    block_number INTEGER,
     state TEXT NOT NULL,
     created_at TEXT NOT NULL
   );
@@ -53,12 +60,54 @@ database.exec(`
   );
 `);
 
-const storage = new LocalStorage();
+try {
+  database.exec('ALTER TABLE issuances ADD COLUMN block_number INTEGER');
+} catch (error) {
+  if (!String(error).toLowerCase().includes('duplicate column')) throw error;
+}
+
+const rpcUrl = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
+const configuredChainId = Number(process.env.CHAIN_ID ?? 31337);
+const configuredRegistryAddress = process.env.CREDENTIAL_REGISTRY_ADDRESS;
+const chain = defineChain({
+  id: configuredChainId,
+  name: `Credora local chain ${configuredChainId}`,
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: { default: { http: [rpcUrl] } },
+});
+
+const registryAddress =
+  configuredRegistryAddress &&
+  isAddress(configuredRegistryAddress) &&
+  configuredRegistryAddress.toLowerCase() !== '0x0000000000000000000000000000000000000000'
+    ? normalizeAddress(configuredRegistryAddress, 'CREDENTIAL_REGISTRY_ADDRESS')
+    : undefined;
+
+const blockchain: BlockchainAdapter | undefined = registryAddress
+  ? new RegistryBlockchainAdapter(
+      { chain, rpcUrl, contractAddress: registryAddress },
+      createCredoraPublicClient({ chain, rpcUrl, contractAddress: registryAddress }),
+    )
+  : undefined;
+
+const storage: MetadataStorage =
+  process.env.IPFS_UPLOAD_URL && process.env.IPFS_GATEWAY_URL
+    ? new IpfsStorage({
+        uploadUrl: process.env.IPFS_UPLOAD_URL,
+        gatewayBaseUrl: process.env.IPFS_GATEWAY_URL,
+      })
+    : new LocalStorage();
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
+
+function stringifyJson(value: unknown) {
+  return JSON.stringify(value, (_key, nested) =>
+    typeof nested === 'bigint' ? nested.toString() : nested,
+  );
+}
 
 function send(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { ...jsonHeaders, 'access-control-allow-origin': '*' });
-  response.end(JSON.stringify(body));
+  response.end(stringifyJson(body));
 }
 
 function fail(response: ServerResponse, error: unknown) {
@@ -76,7 +125,12 @@ async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   if (!chunks.length) return {};
-  const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw new CredoraError('Request body must contain valid JSON', 'INVALID_BODY', 400);
+  }
   if (!isRecord(parsed))
     throw new CredoraError('Request body must be an object', 'INVALID_BODY', 400);
   return parsed;
@@ -94,7 +148,11 @@ function currentSession(request: IncomingMessage) {
   const row = database.prepare('SELECT * FROM sessions WHERE token = ?').get(token) as
     { token: string; address: string; roles: string; expires_at: string } | undefined;
   if (!row || Date.parse(row.expires_at) <= Date.now()) return undefined;
-  return { token: row.token, address: row.address, roles: JSON.parse(row.roles) as Role[] };
+  return {
+    token: row.token,
+    address: normalizeAddress(row.address, 'session.address'),
+    roles: JSON.parse(row.roles) as Role[],
+  };
 }
 
 function requireSession(request: IncomingMessage) {
@@ -110,12 +168,49 @@ function requiredString(body: Record<string, unknown>, key: string) {
   return value.trim();
 }
 
+function requiredHash(body: Record<string, unknown>, key: string): Hex {
+  try {
+    return credentialReferenceFromHash(requiredString(body, key));
+  } catch {
+    throw new CredoraError(`${key} must be a 32-byte hash`, 'INVALID_BODY', 400);
+  }
+}
+
+function requiredTransactionHash(body: Record<string, unknown>): Hex {
+  const value = requiredString(body, 'transactionHash');
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value))
+    throw new CredoraError('transactionHash must be a 32-byte hash', 'INVALID_BODY', 400);
+  return value as Hex;
+}
+
+function requireLedger(): BlockchainAdapter {
+  if (!blockchain)
+    throw new CredoraError('Credential ledger is not configured', 'LEDGER_UNAVAILABLE', 503);
+  return blockchain;
+}
+
+function ledgerUnavailable(): CredoraError {
+  return new CredoraError(
+    'Unable to reach the credential ledger right now',
+    'LEDGER_UNAVAILABLE',
+    503,
+  );
+}
+
+function sameAddress(left: string, right: string) {
+  return left.toLowerCase() === right.toLowerCase();
+}
+
+function updateIssuanceState(id: string, state: OperationState) {
+  database.prepare('UPDATE issuances SET state = ? WHERE id = ?').run(state, id);
+}
+
 function audit(actor: string, action: string, details: Record<string, unknown>) {
   database
     .prepare(
       'INSERT INTO audit_logs (id, actor, action, timestamp, details) VALUES (?, ?, ?, ?, ?)',
     )
-    .run(randomUUID(), actor, action, new Date().toISOString(), JSON.stringify(details));
+    .run(randomUUID(), actor, action, new Date().toISOString(), stringifyJson(details));
 }
 
 async function route(request: IncomingMessage, response: ServerResponse) {
@@ -134,7 +229,16 @@ async function route(request: IncomingMessage, response: ServerResponse) {
   }
 
   if (method === 'GET' && path === '/health') {
-    send(response, 200, { ok: true, service: 'credora-api', time: new Date().toISOString() });
+    send(response, 200, {
+      ok: true,
+      service: 'credora-api',
+      time: new Date().toISOString(),
+      ledger: {
+        configured: Boolean(blockchain),
+        chainId: configuredChainId,
+        registryAddress: registryAddress ?? null,
+      },
+    });
     return;
   }
 
@@ -186,6 +290,13 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
     const token = randomUUID();
     const roles: Role[] = ['LEARNER', 'VERIFIER'];
+    if (blockchain) {
+      try {
+        if (await blockchain.isIssuerAuthorized(address)) roles.unshift('ISSUER');
+      } catch {
+        // Authentication remains available while the ledger is restarting.
+      }
+    }
     database
       .prepare('INSERT INTO sessions (token, address, roles, expires_at) VALUES (?, ?, ?, ?)')
       .run(token, address, JSON.stringify(roles), expiresAt);
@@ -210,6 +321,15 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'POST' && path === '/issuances') {
     const session = requireSession(request);
+    const registry = requireLedger();
+    let authorized: boolean;
+    try {
+      authorized = await registry.isIssuerAuthorized(session.address);
+    } catch {
+      throw ledgerUnavailable();
+    }
+    if (!authorized)
+      throw new CredoraError('The connected wallet is not an authorized issuer', 'FORBIDDEN', 403);
     const body = await bodyOf(request);
     const learner = normalizeAddress(requiredString(body, 'learnerAddress'), 'learnerAddress');
     const skillName = requiredString(body, 'skillName');
@@ -265,7 +385,9 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
     if (method === 'POST' && issuanceMatch[2] === 'metadata') {
       const body = await bodyOf(request);
-      const credentialHash = requiredString(body, 'credentialHash') as `0x${string}`;
+      if (row.state === 'confirmed')
+        throw new CredoraError('Issued credentials are immutable', 'IMMUTABLE_CREDENTIAL', 409);
+      const credentialHash = requiredHash(body, 'credentialHash');
       const metadata = {
         schemaVersion: 1 as const,
         credentialHash,
@@ -276,7 +398,18 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         learnerAddress: String(row.learner) as `0x${string}`,
         description: typeof body.description === 'string' ? body.description : undefined,
       };
-      const stored = await storage.put(metadata);
+      let stored: { uri: string; cid: string };
+      try {
+        stored = await storage.put(metadata);
+      } catch {
+        updateIssuanceState(id, 'metadata-upload-failed');
+        audit(session.address, 'issuance_metadata_upload_failed', { id });
+        throw new CredoraError(
+          'Credential metadata storage is unavailable',
+          'METADATA_STORAGE_UNAVAILABLE',
+          503,
+        );
+      }
       database
         .prepare(
           'UPDATE issuances SET metadata_uri = ?, credential_hash = ?, state = ? WHERE id = ?',
@@ -289,27 +422,139 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
     if (method === 'POST' && issuanceMatch[2] === 'confirm') {
       const body = await bodyOf(request);
-      const transactionHash = requiredString(body, 'transactionHash');
-      const credentialHash = requiredString(body, 'credentialHash');
-      const blockNumber = typeof body.blockNumber === 'number' ? body.blockNumber : null;
+      if (row.state === 'confirmed')
+        throw new CredoraError('Issued credentials are immutable', 'IMMUTABLE_CREDENTIAL', 409);
+      const transactionHash = requiredTransactionHash(body);
+      const credentialHash = requiredHash(body, 'credentialHash');
+      const registry = requireLedger();
+      let receipt;
+      try {
+        receipt = await registry.waitForConfirmation(transactionHash);
+      } catch {
+        updateIssuanceState(id, 'transaction-pending');
+        throw ledgerUnavailable();
+      }
+      if (receipt.status === 'reverted') {
+        updateIssuanceState(id, 'transaction-reverted');
+        audit(session.address, 'credential_issuance_transaction_reverted', {
+          id,
+          transactionHash,
+        });
+        send(response, 409, {
+          id,
+          state: 'transaction-reverted',
+          transactionHash,
+          credentialHash,
+          blockNumber: receipt.blockNumber,
+        });
+        return;
+      }
+
+      let transaction;
+      let onchain;
+      try {
+        transaction = await registry.getIssuanceTransaction(transactionHash);
+        onchain = await registry.getCredential(credentialHash);
+      } catch {
+        updateIssuanceState(id, 'transaction-pending');
+        throw ledgerUnavailable();
+      }
+      if (onchain.state === 'not-found' || !transaction)
+        throw new CredoraError(
+          'The confirmed transaction did not issue this credential',
+          'INTEGRITY_MISMATCH',
+          409,
+        );
+      if (
+        !sameAddress(transaction.from, session.address) ||
+        !sameAddress(transaction.learner, String(row.learner)) ||
+        transaction.metadataUri !== String(row.metadata_uri) ||
+        !sameAddress(onchain.issuer ?? '', session.address) ||
+        !sameAddress(onchain.learner ?? '', String(row.learner)) ||
+        onchain.metadataUri !== String(row.metadata_uri)
+      )
+        throw new CredoraError(
+          'The on-chain credential does not match this issuance',
+          'INTEGRITY_MISMATCH',
+          409,
+        );
       database
         .prepare(
-          'UPDATE issuances SET transaction_hash = ?, credential_hash = ?, state = ? WHERE id = ?',
+          'UPDATE issuances SET transaction_hash = ?, credential_hash = ?, block_number = ?, state = ? WHERE id = ?',
         )
-        .run(transactionHash, credentialHash, 'confirmed', id);
-      audit(session.address, 'credential_issuance_confirmed', { id, transactionHash, blockNumber });
-      send(response, 200, { id, state: 'confirmed', transactionHash, credentialHash, blockNumber });
+        .run(transactionHash, credentialHash, receipt.blockNumber.toString(), 'confirmed', id);
+      audit(session.address, 'credential_issuance_confirmed', {
+        id,
+        transactionHash,
+        blockNumber: receipt.blockNumber,
+      });
+      send(response, 200, {
+        id,
+        state: 'confirmed',
+        transactionHash,
+        credentialHash,
+        blockNumber: receipt.blockNumber,
+      });
       return;
     }
   }
 
   const verifyMatch = path.match(/^\/credentials\/([^/]+)\/verify$/);
   if (method === 'GET' && verifyMatch) {
-    const reference = credentialReferenceFromHash(decodeURIComponent(verifyMatch[1]));
-    send(response, 503, {
-      state: 'ledger-unavailable',
-      credentialHash: reference,
-      message: 'Connect a deployed registry and RPC URL to enable live verification.',
+    let reference: Hex;
+    try {
+      reference = credentialReferenceFromHash(decodeURIComponent(verifyMatch[1]));
+    } catch {
+      throw new CredoraError(
+        'Credential reference must be a 32-byte hash',
+        'MALFORMED_REFERENCE',
+        400,
+      );
+    }
+    const registry = requireLedger();
+    let record;
+    try {
+      record = await registry.getCredential(reference);
+    } catch {
+      throw ledgerUnavailable();
+    }
+    if (record.state === 'not-found') {
+      send(response, 200, {
+        ...record,
+        message: 'No credential with this reference exists on the selected ledger.',
+      });
+      return;
+    }
+    if (!record.metadataUri || !record.issuer || !record.learner) throw ledgerUnavailable();
+
+    let metadata;
+    try {
+      metadata = await storage.get(record.metadataUri);
+    } catch {
+      send(response, 503, {
+        ...record,
+        state: 'metadata-unavailable',
+        message: 'Credential proof found, but metadata is temporarily unavailable.',
+      });
+      return;
+    }
+    if (
+      metadata.credentialHash.toLowerCase() !== reference.toLowerCase() ||
+      !sameAddress(metadata.issuerAddress, record.issuer ?? '') ||
+      !sameAddress(metadata.learnerAddress, record.learner ?? '')
+    ) {
+      send(response, 422, {
+        ...record,
+        state: 'metadata-invalid',
+        message: 'Credential proof found, but the metadata does not match the ledger record.',
+      });
+      return;
+    }
+    send(response, 200, {
+      ...record,
+      state: 'valid',
+      metadata,
+      message: 'Credential verified against the immutable ledger.',
     });
     return;
   }

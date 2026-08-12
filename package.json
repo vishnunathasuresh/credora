@@ -8,8 +8,11 @@
     "dev:web": "pnpm --filter @credora/web dev",
     "dev:api": "pnpm --filter @credora/api dev",
     "dev:mobile": "pnpm --filter @credora/mobile start",
+    "anvil": "anvil --host 127.0.0.1 --port 8545 --chain-id 31337 --accounts 10 --balance 10000",
+    "contracts:deps": "git submodule update --init --recursive",
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
+    "test:e2e:backend": "pnpm --filter @credora/api exec node ../../tests/e2e/backend-smoke.mjs",
     "lint": "pnpm exec prettier --check .",
     "typecheck": "pnpm -r --if-present typecheck",
     "format": "prettier --write .",
@@ -21,6 +24,7 @@
     "@types/node": "^22.15.21",
     "prettier": "^3.6.2",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "viem": "^2.55.13"
   }
 }
