@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { createWalletClient, defineChain, http, keccak256, toBytes } from 'viem';
+import {
+  createPublicClient,
+  createWalletClient,
+  defineChain,
+  http,
+  keccak256,
+  toBytes,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
@@ -97,8 +104,6 @@ await request(
 );
 
 if (!registry) throw new Error('CREDENTIAL_REGISTRY_ADDRESS is required for backend route tests');
-const issuerHeaders = await authenticate(issuer);
-const unauthorizedHeaders = await authenticate(unauthorized);
 const replayChallenge = await request('/auth/challenge', {
   method: 'POST',
   body: JSON.stringify({ address: issuer.address }),
@@ -116,6 +121,8 @@ await request(
   },
   401,
 );
+const issuerHeaders = await authenticate(issuer);
+const unauthorizedHeaders = await authenticate(unauthorized);
 await request(
   '/issuances',
   {
@@ -137,6 +144,7 @@ const unauthorizedWallet = createWalletClient({
   chain,
   transport: http(rpc),
 });
+const publicClient = createPublicClient({ chain, transport: http(rpc) });
 const happy = await issueDraft(issuerHeaders, 'Route happy path');
 const transactionHash = await wallet.writeContract({
   address: registry,
@@ -169,7 +177,7 @@ const invalid = await request(`/credentials/${happy.metadata.credentialHash}/ver
 assert.equal(invalid.state, 'metadata-invalid');
 
 const missingHash = keccak256(toBytes(`missing-${Date.now()}`));
-await wallet.writeContract({
+const missingTransaction = await wallet.writeContract({
   address: registry,
   abi: issueAbi,
   functionName: 'issueCredential',
@@ -179,6 +187,7 @@ await wallet.writeContract({
     'local://sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   ],
 });
+await publicClient.waitForTransactionReceipt({ hash: missingTransaction });
 const unavailable = await request(`/credentials/${missingHash}/verify`, {}, 503);
 assert.equal(unavailable.state, 'metadata-unavailable');
 
