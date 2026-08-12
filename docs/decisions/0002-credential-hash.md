@@ -19,3 +19,11 @@ fixtures are used across TypeScript clients and Solidity integration tests.
 
 This keeps the hash deterministic across platforms and binds the immutable
 proof to the issuer, learner, skill, date, and metadata reference.
+
+The metadata object is stored without a required copy of `credentialHash`.
+The storage adapter first returns the metadata URI, after which the canonical
+payload is hashed. Verification recomputes the hash from the ledger record and
+the retrieved metadata, avoiding a circular dependency between a content CID
+and a hash that contains that CID. `credentialHash` remains optional in the
+metadata schema for compatibility, but is never trusted as the source of
+verification truth.

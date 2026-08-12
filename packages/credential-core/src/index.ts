@@ -23,7 +23,8 @@ export type CredentialPayload = {
 
 export type CredentialMetadata = {
   schemaVersion: 1;
-  credentialHash: Hex;
+  /** Optional compatibility field; the canonical hash is derived from the metadata URI. */
+  credentialHash?: Hex;
   skillName: string;
   skillLevel: string;
   issueDate: string;
@@ -55,6 +56,10 @@ function issueDateSeconds(issueDate: string): bigint {
   return BigInt(Math.floor(milliseconds / 1000));
 }
 
+export function normalizeIssueDate(issueDate: string): string {
+  return new Date(Number(issueDateSeconds(issueDate) * 1000n)).toISOString();
+}
+
 export function normalizeAddress(value: string, field: string): Address {
   if (!isAddress(value)) throw new Error(`${field} must be a valid EVM address`);
   return getAddress(value);
@@ -67,7 +72,7 @@ export function normalizePayload(input: Omit<CredentialPayload, 'version'>): Cre
     learnerAddress: normalizeAddress(input.learnerAddress, 'learnerAddress'),
     skillName: normalizedText(input.skillName, 'skillName'),
     skillLevel: normalizedText(input.skillLevel, 'skillLevel'),
-    issueDate: new Date(Number(issueDateSeconds(input.issueDate) * 1000n)).toISOString(),
+    issueDate: normalizeIssueDate(input.issueDate),
     metadataUri: normalizedText(input.metadataUri, 'metadataUri'),
   };
 }

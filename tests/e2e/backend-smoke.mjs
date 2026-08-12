@@ -1,4 +1,4 @@
-import { createWalletClient, defineChain, http, keccak256, toBytes } from 'viem';
+import { createWalletClient, defineChain, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
@@ -49,12 +49,12 @@ const draft = await request('/issuances', {
     issueDate: new Date().toISOString(),
   }),
 });
-const credentialHash = keccak256(toBytes(`credora-smoke-${draft.id}`));
 const metadata = await request(`/issuances/${draft.id}/metadata`, {
   method: 'POST',
   headers,
-  body: JSON.stringify({ credentialHash, description: 'End-to-end local registry proof' }),
+  body: JSON.stringify({ description: 'End-to-end local registry proof' }),
 });
+const credentialHash = metadata.credentialHash;
 const transactionHash = await wallet.writeContract({
   address: registry,
   abi: [

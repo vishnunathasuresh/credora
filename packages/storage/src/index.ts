@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { CredentialMetadata } from '@credora/credential-core';
 
 export interface MetadataStorage {
@@ -24,6 +27,27 @@ export class MockStorage implements MetadataStorage {
 }
 
 export class LocalStorage extends MockStorage {}
+
+export class FileStorage implements MetadataStorage {
+  constructor(private readonly rootDir = './.data/metadata') {
+    mkdirSync(rootDir, { recursive: true });
+  }
+
+  async put(metadata: CredentialMetadata) {
+    const serialized = JSON.stringify(metadata);
+    const cid = `sha256-${createHash('sha256').update(serialized).digest('hex')}`;
+    writeFileSync(join(this.rootDir, `${cid}.json`), serialized, 'utf8');
+    return { cid, uri: `local://${cid}` };
+  }
+
+  async get(uri: string) {
+    const cid = uri.replace(/^local:\/\//, '');
+    if (!/^sha256-[a-f0-9]{64}$/.test(cid)) throw new Error('invalid local metadata URI');
+    return JSON.parse(
+      readFileSync(join(this.rootDir, `${cid}.json`), 'utf8'),
+    ) as CredentialMetadata;
+  }
+}
 
 export type IpfsStorageOptions = {
   gatewayBaseUrl: string;

@@ -9,14 +9,20 @@ import {
   verifyAuthSignature,
   type AuthChallenge,
 } from '@credora/auth';
-import { credentialReferenceFromHash, normalizeAddress } from '@credora/credential-core';
+import {
+  credentialReferenceFromHash,
+  hashCredential,
+  normalizeAddress,
+  normalizeIssueDate,
+  type CredentialMetadata,
+} from '@credora/credential-core';
 import {
   createCredoraPublicClient,
   RegistryBlockchainAdapter,
   type BlockchainAdapter,
 } from '@credora/blockchain';
 import { CredoraError, isRecord, type OperationState, type Role } from '@credora/shared';
-import { IpfsStorage, LocalStorage, type MetadataStorage } from '@credora/storage';
+import { FileStorage, IpfsStorage, type MetadataStorage } from '@credora/storage';
 import { defineChain, isAddress, type Address, type Hex } from 'viem';
 
 const port = Number(process.env.API_PORT ?? 4000);
@@ -96,7 +102,7 @@ const storage: MetadataStorage =
         uploadUrl: process.env.IPFS_UPLOAD_URL,
         gatewayBaseUrl: process.env.IPFS_GATEWAY_URL,
       })
-    : new LocalStorage();
+    : new FileStorage(process.env.API_STORAGE_PATH ?? './.data/metadata');
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 
 function stringifyJson(value: unknown) {
@@ -183,6 +189,14 @@ function requiredTransactionHash(body: Record<string, unknown>): Hex {
   return value as Hex;
 }
 
+function requiredIssueDate(body: Record<string, unknown>): string {
+  try {
+    return normalizeIssueDate(requiredString(body, 'issueDate'));
+  } catch {
+    throw new CredoraError('issueDate must be a valid ISO date', 'INVALID_BODY', 400);
+  }
+}
+
 function requireLedger(): BlockchainAdapter {
   if (!blockchain)
     throw new CredoraError('Credential ledger is not configured', 'LEDGER_UNAVAILABLE', 503);
@@ -203,6 +217,17 @@ function sameAddress(left: string, right: string) {
 
 function updateIssuanceState(id: string, state: OperationState) {
   database.prepare('UPDATE issuances SET state = ? WHERE id = ?').run(state, id);
+}
+
+function hashForIssuance(row: Record<string, unknown>, metadataUri: string): Hex {
+  return hashCredential({
+    issuerAddress: normalizeAddress(String(row.issuer), 'issuer'),
+    learnerAddress: normalizeAddress(String(row.learner), 'learner'),
+    skillName: String(row.skill_name),
+    skillLevel: String(row.skill_level),
+    issueDate: String(row.issue_date),
+    metadataUri,
+  });
 }
 
 function audit(actor: string, action: string, details: Record<string, unknown>) {
@@ -334,7 +359,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const learner = normalizeAddress(requiredString(body, 'learnerAddress'), 'learnerAddress');
     const skillName = requiredString(body, 'skillName');
     const skillLevel = requiredString(body, 'skillLevel');
-    const issueDate = requiredString(body, 'issueDate');
+    const issueDate = requiredIssueDate(body);
     const id = randomUUID();
     const state: OperationState = 'draft';
     database
@@ -387,13 +412,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       const body = await bodyOf(request);
       if (row.state === 'confirmed')
         throw new CredoraError('Issued credentials are immutable', 'IMMUTABLE_CREDENTIAL', 409);
-      const credentialHash = requiredHash(body, 'credentialHash');
-      const metadata = {
+      const metadata: CredentialMetadata = {
         schemaVersion: 1 as const,
-        credentialHash,
         skillName: String(row.skill_name),
         skillLevel: String(row.skill_level),
-        issueDate: String(row.issue_date),
+        issueDate: normalizeIssueDate(String(row.issue_date)),
         issuerAddress: session.address as `0x${string}`,
         learnerAddress: String(row.learner) as `0x${string}`,
         description: typeof body.description === 'string' ? body.description : undefined,
@@ -410,13 +433,14 @@ async function route(request: IncomingMessage, response: ServerResponse) {
           503,
         );
       }
+      const credentialHash = hashForIssuance(row, stored.uri);
       database
         .prepare(
           'UPDATE issuances SET metadata_uri = ?, credential_hash = ?, state = ? WHERE id = ?',
         )
         .run(stored.uri, credentialHash, 'metadata-uploaded', id);
       audit(session.address, 'issuance_metadata_uploaded', { id, uri: stored.uri });
-      send(response, 200, { id, state: 'metadata-uploaded', ...stored });
+      send(response, 200, { id, state: 'metadata-uploaded', credentialHash, ...stored });
       return;
     }
 
@@ -426,6 +450,18 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         throw new CredoraError('Issued credentials are immutable', 'IMMUTABLE_CREDENTIAL', 409);
       const transactionHash = requiredTransactionHash(body);
       const credentialHash = requiredHash(body, 'credentialHash');
+      if (!row.metadata_uri || !row.credential_hash)
+        throw new CredoraError('Credential metadata must be uploaded first', 'INVALID_STATE', 409);
+      const expectedHash = hashForIssuance(row, String(row.metadata_uri));
+      if (
+        expectedHash.toLowerCase() !== credentialHash.toLowerCase() ||
+        String(row.credential_hash).toLowerCase() !== expectedHash.toLowerCase()
+      )
+        throw new CredoraError(
+          'Credential hash does not match the canonical issuance payload',
+          'INTEGRITY_MISMATCH',
+          409,
+        );
       const registry = requireLedger();
       let receipt;
       try {
@@ -539,7 +575,16 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       return;
     }
     if (
-      metadata.credentialHash.toLowerCase() !== reference.toLowerCase() ||
+      hashCredential({
+        issuerAddress: metadata.issuerAddress,
+        learnerAddress: metadata.learnerAddress,
+        skillName: metadata.skillName,
+        skillLevel: metadata.skillLevel,
+        issueDate: metadata.issueDate,
+        metadataUri: record.metadataUri,
+      }).toLowerCase() !== reference.toLowerCase() ||
+      (metadata.credentialHash &&
+        metadata.credentialHash.toLowerCase() !== reference.toLowerCase()) ||
       !sameAddress(metadata.issuerAddress, record.issuer ?? '') ||
       !sameAddress(metadata.learnerAddress, record.learner ?? '')
     ) {

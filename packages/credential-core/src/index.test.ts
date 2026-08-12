@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { hashCredential, normalizePayload } from './index.js';
+import { hashCredential, normalizeIssueDate, normalizePayload } from './index.js';
 
 const input = {
   issuerAddress: '0x1111111111111111111111111111111111111111',
@@ -30,5 +30,9 @@ describe('credential-core', () => {
       hashCredential(input),
       hashCredential({ ...input, metadataUri: 'ipfs://different' }),
     );
+  });
+
+  it('normalizes issue dates to the hashed second', () => {
+    assert.equal(normalizeIssueDate('2026-08-11T00:00:00.999Z'), '2026-08-11T00:00:00.000Z');
   });
 });
