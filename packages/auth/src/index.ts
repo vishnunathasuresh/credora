@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { verifyMessage, type Address } from 'viem';
 import type { Role } from '@credora/shared';
 
@@ -35,5 +36,5 @@ export async function verifyAuthSignature(
 }
 
 export function createNonce(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+  return randomBytes(24).toString('base64url');
 }

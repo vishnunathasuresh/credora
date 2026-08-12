@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
+import { migrateDatabase } from './migrations.js';
 import {
   buildAuthMessage,
   createNonce,
@@ -27,50 +28,29 @@ import { defineChain, isAddress, type Address, type Hex } from 'viem';
 
 const port = Number(process.env.API_PORT ?? 4000);
 const databasePath = process.env.API_DATABASE_PATH ?? './.data/credora.sqlite';
+const maxBodyBytes = Number(process.env.API_MAX_BODY_BYTES ?? 64 * 1024);
+const sessionTtlMs = Number(process.env.API_SESSION_TTL_MS ?? 24 * 60 * 60_000);
+const challengeTtlMs = Number(process.env.API_CHALLENGE_TTL_MS ?? 10 * 60_000);
+const cleanupIntervalMs = Number(process.env.API_CLEANUP_INTERVAL_MS ?? 15 * 60_000);
+const chainSyncIntervalMs = Number(process.env.CHAIN_SYNC_INTERVAL_MS ?? 30_000);
+const confirmationDepth = Number(process.env.CHAIN_CONFIRMATIONS ?? 1);
+const chainStartBlock = BigInt(process.env.CHAIN_START_BLOCK ?? 0);
+const chainChunkSize = BigInt(process.env.CHAIN_SYNC_CHUNK_SIZE ?? 2_000);
+const chainReorgRescanBlocks = BigInt(process.env.CHAIN_REORG_RESCAN_BLOCKS ?? 12);
+const rateLimitWindowMs = Number(process.env.API_RATE_LIMIT_WINDOW_MS ?? 60_000);
+const rateLimitMax = Number(process.env.API_RATE_LIMIT_MAX ?? 120);
+const trustProxy = process.env.API_TRUST_PROXY === 'true';
+const hstsEnabled = process.env.API_HSTS === 'true';
+const allowedOrigins = new Set(
+  (process.env.API_ALLOWED_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
 
 const database = new DatabaseSync(databasePath);
-database.exec(`
-  CREATE TABLE IF NOT EXISTS challenges (
-    address TEXT PRIMARY KEY,
-    nonce TEXT NOT NULL,
-    message TEXT NOT NULL,
-    expires_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    address TEXT NOT NULL,
-    roles TEXT NOT NULL,
-    expires_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS issuances (
-    id TEXT PRIMARY KEY,
-    issuer TEXT NOT NULL,
-    learner TEXT NOT NULL,
-    skill_name TEXT NOT NULL,
-    skill_level TEXT NOT NULL,
-    issue_date TEXT NOT NULL,
-    metadata_uri TEXT,
-    credential_hash TEXT,
-    transaction_hash TEXT,
-    block_number INTEGER,
-    state TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS audit_logs (
-    id TEXT PRIMARY KEY,
-    actor TEXT NOT NULL,
-    action TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    details TEXT NOT NULL
-  );
-`);
-
-try {
-  database.exec('ALTER TABLE issuances ADD COLUMN block_number INTEGER');
-} catch (error) {
-  if (!String(error).toLowerCase().includes('duplicate column')) throw error;
-}
+migrateDatabase(database);
 
 const rpcUrl = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
 const configuredChainId = Number(process.env.CHAIN_ID ?? 31337);
@@ -101,9 +81,19 @@ const storage: MetadataStorage =
     ? new IpfsStorage({
         uploadUrl: process.env.IPFS_UPLOAD_URL,
         gatewayBaseUrl: process.env.IPFS_GATEWAY_URL,
+        uploadAuthToken: process.env.IPFS_UPLOAD_AUTH_TOKEN,
+        gatewayAuthToken: process.env.IPFS_GATEWAY_AUTH_TOKEN,
       })
     : new FileStorage(process.env.API_STORAGE_PATH ?? './.data/metadata');
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
+const rateLimits = new Map<string, { startedAt: number; count: number }>();
+const metrics = new Map<string, number>();
+const configuredAdminAddresses = new Set(
+  (process.env.API_ADMIN_ADDRESSES ?? '')
+    .split(',')
+    .map((address) => address.trim().toLowerCase())
+    .filter(Boolean),
+);
 
 function stringifyJson(value: unknown) {
   return JSON.stringify(value, (_key, nested) =>
@@ -111,12 +101,33 @@ function stringifyJson(value: unknown) {
   );
 }
 
-function send(response: ServerResponse, status: number, body: unknown) {
-  response.writeHead(status, { ...jsonHeaders, 'access-control-allow-origin': '*' });
+function incrementMetric(name: string) {
+  metrics.set(name, (metrics.get(name) ?? 0) + 1);
+}
+
+function originHeaders(request: IncomingMessage) {
+  const origin = header(request, 'origin');
+  const allowedOrigin = origin && allowedOrigins.has(origin) ? origin : undefined;
+  return {
+    ...jsonHeaders,
+    ...(allowedOrigin ? { 'access-control-allow-origin': allowedOrigin } : {}),
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization',
+    'x-content-type-options': 'nosniff',
+    'cache-control': 'no-store',
+    ...(hstsEnabled ? { 'strict-transport-security': 'max-age=31536000' } : {}),
+    vary: 'Origin',
+  };
+}
+
+function send(request: IncomingMessage, response: ServerResponse, status: number, body: unknown) {
+  incrementMetric(`http_responses_${status}_total`);
+  response.writeHead(status, originHeaders(request));
   response.end(stringifyJson(body));
 }
 
-function fail(response: ServerResponse, error: unknown) {
+function fail(request: IncomingMessage, response: ServerResponse, error: unknown) {
+  incrementMetric('api_errors_total');
   const normalized =
     error instanceof CredoraError
       ? error
@@ -124,12 +135,34 @@ function fail(response: ServerResponse, error: unknown) {
           error instanceof Error ? error.message : 'Unexpected API error',
           'INTERNAL_ERROR',
         );
-  send(response, normalized.status, { error: normalized.code, message: normalized.message });
+  if (normalized.code === 'RATE_LIMITED')
+    response.setHeader('retry-after', Math.ceil(rateLimitWindowMs / 1000).toString());
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      event: 'api_request_failed',
+      method: request.method,
+      path: request.url,
+      code: normalized.code,
+      status: normalized.status,
+    }),
+  );
+  send(request, response, normalized.status, {
+    error: normalized.code,
+    message: normalized.message,
+  });
 }
 
 async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const contentLength = Number(header(request, 'content-length') ?? 0);
+  if (contentLength > maxBodyBytes)
+    throw new CredoraError('Request body is too large', 'PAYLOAD_TOO_LARGE', 413);
   const chunks: Buffer[] = [];
+  let size = 0;
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  for (const chunk of chunks) size += chunk.length;
+  if (size > maxBodyBytes)
+    throw new CredoraError('Request body is too large', 'PAYLOAD_TOO_LARGE', 413);
   if (!chunks.length) return {};
   let parsed: unknown;
   try {
@@ -159,6 +192,35 @@ function currentSession(request: IncomingMessage) {
     address: normalizeAddress(row.address, 'session.address'),
     roles: JSON.parse(row.roles) as Role[],
   };
+}
+
+function cleanupExpiredData() {
+  const now = new Date().toISOString();
+  database.prepare('DELETE FROM challenges WHERE expires_at <= ?').run(now);
+  database.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
+  const cutoff = new Date(Date.now() - rateLimitWindowMs).getTime();
+  for (const [key, value] of rateLimits) if (value.startedAt < cutoff) rateLimits.delete(key);
+}
+
+function clientKey(request: IncomingMessage) {
+  if (trustProxy) {
+    const forwarded = header(request, 'x-forwarded-for')?.split(',')[0]?.trim();
+    if (forwarded) return forwarded;
+  }
+  return request.socket.remoteAddress ?? 'unknown';
+}
+
+function checkRateLimit(request: IncomingMessage) {
+  const now = Date.now();
+  const key = clientKey(request);
+  const current = rateLimits.get(key);
+  if (!current || now - current.startedAt >= rateLimitWindowMs) {
+    rateLimits.set(key, { startedAt: now, count: 1 });
+    return;
+  }
+  current.count += 1;
+  if (current.count > rateLimitMax)
+    throw new CredoraError('Too many requests', 'RATE_LIMITED', 429);
 }
 
 function requireSession(request: IncomingMessage) {
@@ -238,23 +300,110 @@ function audit(actor: string, action: string, details: Record<string, unknown>) 
     .run(randomUUID(), actor, action, new Date().toISOString(), stringifyJson(details));
 }
 
+let chainSyncInProgress = false;
+
+async function reconcileChainEvents(resetFromBlock?: bigint) {
+  if (!blockchain || chainSyncInProgress) return { synced: false, reason: 'LEDGER_UNAVAILABLE' };
+  chainSyncInProgress = true;
+  try {
+    const sync = database.prepare('SELECT next_block FROM chain_sync WHERE id = 1').get() as
+      { next_block: number } | undefined;
+    const configuredStart = resetFromBlock ?? (sync ? BigInt(sync.next_block) : chainStartBlock);
+    const latest = await blockchain.getBlockNumber();
+    const safeLatest = latest > BigInt(confirmationDepth) ? latest - BigInt(confirmationDepth) : 0n;
+    if (configuredStart > safeLatest)
+      return { synced: true, fromBlock: configuredStart, toBlock: safeLatest, events: 0 };
+
+    const fromBlock = resetFromBlock
+      ? resetFromBlock
+      : configuredStart > chainReorgRescanBlocks
+        ? configuredStart - chainReorgRescanBlocks
+        : chainStartBlock;
+    database.exec('BEGIN');
+    database.prepare('DELETE FROM chain_events WHERE block_number >= ?').run(Number(fromBlock));
+    database
+      .prepare(
+        `UPDATE issuances
+         SET transaction_hash = NULL, block_number = NULL,
+             state = CASE WHEN metadata_uri IS NULL THEN 'draft' ELSE 'metadata-uploaded' END
+         WHERE block_number >= ?`,
+      )
+      .run(Number(fromBlock));
+    database
+      .prepare('INSERT OR REPLACE INTO chain_sync (id, next_block, updated_at) VALUES (1, ?, ?)')
+      .run(Number(fromBlock), new Date().toISOString());
+    database.exec('COMMIT');
+
+    let events = 0;
+    for (let cursor = fromBlock; cursor <= safeLatest; cursor += chainChunkSize) {
+      const toBlock =
+        cursor + chainChunkSize - 1n > safeLatest ? safeLatest : cursor + chainChunkSize - 1n;
+      const logs = await blockchain.getCredentialIssuedEvents(cursor, toBlock);
+      database.exec('BEGIN');
+      for (const event of logs) {
+        database
+          .prepare(
+            `INSERT OR REPLACE INTO chain_events
+              (credential_hash, issuer, learner, metadata_uri, issued_at, block_number,
+               block_hash, transaction_hash, log_index, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            event.credentialHash,
+            event.issuer,
+            event.learner,
+            event.metadataUri,
+            Number(event.issuedAt),
+            Number(event.blockNumber),
+            event.blockHash,
+            event.transactionHash,
+            Number(event.logIndex),
+            new Date().toISOString(),
+          );
+        database
+          .prepare(
+            `UPDATE issuances
+             SET transaction_hash = ?, block_number = ?, state = 'confirmed'
+             WHERE credential_hash = ?`,
+          )
+          .run(event.transactionHash, Number(event.blockNumber), event.credentialHash);
+        events += 1;
+      }
+      database
+        .prepare('INSERT OR REPLACE INTO chain_sync (id, next_block, updated_at) VALUES (1, ?, ?)')
+        .run(Number(toBlock + 1n), new Date().toISOString());
+      database.exec('COMMIT');
+      incrementMetric('chain_events_processed_total');
+      cursor = toBlock;
+    }
+    return { synced: true, fromBlock, toBlock: safeLatest, events };
+  } catch (error) {
+    try {
+      database.exec('ROLLBACK');
+    } catch {
+      // Preserve the original reconciliation error.
+    }
+    incrementMetric('chain_sync_errors_total');
+    throw error;
+  } finally {
+    chainSyncInProgress = false;
+  }
+}
+
 async function route(request: IncomingMessage, response: ServerResponse) {
+  checkRateLimit(request);
   const url = new URL(request.url ?? '/', 'http://localhost');
   const method = request.method ?? 'GET';
   const path = url.pathname;
 
   if (method === 'OPTIONS') {
-    response.writeHead(204, {
-      'access-control-allow-origin': '*',
-      'access-control-allow-methods': 'GET,POST,OPTIONS',
-      'access-control-allow-headers': 'content-type,authorization',
-    });
+    response.writeHead(204, originHeaders(request));
     response.end();
     return;
   }
 
   if (method === 'GET' && path === '/health') {
-    send(response, 200, {
+    send(request, response, 200, {
       ok: true,
       service: 'credora-api',
       time: new Date().toISOString(),
@@ -267,10 +416,31 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
+  if (method === 'GET' && path === '/readyz') {
+    if (!blockchain) {
+      send(request, response, 503, { ok: false, ready: false, reason: 'LEDGER_UNAVAILABLE' });
+      return;
+    }
+    try {
+      await blockchain.getCredential(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      );
+      send(request, response, 200, { ok: true, ready: true });
+    } catch {
+      send(request, response, 503, { ok: false, ready: false, reason: 'LEDGER_UNAVAILABLE' });
+    }
+    return;
+  }
+
+  if (method === 'GET' && path === '/metrics') {
+    send(request, response, 200, Object.fromEntries(metrics));
+    return;
+  }
+
   if (method === 'POST' && path === '/auth/challenge') {
     const body = await bodyOf(request);
     const address = normalizeAddress(requiredString(body, 'address'), 'address');
-    const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+    const expiresAt = new Date(Date.now() + challengeTtlMs).toISOString();
     const challenge: AuthChallenge = {
       address,
       nonce: createNonce(),
@@ -283,7 +453,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         'INSERT OR REPLACE INTO challenges (address, nonce, message, expires_at) VALUES (?, ?, ?, ?)',
       )
       .run(address, challenge.nonce, challenge.message, challenge.expiresAt);
-    send(response, 200, challenge);
+    send(request, response, 200, challenge);
     return;
   }
 
@@ -302,45 +472,63 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         401,
       );
     }
-    const valid = await verifyAuthSignature(
-      {
-        address,
-        nonce: challenge.nonce,
-        message: challenge.message,
-        expiresAt: challenge.expires_at,
-      },
-      signature,
-    );
+    let valid = false;
+    try {
+      valid = await verifyAuthSignature(
+        {
+          address,
+          nonce: challenge.nonce,
+          message: challenge.message,
+          expiresAt: challenge.expires_at,
+        },
+        signature,
+      );
+    } catch {
+      valid = false;
+    }
     if (!valid) throw new CredoraError('Wallet signature was not valid', 'INVALID_SIGNATURE', 401);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+    const consumed = database
+      .prepare('DELETE FROM challenges WHERE address = ? AND nonce = ?')
+      .run(address, challenge.nonce);
+    if (Number(consumed.changes) !== 1)
+      throw new CredoraError(
+        'Authentication challenge has already been used',
+        'CHALLENGE_REPLAY',
+        401,
+      );
+    const expiresAt = new Date(Date.now() + sessionTtlMs).toISOString();
     const token = randomUUID();
     const roles: Role[] = ['LEARNER', 'VERIFIER'];
+    if (configuredAdminAddresses.has(address.toLowerCase())) roles.unshift('ADMIN');
     if (blockchain) {
       try {
         if (await blockchain.isIssuerAuthorized(address)) roles.unshift('ISSUER');
+        if (await blockchain.isAdmin(address)) roles.unshift('ADMIN');
       } catch {
         // Authentication remains available while the ledger is restarting.
       }
     }
+    database.prepare('DELETE FROM sessions WHERE address = ?').run(address);
     database
-      .prepare('INSERT INTO sessions (token, address, roles, expires_at) VALUES (?, ?, ?, ?)')
-      .run(token, address, JSON.stringify(roles), expiresAt);
-    database.prepare('DELETE FROM challenges WHERE address = ?').run(address);
+      .prepare(
+        'INSERT INTO sessions (token, address, roles, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(token, address, JSON.stringify(roles), expiresAt, new Date().toISOString());
     audit(address, 'wallet_authenticated', { roles });
-    send(response, 200, { token, address, roles, expiresAt });
+    send(request, response, 200, { token, address, roles, expiresAt });
     return;
   }
 
   if (method === 'POST' && path === '/auth/logout') {
     const session = requireSession(request);
     database.prepare('DELETE FROM sessions WHERE token = ?').run(session.token);
-    send(response, 200, { ok: true });
+    send(request, response, 200, { ok: true });
     return;
   }
 
   if (method === 'GET' && path === '/me') {
     const session = requireSession(request);
-    send(response, 200, session);
+    send(request, response, 200, session);
     return;
   }
 
@@ -381,7 +569,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         new Date().toISOString(),
       );
     audit(session.address, 'issuance_draft_created', { id, learner, skillName, skillLevel });
-    send(response, 201, {
+    send(request, response, 201, {
       id,
       state,
       issuerAddress: session.address,
@@ -404,7 +592,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       throw new CredoraError('Issuance belongs to another issuer', 'FORBIDDEN', 403);
 
     if (method === 'GET' && !issuanceMatch[2]) {
-      send(response, 200, row);
+      send(request, response, 200, row);
       return;
     }
 
@@ -440,7 +628,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         )
         .run(stored.uri, credentialHash, 'metadata-uploaded', id);
       audit(session.address, 'issuance_metadata_uploaded', { id, uri: stored.uri });
-      send(response, 200, { id, state: 'metadata-uploaded', credentialHash, ...stored });
+      send(request, response, 200, { id, state: 'metadata-uploaded', credentialHash, ...stored });
       return;
     }
 
@@ -476,7 +664,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
           id,
           transactionHash,
         });
-        send(response, 409, {
+        send(request, response, 409, {
           id,
           state: 'transaction-reverted',
           transactionHash,
@@ -524,7 +712,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         transactionHash,
         blockNumber: receipt.blockNumber,
       });
-      send(response, 200, {
+      send(request, response, 200, {
         id,
         state: 'confirmed',
         transactionHash,
@@ -555,7 +743,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       throw ledgerUnavailable();
     }
     if (record.state === 'not-found') {
-      send(response, 200, {
+      send(request, response, 200, {
         ...record,
         message: 'No credential with this reference exists on the selected ledger.',
       });
@@ -567,7 +755,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     try {
       metadata = await storage.get(record.metadataUri);
     } catch {
-      send(response, 503, {
+      send(request, response, 503, {
         ...record,
         state: 'metadata-unavailable',
         message: 'Credential proof found, but metadata is temporarily unavailable.',
@@ -588,14 +776,14 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       !sameAddress(metadata.issuerAddress, record.issuer ?? '') ||
       !sameAddress(metadata.learnerAddress, record.learner ?? '')
     ) {
-      send(response, 422, {
+      send(request, response, 422, {
         ...record,
         state: 'metadata-invalid',
         message: 'Credential proof found, but the metadata does not match the ledger record.',
       });
       return;
     }
-    send(response, 200, {
+    send(request, response, 200, {
       ...record,
       state: 'valid',
       metadata,
@@ -608,7 +796,152 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const session = requireSession(request);
     if (!session.roles.includes('ADMIN'))
       throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
-    send(response, 200, database.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC').all());
+    const limitValue = Number(url.searchParams.get('limit') ?? 100);
+    const offsetValue = Number(url.searchParams.get('offset') ?? 0);
+    if (
+      !Number.isInteger(limitValue) ||
+      limitValue < 1 ||
+      limitValue > 500 ||
+      !Number.isInteger(offsetValue) ||
+      offsetValue < 0
+    )
+      throw new CredoraError(
+        'limit must be 1-500 and offset must be a non-negative integer',
+        'INVALID_QUERY',
+        400,
+      );
+    const items = database
+      .prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT ? OFFSET ?')
+      .all(limitValue, offsetValue)
+      .map((entry) => {
+        const row = entry as Record<string, unknown>;
+        try {
+          return { ...row, details: JSON.parse(String(row.details)) };
+        } catch {
+          return row;
+        }
+      });
+    const countRow = database.prepare('SELECT COUNT(*) AS count FROM audit_logs').get() as {
+      count: number;
+    };
+    const total = Number(countRow.count);
+    send(request, response, 200, { items, total, limit: limitValue, offset: offsetValue });
+    return;
+  }
+
+  if (method === 'POST' && path === '/admin/reconcile') {
+    const session = requireSession(request);
+    if (!session.roles.includes('ADMIN'))
+      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    const body = await bodyOf(request);
+    let fromBlock: bigint | undefined;
+    if (body.fromBlock !== undefined) {
+      if (
+        typeof body.fromBlock !== 'number' ||
+        !Number.isInteger(body.fromBlock) ||
+        body.fromBlock < 0
+      )
+        throw new CredoraError('fromBlock must be a non-negative integer', 'INVALID_BODY', 400);
+      fromBlock = BigInt(body.fromBlock);
+    }
+    try {
+      const result = await reconcileChainEvents(fromBlock);
+      audit(session.address, 'chain_reconciliation_requested', {
+        fromBlock: fromBlock?.toString(),
+      });
+      send(request, response, 200, result);
+    } catch {
+      throw ledgerUnavailable();
+    }
+    return;
+  }
+
+  if (method === 'GET' && path === '/admin/issuers') {
+    const session = requireSession(request);
+    if (!session.roles.includes('ADMIN'))
+      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    const requested = url.searchParams.getAll('address');
+    const addresses = requested.length
+      ? requested.map((address) => normalizeAddress(address, 'address'))
+      : [...configuredAdminAddresses].map((address) => normalizeAddress(address, 'address'));
+    if (!blockchain)
+      throw new CredoraError('Credential ledger is not configured', 'LEDGER_UNAVAILABLE', 503);
+    try {
+      const issuers = await Promise.all(
+        addresses.map(async (address) => ({
+          address,
+          authorized: await blockchain.isIssuerAuthorized(address),
+        })),
+      );
+      send(request, response, 200, { issuers });
+    } catch {
+      throw ledgerUnavailable();
+    }
+    return;
+  }
+
+  if (method === 'POST' && path === '/admin/issuer-authorizations/confirm') {
+    const session = requireSession(request);
+    if (!session.roles.includes('ADMIN'))
+      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    const body = await bodyOf(request);
+    const transactionHash = requiredTransactionHash(body);
+    const issuer = normalizeAddress(requiredString(body, 'issuer'), 'issuer');
+    if (typeof body.authorized !== 'boolean')
+      throw new CredoraError('authorized must be a boolean', 'INVALID_BODY', 400);
+    const registry = requireLedger();
+    let receipt;
+    try {
+      receipt = await registry.waitForConfirmation(transactionHash);
+    } catch {
+      throw ledgerUnavailable();
+    }
+    if (receipt.status === 'reverted') {
+      send(request, response, 409, {
+        state: 'transaction-reverted',
+        transactionHash,
+        blockNumber: receipt.blockNumber,
+      });
+      return;
+    }
+    let transaction;
+    let authorized;
+    try {
+      transaction = await registry.getIssuerAuthorizationTransaction(transactionHash);
+      if (
+        !transaction ||
+        !sameAddress(transaction.issuer, issuer) ||
+        transaction.authorized !== body.authorized ||
+        !(await registry.isAdmin(transaction.from))
+      )
+        throw new CredoraError(
+          'The authorization transaction does not match an admin action',
+          'INTEGRITY_MISMATCH',
+          409,
+        );
+      authorized = await registry.isIssuerAuthorized(issuer);
+    } catch (error) {
+      if (error instanceof CredoraError) throw error;
+      throw ledgerUnavailable();
+    }
+    if (authorized !== body.authorized)
+      throw new CredoraError(
+        'Issuer authorization was not reflected on the ledger',
+        'LEDGER_UNAVAILABLE',
+        503,
+      );
+    audit(session.address, 'issuer_authorization_confirmed', {
+      issuer,
+      authorized,
+      transactionHash,
+      blockNumber: receipt.blockNumber,
+    });
+    send(request, response, 200, {
+      issuer,
+      authorized,
+      transactionHash,
+      blockNumber: receipt.blockNumber,
+    });
     return;
   }
 
@@ -616,12 +949,32 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 }
 
 const server = createServer((request, response) => {
-  route(request, response).catch((error) => fail(response, error));
+  incrementMetric('api_requests_total');
+  route(request, response).catch((error) => fail(request, response, error));
 });
 
 server.listen(port, () => {
-  console.log(`Credora API listening on http://localhost:${port}`);
+  console.log(JSON.stringify({ level: 'info', event: 'api_started', port }));
 });
 
-process.on('SIGINT', () => server.close(() => database.close()));
-process.on('SIGTERM', () => server.close(() => database.close()));
+const cleanupTimer = setInterval(cleanupExpiredData, cleanupIntervalMs);
+cleanupTimer.unref();
+const chainSyncTimer = setInterval(() => {
+  reconcileChainEvents().catch(() => undefined);
+}, chainSyncIntervalMs);
+chainSyncTimer.unref();
+
+process.on('SIGINT', () =>
+  server.close(() => {
+    clearInterval(cleanupTimer);
+    clearInterval(chainSyncTimer);
+    database.close();
+  }),
+);
+process.on('SIGTERM', () =>
+  server.close(() => {
+    clearInterval(cleanupTimer);
+    clearInterval(chainSyncTimer);
+    database.close();
+  }),
+);

@@ -49,11 +49,35 @@ export type IssuanceTransaction = {
   metadataUri: string;
 };
 
+export type IssuerAuthorizationTransaction = {
+  from: Address;
+  issuer: Address;
+  authorized: boolean;
+};
+
+export type CredentialIssuedEvent = {
+  credentialHash: Hex;
+  issuer: Address;
+  learner: Address;
+  metadataUri: string;
+  issuedAt: bigint;
+  blockNumber: bigint;
+  blockHash: Hex;
+  transactionHash: Hex;
+  logIndex: number;
+};
+
 export interface BlockchainAdapter {
   isIssuerAuthorized(address: Address): Promise<boolean>;
+  isAdmin(address: Address): Promise<boolean>;
   issueCredential(input: IssueCredentialInput): Promise<PendingTransaction>;
   getCredential(ref: CredentialReference): Promise<CredentialLookupResult>;
   getIssuanceTransaction(txHash: Hex): Promise<IssuanceTransaction | undefined>;
+  getIssuerAuthorizationTransaction(
+    txHash: Hex,
+  ): Promise<IssuerAuthorizationTransaction | undefined>;
+  getBlockNumber(): Promise<bigint>;
+  getCredentialIssuedEvents(fromBlock: bigint, toBlock: bigint): Promise<CredentialIssuedEvent[]>;
   waitForConfirmation(txHash: Hex): Promise<ConfirmedTransaction>;
 }
 
@@ -74,6 +98,20 @@ export class RegistryBlockchainAdapter implements BlockchainAdapter {
       abi: credentialRegistryAbi,
       functionName: 'isAuthorizedIssuer',
       args: [address],
+    });
+  }
+
+  async isAdmin(address: Address) {
+    const role = await this.publicClient.readContract({
+      address: this.config.contractAddress,
+      abi: credentialRegistryAbi,
+      functionName: 'DEFAULT_ADMIN_ROLE',
+    });
+    return this.publicClient.readContract({
+      address: this.config.contractAddress,
+      abi: credentialRegistryAbi,
+      functionName: 'hasRole',
+      args: [role, address],
     });
   }
 
@@ -123,6 +161,74 @@ export class RegistryBlockchainAdapter implements BlockchainAdapter {
     } catch {
       return undefined;
     }
+  }
+
+  async getIssuerAuthorizationTransaction(
+    txHash: Hex,
+  ): Promise<IssuerAuthorizationTransaction | undefined> {
+    const transaction = await this.publicClient.getTransaction({ hash: txHash });
+    if (
+      !transaction.to ||
+      transaction.to.toLowerCase() !== this.config.contractAddress.toLowerCase()
+    )
+      return undefined;
+    try {
+      const decoded = decodeFunctionData({ abi: credentialRegistryAbi, data: transaction.input });
+      if (decoded.functionName !== 'setIssuerAuthorization') return undefined;
+      const [issuer, authorized] = decoded.args;
+      return { from: transaction.from, issuer, authorized };
+    } catch {
+      return undefined;
+    }
+  }
+
+  getBlockNumber() {
+    return this.publicClient.getBlockNumber();
+  }
+
+  async getCredentialIssuedEvents(fromBlock: bigint, toBlock: bigint) {
+    const credentialIssuedEvent = {
+      type: 'event',
+      name: 'CredentialIssued',
+      anonymous: false,
+      inputs: [
+        { indexed: true, name: 'credentialHash', type: 'bytes32' },
+        { indexed: true, name: 'issuer', type: 'address' },
+        { indexed: true, name: 'learner', type: 'address' },
+        { indexed: false, name: 'metadataUri', type: 'string' },
+        { indexed: false, name: 'issuedAt', type: 'uint64' },
+      ],
+    } as const;
+    const logs = await this.publicClient.getLogs({
+      address: this.config.contractAddress,
+      event: credentialIssuedEvent,
+      fromBlock,
+      toBlock,
+    });
+    return logs.flatMap((log) => {
+      const { credentialHash, issuer, learner, metadataUri, issuedAt } = log.args;
+      if (
+        !credentialHash ||
+        !issuer ||
+        !learner ||
+        metadataUri === undefined ||
+        issuedAt === undefined
+      )
+        return [];
+      return [
+        {
+          credentialHash,
+          issuer,
+          learner,
+          metadataUri,
+          issuedAt,
+          blockNumber: log.blockNumber,
+          blockHash: log.blockHash,
+          transactionHash: log.transactionHash,
+          logIndex: log.logIndex,
+        },
+      ];
+    });
   }
 
   async waitForConfirmation(txHash: Hex): Promise<ConfirmedTransaction> {

@@ -16,3 +16,15 @@ API with the deployed registry configured, then run:
 ```sh
 pnpm test:e2e:backend
 ```
+
+Route failure coverage runs against the same configured API and registry. It
+requires a funded unauthorized Anvil key in addition to the issuer key:
+
+```powershell
+$env:ANVIL_UNAUTHORIZED_PRIVATE_KEY = "0x..."
+pnpm test:e2e:backend:routes
+```
+
+The route suite covers malformed input, missing sessions, unauthorized issuers,
+metadata outages, metadata tampering, duplicate confirmations, and reverted
+transactions.

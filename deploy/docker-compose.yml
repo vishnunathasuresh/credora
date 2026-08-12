@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file: .env.production
+    environment:
+      API_DATABASE_PATH: /data/credora.sqlite
+      API_STORAGE_PATH: /data/metadata
+    expose:
+      - '4000'
+    volumes:
+      - credora-data:/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  db-backup:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file: .env.production
+    environment:
+      API_DATABASE_PATH: /data/credora.sqlite
+      API_BACKUP_PATH: /data/backups
+      API_BACKUP_RETENTION: 14
+    command: ['sh', '-c', 'while true; do node scripts/backup-sqlite.mjs; sleep 21600; done']
+    volumes:
+      - credora-data:/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  https:
+    image: caddy:2-alpine
+    environment:
+      CREDORA_DOMAIN: ${CREDORA_DOMAIN}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  credora-data:
+  caddy-data:
+  caddy-config:

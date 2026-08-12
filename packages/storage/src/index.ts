@@ -52,6 +52,8 @@ export class FileStorage implements MetadataStorage {
 export type IpfsStorageOptions = {
   gatewayBaseUrl: string;
   uploadUrl: string;
+  uploadAuthToken?: string;
+  gatewayAuthToken?: string;
   fetchImpl?: typeof fetch;
 };
 
@@ -65,7 +67,12 @@ export class IpfsStorage implements MetadataStorage {
   async put(metadata: CredentialMetadata) {
     const response = await this.fetchImpl(this.options.uploadUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...(this.options.uploadAuthToken
+          ? { authorization: `Bearer ${this.options.uploadAuthToken}` }
+          : {}),
+      },
       body: JSON.stringify(metadata),
     });
     if (!response.ok) throw new Error(`IPFS upload failed with ${response.status}`);
@@ -77,7 +84,14 @@ export class IpfsStorage implements MetadataStorage {
 
   async get(uri: string) {
     const cid = uri.replace(/^ipfs:\/\//, '');
-    const response = await this.fetchImpl(`${this.options.gatewayBaseUrl}/${cid}`);
+    const response = await this.fetchImpl(
+      `${this.options.gatewayBaseUrl.replace(/\/$/, '')}/${cid}`,
+      {
+        headers: this.options.gatewayAuthToken
+          ? { authorization: `Bearer ${this.options.gatewayAuthToken}` }
+          : undefined,
+      },
+    );
     if (!response.ok) throw new Error(`IPFS retrieval failed with ${response.status}`);
     return (await response.json()) as CredentialMetadata;
   }
