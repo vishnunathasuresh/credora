@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   code_review:
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - name: CodeRabbit PR Review
