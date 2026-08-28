@@ -64,10 +64,6 @@ Keep the upload token server-side; do not commit it or expose it to web/mobile
 clients. Credential metadata is public on IPFS, so do not include unnecessary
 personal data. Leave the IPFS variables blank for local development.
 
-To enable the live Filebase check in GitHub Actions, add the RPC credential as
-the repository secret `FILEBASE_IPFS_RPC_TOKEN`. The integration job is skipped
-when that secret is absent.
-
 ## Architecture decisions
 
 See `docs/decisions/` for the hash format, immutable record policy, storage
