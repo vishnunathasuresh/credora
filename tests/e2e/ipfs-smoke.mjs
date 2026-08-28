@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { IpfsStorage } from '@credora/storage';
+import { IpfsStorage } from '../../packages/storage/src/index.ts';
 
 const uploadUrl = process.env.IPFS_UPLOAD_URL;
 const gatewayBaseUrl = process.env.IPFS_GATEWAY_URL;

@@ -49,7 +49,41 @@ performs public verification from the chain plus metadata storage.
 Copy `.env.example` to `.env.local` or `.env` as appropriate. The default
 configuration is local-only and does not require paid RPC or storage services.
 
+For hosted IPFS metadata, Credora uses Filebase’s Kubo-compatible IPFS RPC API.
+Set the Filebase RPC credential as `IPFS_UPLOAD_AUTH_TOKEN` in `.env.local` or
+your deployment secret store:
+
+```sh
+IPFS_UPLOAD_URL=https://rpc.filebase.io/api/v0/add?cid-version=1
+IPFS_UPLOAD_AUTH_TOKEN=your-filebase-ipfs-rpc-token
+IPFS_GATEWAY_URL=https://ipfs.filebase.io/ipfs
+IPFS_REQUEST_TIMEOUT_MS=15000
+```
+
+Keep the upload token server-side; do not commit it or expose it to web/mobile
+clients. Credential metadata is public on IPFS, so do not include unnecessary
+personal data. Leave the IPFS variables blank for local development.
+
+To enable the live Filebase check in GitHub Actions, add the RPC credential as
+the repository secret `FILEBASE_IPFS_RPC_TOKEN`. The integration job is skipped
+when that secret is absent.
+
 ## Architecture decisions
 
 See `docs/decisions/` for the hash format, immutable record policy, storage
 boundary, and API projection boundary.
+
+## GitHub automation
+
+Pull requests and pushes run workspace typechecking, formatting, unit tests,
+production builds, Foundry contract tests, and an Anvil-backed API integration
+flow through `.github/workflows/ci.yml`.
+
+Pushes to `main` and version tags publish the API container to GitHub Container
+Registry through `.github/workflows/cd.yml`. The deployment stack in `deploy/`
+can consume that image from a self-hosted environment.
+
+New pull requests request a review from GitHub Copilot through
+`.github/workflows/copilot-review.yml`. Copilot code review must be enabled for
+the repository or organization, and its review is advisory rather than a
+required approval.

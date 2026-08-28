@@ -54,37 +54,65 @@ export type IpfsStorageOptions = {
   uploadUrl: string;
   uploadAuthToken?: string;
   gatewayAuthToken?: string;
+  requestTimeoutMs?: number;
   fetchImpl?: typeof fetch;
 };
 
 export class IpfsStorage implements MetadataStorage {
   private readonly fetchImpl: typeof fetch;
+  private readonly requestTimeoutMs: number;
 
   constructor(private readonly options: IpfsStorageOptions) {
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
+    if (!Number.isInteger(this.requestTimeoutMs) || this.requestTimeoutMs < 1)
+      throw new Error('IPFS request timeout must be a positive integer');
+  }
+
+  private async request(input: RequestInfo | URL, init?: RequestInit) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    try {
+      return await this.fetchImpl(input, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError')
+        throw new Error('IPFS request timed out');
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async put(metadata: CredentialMetadata) {
-    const response = await this.fetchImpl(this.options.uploadUrl, {
+    const formData = new FormData();
+    formData.append(
+      'file',
+      new Blob([JSON.stringify(metadata)], { type: 'application/json' }),
+      'credential.json',
+    );
+    const response = await this.request(this.options.uploadUrl, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(this.options.uploadAuthToken
-          ? { authorization: `Bearer ${this.options.uploadAuthToken}` }
-          : {}),
-      },
-      body: JSON.stringify(metadata),
+      headers: this.options.uploadAuthToken
+        ? { authorization: `Bearer ${this.options.uploadAuthToken}` }
+        : undefined,
+      body: formData,
     });
     if (!response.ok) throw new Error(`IPFS upload failed with ${response.status}`);
-    const body = (await response.json()) as { cid?: string; Hash?: string };
-    const cid = body.cid ?? body.Hash;
+    const responseText = await response.text();
+    const responseRecords = responseText
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((record) => JSON.parse(record) as UploadResponse);
+    const body = responseRecords.at(-1);
+    const cid = body?.cid ?? body?.Hash ?? body?.data?.cid;
     if (!cid) throw new Error('IPFS upload did not return a CID');
     return { cid, uri: `ipfs://${cid}` };
   }
 
   async get(uri: string) {
     const cid = uri.replace(/^ipfs:\/\//, '');
-    const response = await this.fetchImpl(
+    const response = await this.request(
       `${this.options.gatewayBaseUrl.replace(/\/$/, '')}/${cid}`,
       {
         headers: this.options.gatewayAuthToken
@@ -96,3 +124,9 @@ export class IpfsStorage implements MetadataStorage {
     return (await response.json()) as CredentialMetadata;
   }
 }
+
+type UploadResponse = {
+  cid?: string;
+  Hash?: string;
+  data?: { cid?: string };
+};

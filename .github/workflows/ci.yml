@@ -8,8 +8,13 @@ on:
 permissions:
   contents: read
 
+env:
+  PNPM_VERSION: 10.32.1
+  NODE_VERSION: 22
+
 jobs:
   workspace:
+    name: Workspace checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,17 +22,19 @@ jobs:
           submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.32.1
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
+      - run: pnpm test
       - run: pnpm build
 
   contracts:
+    name: Solidity checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,3 +43,98 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge build --root contracts
       - run: forge test --root contracts
+
+  ipfs:
+    name: Filebase IPFS integration
+    if: ${{ secrets.FILEBASE_IPFS_RPC_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    needs: [workspace]
+    env:
+      IPFS_UPLOAD_URL: https://rpc.filebase.io/api/v0/add?cid-version=1
+      IPFS_GATEWAY_URL: https://ipfs.filebase.io/ipfs
+      IPFS_UPLOAD_AUTH_TOKEN: ${{ secrets.FILEBASE_IPFS_RPC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run Filebase upload and retrieval smoke test
+        run: pnpm --filter @credora/api exec tsx ../../tests/e2e/ipfs-smoke.mjs
+
+  integration:
+    name: Anvil/API integration
+    runs-on: ubuntu-latest
+    needs: [workspace, contracts]
+    env:
+      RPC_URL: http://127.0.0.1:8545
+      CHAIN_ID: 31337
+      API_PORT: 4000
+      API_DATABASE_PATH: ${{ runner.temp }}/credora.sqlite
+      API_STORAGE_PATH: ${{ runner.temp }}/metadata
+      API_ALLOWED_ORIGINS: http://localhost:3000
+      ANVIL_ADMIN_PRIVATE_KEY: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      ANVIL_ISSUER_PRIVATE_KEY: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      ANVIL_UNAUTHORIZED_PRIVATE_KEY: 0x5de4111afa1a4b94908f83103e8d7a5b2d2a11e8b4e2fbe1e3d8e9f3b5c6d7e8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: pnpm install --frozen-lockfile
+      - name: Start Anvil
+        run: |
+          anvil --host 127.0.0.1 --port 8545 --chain-id 31337 --accounts 10 --balance 10000 >"${RUNNER_TEMP}/anvil.log" 2>&1 &
+          for attempt in {1..30}; do
+            cast block-number --rpc-url "$RPC_URL" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          cast block-number --rpc-url "$RPC_URL"
+      - name: Deploy registry
+        run: |
+          PRIVATE_KEY="$ANVIL_ADMIN_PRIVATE_KEY" forge script script/Deploy.s.sol --root contracts --rpc-url "$RPC_URL" --broadcast
+          registry="$(node -e "const fs=require('fs'); const run=JSON.parse(fs.readFileSync('contracts/broadcast/Deploy.s.sol/31337/run-latest.json')); const tx=run.transactions.find((item) => item.contractName === 'CredentialRegistry'); if (!tx?.contractAddress) process.exit(1); process.stdout.write(tx.contractAddress)")"
+          echo "CREDENTIAL_REGISTRY_ADDRESS=$registry" >> "$GITHUB_ENV"
+      - name: Authorize integration issuer
+        run: |
+          issuer="$(cast wallet address --private-key "$ANVIL_ISSUER_PRIVATE_KEY")"
+          cast send "$CREDENTIAL_REGISTRY_ADDRESS" "setIssuerAuthorization(address,bool)" "$issuer" true --private-key "$ANVIL_ADMIN_PRIVATE_KEY" --rpc-url "$RPC_URL"
+      - name: Fund unauthorized integration account
+        run: |
+          unauthorized="$(cast wallet address --private-key "$ANVIL_UNAUTHORIZED_PRIVATE_KEY")"
+          cast send "$unauthorized" --value 10ether --private-key "$ANVIL_ADMIN_PRIVATE_KEY" --rpc-url "$RPC_URL"
+      - name: Start API
+        run: |
+          nohup pnpm --filter @credora/api dev >"${RUNNER_TEMP}/api.log" 2>&1 &
+          echo $! >"${RUNNER_TEMP}/api.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:${API_PORT}/health >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:${API_PORT}/health
+      - name: Run backend happy path
+        run: pnpm --filter @credora/api exec node ../../tests/e2e/backend-smoke.mjs
+      - name: Run backend failure and authorization paths
+        run: pnpm --filter @credora/api exec node ../../tests/e2e/backend-routes.mjs
+      - name: Run ledger outage path
+        run: pnpm --filter @credora/api exec node ../../tests/e2e/backend-outage.mjs
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          echo '--- Anvil log ---'
+          cat "${RUNNER_TEMP}/anvil.log" || true
+          echo '--- API log ---'
+          cat "${RUNNER_TEMP}/api.log" || true

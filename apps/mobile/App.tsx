@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Linking,
+  ActivityIndicator,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,15 +10,62 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { verificationMessage, type CredentialMetadata } from '@credora/credential-core';
+
+declare const process: { env: { EXPO_PUBLIC_API_URL?: string } };
 
 const ink = '#252620';
 const paper = '#f6f1e7';
 const muted = '#706d63';
 const green = '#407a5e';
+const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
+
+type VerificationState =
+  | 'valid'
+  | 'not-found'
+  | 'metadata-unavailable'
+  | 'metadata-invalid'
+  | 'ledger-unavailable'
+  | 'malformed';
+
+type VerificationResult = {
+  state: VerificationState;
+  message?: string;
+  metadata?: CredentialMetadata;
+};
 
 export default function App() {
   const [reference, setReference] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<VerificationResult | null>(null);
   const valid = /^0x[0-9a-fA-F]{64}$/.test(reference.trim());
+
+  async function verify() {
+    if (!valid) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const response = await fetch(
+        `${apiUrl.replace(/\/$/, '')}/credentials/${encodeURIComponent(reference.trim())}/verify`,
+      );
+      const body = (await response.json()) as Partial<VerificationResult> & { error?: string };
+      setResult(
+        body.state
+          ? (body as VerificationResult)
+          : {
+              state: response.status === 503 ? 'ledger-unavailable' : 'malformed',
+              message: body.message ?? body.error,
+            },
+      );
+    } catch {
+      setResult({
+        state: 'ledger-unavailable',
+        message: 'Unable to reach the verification service right now.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -58,7 +105,10 @@ export default function App() {
         <TextInput
           style={styles.input}
           value={reference}
-          onChangeText={setReference}
+          onChangeText={(value) => {
+            setReference(value);
+            setResult(null);
+          }}
           placeholder="Paste credential hash"
           placeholderTextColor="#9c988c"
           autoCapitalize="none"
@@ -67,10 +117,36 @@ export default function App() {
         <Pressable
           style={[styles.button, !valid && styles.buttonDisabled]}
           disabled={!valid}
-          onPress={() => Linking.openURL(`https://credora.local/verify/${reference.trim()}`)}
+          onPress={verify}
         >
-          <Text style={styles.buttonText}>CHECK THE RECORD ↗</Text>
+          {loading ? (
+            <ActivityIndicator color={paper} />
+          ) : (
+            <Text style={styles.buttonText}>CHECK THE RECORD ↗</Text>
+          )}
         </Pressable>
+        {result ? (
+          <View style={[styles.resultCard, result.state === 'valid' && styles.resultCardValid]}>
+            <Text style={styles.resultState}>
+              {result.state === 'valid'
+                ? '✓ VERIFIED'
+                : result.state === 'not-found'
+                  ? '— NOT FOUND'
+                  : '! CHECK NEEDED'}
+            </Text>
+            <Text style={styles.resultMessage}>
+              {result.message ?? verificationMessage(result.state)}
+            </Text>
+            {result.metadata ? (
+              <View style={styles.resultMetadata}>
+                <Text style={styles.resultTitle}>{result.metadata.skillName}</Text>
+                <Text style={styles.resultDetail}>
+                  {result.metadata.skillLevel} · {result.metadata.issueDate}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Credora protocol</Text>
           <Text style={styles.footerText}>Portable · Open · Yours</Text>
@@ -140,6 +216,19 @@ const styles = StyleSheet.create({
   button: { alignItems: 'center', backgroundColor: ink, marginTop: 20, padding: 17 },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: paper, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  resultCard: {
+    backgroundColor: '#f0e7d8',
+    borderColor: '#d5c5ad',
+    borderWidth: 1,
+    marginTop: 20,
+    padding: 18,
+  },
+  resultCardValid: { backgroundColor: '#e3ebdf', borderColor: '#b7cdb9' },
+  resultState: { color: green, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  resultMessage: { color: ink, fontSize: 14, lineHeight: 21, marginTop: 8 },
+  resultMetadata: { borderTopColor: '#b7cdb9', borderTopWidth: 1, marginTop: 16, paddingTop: 14 },
+  resultTitle: { color: ink, fontFamily: 'Georgia', fontSize: 22 },
+  resultDetail: { color: muted, fontSize: 12, marginTop: 5 },
   footer: {
     borderTopColor: '#d9d0c1',
     borderTopWidth: 1,

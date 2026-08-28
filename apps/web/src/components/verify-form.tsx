@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 const HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
 export function VerifyForm() {
+  const router = useRouter();
   const [reference, setReference] = useState('');
-  const [submitted, setSubmitted] = useState(false);
   const valid = HASH_PATTERN.test(reference.trim());
 
   return (
@@ -14,7 +15,7 @@ export function VerifyForm() {
       className="verify-form"
       onSubmit={(event) => {
         event.preventDefault();
-        setSubmitted(true);
+        if (valid) router.push(`/verify/${encodeURIComponent(reference.trim())}`);
       }}
     >
       <label htmlFor="credential-reference">Credential hash</label>
@@ -24,7 +25,6 @@ export function VerifyForm() {
           value={reference}
           onChange={(event) => {
             setReference(event.target.value);
-            setSubmitted(false);
           }}
           placeholder="0x… 64 hexadecimal characters"
           spellCheck={false}
@@ -35,9 +35,7 @@ export function VerifyForm() {
         </button>
       </div>
       <div className="form-help" aria-live="polite">
-        {submitted && valid
-          ? 'Reference accepted. The live registry lookup is ready for the configured network.'
-          : 'No wallet required. Verification reads the public credential record.'}
+        No wallet required. Verification reads the public credential record.
       </div>
     </form>
   );

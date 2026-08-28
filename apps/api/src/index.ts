@@ -83,6 +83,7 @@ const storage: MetadataStorage =
         gatewayBaseUrl: process.env.IPFS_GATEWAY_URL,
         uploadAuthToken: process.env.IPFS_UPLOAD_AUTH_TOKEN,
         gatewayAuthToken: process.env.IPFS_GATEWAY_AUTH_TOKEN,
+        requestTimeoutMs: Number(process.env.IPFS_REQUEST_TIMEOUT_MS ?? 15_000),
       })
     : new FileStorage(process.env.API_STORAGE_PATH ?? './.data/metadata');
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
