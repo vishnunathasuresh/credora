@@ -8,10 +8,6 @@ on:
 permissions:
   contents: read
 
-env:
-  PNPM_VERSION: 10.32.1
-  NODE_VERSION: 22
-
 jobs:
   workspace:
     name: Workspace checks
@@ -22,10 +18,10 @@ jobs:
           submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
+          version: 10.32.1
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
@@ -64,10 +60,10 @@ jobs:
           submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
+          version: 10.32.1
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22
           cache: pnpm
       - uses: foundry-rs/foundry-toolchain@v1
       - run: pnpm install --frozen-lockfile
