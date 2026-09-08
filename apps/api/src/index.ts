@@ -22,6 +22,7 @@ import {
   RegistryBlockchainAdapter,
   type BlockchainAdapter,
 } from '@credora/blockchain';
+import { demoCatalog } from '@credora/demo-data';
 import { CredoraError, isRecord, type OperationState, type Role } from '@credora/shared';
 import { FileStorage, IpfsStorage, type MetadataStorage } from '@credora/storage';
 import { defineChain, isAddress, type Address, type Hex } from 'viem';
@@ -89,8 +90,14 @@ const storage: MetadataStorage =
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 const rateLimits = new Map<string, { startedAt: number; count: number }>();
 const metrics = new Map<string, number>();
-const configuredAdminAddresses = new Set(
-  (process.env.API_ADMIN_ADDRESSES ?? '')
+const configuredSuperadminAddresses = new Set(
+  (process.env.API_SUPERADMIN_ADDRESSES ?? process.env.API_ADMIN_ADDRESSES ?? '')
+    .split(',')
+    .map((address) => address.trim().toLowerCase())
+    .filter(Boolean),
+);
+const configuredOrgAdminAddresses = new Set(
+  (process.env.API_ORG_ADMIN_ADDRESSES ?? '')
     .split(',')
     .map((address) => address.trim().toLowerCase())
     .filter(Boolean),
@@ -228,6 +235,20 @@ function requireSession(request: IncomingMessage) {
   const session = currentSession(request);
   if (!session) throw new CredoraError('A valid wallet session is required', 'UNAUTHORIZED', 401);
   return session;
+}
+
+function isSuperadmin(session: { roles: Role[] }) {
+  return session.roles.includes('SUPERADMIN') || session.roles.includes('ADMIN');
+}
+
+function requireSuperadmin(request: IncomingMessage) {
+  const session = requireSession(request);
+  if (!isSuperadmin(session)) throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
+  return session;
+}
+
+function isOrgAdmin(session: { roles: Role[] }) {
+  return session.roles.includes('ORG_ADMIN');
 }
 
 function requiredString(body: Record<string, unknown>, key: string) {
@@ -464,6 +485,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
+  if (method === 'GET' && path === '/demo/catalog') {
+    send(request, response, 200, demoCatalog);
+    return;
+  }
+
   if (method === 'POST' && path === '/auth/challenge') {
     const body = await bodyOf(request);
     const address = normalizeAddress(requiredString(body, 'address'), 'address');
@@ -526,11 +552,21 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const expiresAt = new Date(Date.now() + sessionTtlMs).toISOString();
     const token = randomUUID();
     const roles: Role[] = ['LEARNER', 'VERIFIER'];
-    if (configuredAdminAddresses.has(address.toLowerCase())) roles.unshift('ADMIN');
+    const addRole = (role: Role) => {
+      if (!roles.includes(role)) roles.unshift(role);
+    };
+    if (configuredOrgAdminAddresses.has(address.toLowerCase())) addRole('ORG_ADMIN');
+    if (configuredSuperadminAddresses.has(address.toLowerCase())) {
+      addRole('SUPERADMIN');
+      addRole('ADMIN');
+    }
     if (blockchain) {
       try {
         if (await blockchain.isIssuerAuthorized(address)) roles.unshift('ISSUER');
-        if (await blockchain.isAdmin(address)) roles.unshift('ADMIN');
+        if (await blockchain.isAdmin(address)) {
+          addRole('SUPERADMIN');
+          addRole('ADMIN');
+        }
       } catch {
         // Authentication remains available while the ledger is restarting.
       }
@@ -556,6 +592,102 @@ async function route(request: IncomingMessage, response: ServerResponse) {
   if (method === 'GET' && path === '/me') {
     const session = requireSession(request);
     send(request, response, 200, session);
+    return;
+  }
+
+  if (method === 'GET' && path === '/issuances') {
+    const session = requireSession(request);
+    if (!session.roles.includes('ISSUER') && !isOrgAdmin(session))
+      throw new CredoraError('Issuer or organization-admin role required', 'FORBIDDEN', 403);
+    const limitValue = Number(url.searchParams.get('limit') ?? 50);
+    if (!Number.isInteger(limitValue) || limitValue < 1 || limitValue > 100)
+      throw new CredoraError('limit must be 1-100', 'INVALID_QUERY', 400);
+    const items = database
+      .prepare(
+        `SELECT id, issuer, learner, skill_name, skill_level, issue_date, metadata_uri,
+                credential_hash, transaction_hash, block_number, state, created_at
+         FROM issuances
+         WHERE issuer = ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(session.address, limitValue);
+    send(request, response, 200, { items, limit: limitValue });
+    return;
+  }
+
+  if (method === 'GET' && path === '/credentials') {
+    const session = requireSession(request);
+    const limitValue = Number(url.searchParams.get('limit') ?? 50);
+    if (!Number.isInteger(limitValue) || limitValue < 1 || limitValue > 100)
+      throw new CredoraError('limit must be 1-100', 'INVALID_QUERY', 400);
+    const items = database
+      .prepare(
+        `SELECT credential_hash, issuer, learner, metadata_uri, transaction_hash,
+                block_number, state, issue_date, skill_name, skill_level
+         FROM issuances
+         WHERE learner = ? AND state = 'confirmed'
+         ORDER BY issue_date DESC
+         LIMIT ?`,
+      )
+      .all(session.address, limitValue);
+    send(request, response, 200, {
+      items,
+      limit: limitValue,
+      source: 'api-projection',
+      sourceNote: 'Public proof remains authoritative on the registry and metadata source.',
+    });
+    return;
+  }
+
+  if (method === 'GET' && path === '/org/overview') {
+    const session = requireSession(request);
+    if (!isOrgAdmin(session) && !session.roles.includes('ISSUER'))
+      throw new CredoraError('Organization-admin role required', 'FORBIDDEN', 403);
+    const counts = database
+      .prepare(
+        `SELECT state, COUNT(*) AS count
+         FROM issuances
+         WHERE issuer = ?
+         GROUP BY state`,
+      )
+      .all(session.address) as { state: string; count: number }[];
+    send(request, response, 200, {
+      address: session.address,
+      roles: session.roles,
+      issuanceCounts: Object.fromEntries(counts.map((row) => [row.state, Number(row.count)])),
+      projection: 'api',
+      projectionNote: 'Counts are operational projections; the registry remains authoritative.',
+    });
+    return;
+  }
+
+  if (method === 'GET' && path === '/superadmin/overview') {
+    const session = requireSuperadmin(request);
+    const issuanceCount = database.prepare('SELECT COUNT(*) AS count FROM issuances').get() as {
+      count: number;
+    };
+    const confirmedCount = database
+      .prepare("SELECT COUNT(*) AS count FROM issuances WHERE state = 'confirmed'")
+      .get() as { count: number };
+    const auditCount = database.prepare('SELECT COUNT(*) AS count FROM audit_logs').get() as {
+      count: number;
+    };
+    send(request, response, 200, {
+      address: session.address,
+      roles: session.roles,
+      ledger: {
+        configured: Boolean(blockchain),
+        chainId: configuredChainId,
+        registryAddress: registryAddress ?? null,
+      },
+      projections: {
+        issuances: Number(issuanceCount.count),
+        confirmed: Number(confirmedCount.count),
+        auditEvents: Number(auditCount.count),
+      },
+      metrics: Object.fromEntries(metrics),
+    });
     return;
   }
 
@@ -821,8 +953,8 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'GET' && path === '/admin/audit') {
     const session = requireSession(request);
-    if (!session.roles.includes('ADMIN'))
-      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    if (!isSuperadmin(session))
+      throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
     const limitValue = Number(url.searchParams.get('limit') ?? 100);
     const offsetValue = Number(url.searchParams.get('offset') ?? 0);
     if (
@@ -858,8 +990,8 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'POST' && path === '/admin/reconcile') {
     const session = requireSession(request);
-    if (!session.roles.includes('ADMIN'))
-      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    if (!isSuperadmin(session))
+      throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
     const body = await bodyOf(request);
     let fromBlock: bigint | undefined;
     if (body.fromBlock !== undefined) {
@@ -885,12 +1017,12 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'GET' && path === '/admin/issuers') {
     const session = requireSession(request);
-    if (!session.roles.includes('ADMIN'))
-      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    if (!isSuperadmin(session))
+      throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
     const requested = url.searchParams.getAll('address');
     const addresses = requested.length
       ? requested.map((address) => normalizeAddress(address, 'address'))
-      : [...configuredAdminAddresses].map((address) => normalizeAddress(address, 'address'));
+      : [...configuredSuperadminAddresses].map((address) => normalizeAddress(address, 'address'));
     if (!blockchain)
       throw new CredoraError('Credential ledger is not configured', 'LEDGER_UNAVAILABLE', 503);
     try {
@@ -909,8 +1041,8 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'POST' && path === '/admin/issuer-authorizations/confirm') {
     const session = requireSession(request);
-    if (!session.roles.includes('ADMIN'))
-      throw new CredoraError('Admin role required', 'FORBIDDEN', 403);
+    if (!isSuperadmin(session))
+      throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
     const body = await bodyOf(request);
     const transactionHash = requiredTransactionHash(body);
     const issuer = normalizeAddress(requiredString(body, 'issuer'), 'issuer');

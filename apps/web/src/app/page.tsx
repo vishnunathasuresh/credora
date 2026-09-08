@@ -1,18 +1,16 @@
 import { VerifyForm } from '../components/verify-form';
+import { ArrowDownIcon, ArrowUpRightIcon } from '../components/icons';
 
 const principles = [
   [
-    '01',
     'Issue with proof',
     'Organizations sign once. The registry keeps the record visible and unchanged.',
   ],
   [
-    '02',
     'Carry your work',
     'Credential holders get a portable wallet instead of a file that can disappear.',
   ],
   [
-    '03',
     'Check independently',
     'Recruiters verify from a public link without creating an account or connecting a wallet.',
   ],
@@ -23,7 +21,6 @@ export default function HomePage() {
     <main>
       <section className="hero page-width">
         <div className="hero-copy">
-          <p className="eyebrow">A quieter kind of trust</p>
           <h1>Credentials that stay yours.</h1>
           <p className="lede">
             Credora gives skills and certifications a durable home—issued by the people who know,
@@ -31,10 +28,10 @@ export default function HomePage() {
           </p>
           <div className="hero-actions">
             <a className="button button-dark" href="/verify">
-              Verify a credential <span>↗</span>
+              Verify a credential <ArrowUpRightIcon />
             </a>
             <a className="text-link" href="#how-it-works">
-              See how it works <span>↓</span>
+              See how it works <ArrowDownIcon />
             </a>
           </div>
         </div>
@@ -54,7 +51,7 @@ export default function HomePage() {
           </div>
           <div className="proof-footer">
             <span>Immutable record</span>
-            <span>↗</span>
+            <ArrowUpRightIcon />
           </div>
         </div>
       </section>
@@ -73,13 +70,11 @@ export default function HomePage() {
 
       <section className="principles page-width" id="how-it-works">
         <div className="section-intro">
-          <p className="eyebrow">The Credora way</p>
           <h2>Trust, without the ceremony.</h2>
         </div>
         <div className="principle-grid">
-          {principles.map(([number, title, body]) => (
-            <article className="principle" key={number}>
-              <span className="principle-number">{number}</span>
+          {principles.map(([title, body]) => (
+            <article className="principle" key={title}>
               <h3>{title}</h3>
               <p>{body}</p>
             </article>
@@ -89,7 +84,6 @@ export default function HomePage() {
 
       <section className="verify-band page-width">
         <div>
-          <p className="eyebrow">Already have a reference?</p>
           <h2>Start with the proof.</h2>
           <p>Paste a credential hash and see what the ledger says.</p>
         </div>

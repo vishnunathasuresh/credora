@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '../styles/globals.css';
+import { MenuIcon } from '../components/icons';
 import { ThemeToggle } from '../components/theme-toggle';
 
 export const metadata: Metadata = {
@@ -17,11 +18,35 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <span className="mark">C</span>
               <span>credora</span>
             </a>
-            <nav className="nav" aria-label="Primary navigation">
-              <a href="/verify">Verify</a>
-              <a href="#how-it-works">How it works</a>
+            <div className="header-controls">
+              <nav className="nav desktop-nav" aria-label="Primary navigation">
+                <a href="/verify">Verify</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/superadmin">Superadmin</a>
+                <a href="/org">Org</a>
+                <a href="/issuer">Issue</a>
+                <a href="/wallet">Wallet</a>
+                <a href="/demo">Demo data</a>
+                <a href="#how-it-works">How it works</a>
+              </nav>
               <ThemeToggle />
-            </nav>
+              <details className="mobile-nav">
+                <summary>
+                  <span>Menu</span>
+                  <MenuIcon />
+                </summary>
+                <nav className="mobile-nav-panel" aria-label="Mobile navigation">
+                  <a href="/verify">Verify a credential</a>
+                  <a href="/dashboard">Choose workspace</a>
+                  <a href="/superadmin">Superadmin control</a>
+                  <a href="/org">Organization workspace</a>
+                  <a href="/issuer">Issue a credential</a>
+                  <a href="/wallet">Open wallet</a>
+                  <a href="/demo">Explore demo data</a>
+                  <a href="/#how-it-works">How it works</a>
+                </nav>
+              </details>
+            </div>
           </header>
           {children}
           <footer className="footer">

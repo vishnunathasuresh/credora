@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'ISSUER' | 'LEARNER' | 'VERIFIER';
+export type Role = 'SUPERADMIN' | 'ORG_ADMIN' | 'ADMIN' | 'ISSUER' | 'LEARNER' | 'VERIFIER';
 
 export type OperationState =
   | 'draft'

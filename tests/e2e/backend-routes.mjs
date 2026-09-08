@@ -123,6 +123,9 @@ await request(
 );
 const issuerHeaders = await authenticate(issuer);
 const unauthorizedHeaders = await authenticate(unauthorized);
+const emptyIssuances = await request('/issuances', { headers: issuerHeaders });
+assert.ok(Array.isArray(emptyIssuances.items));
+await request('/issuances?limit=0', { headers: issuerHeaders }, 400);
 await request(
   '/issuances',
   {
@@ -157,6 +160,10 @@ await request(`/issuances/${happy.draft.id}/confirm`, {
   headers: issuerHeaders,
   body: JSON.stringify({ transactionHash, credentialHash: happy.metadata.credentialHash }),
 });
+const issuerProjection = await request('/issuances', { headers: issuerHeaders });
+assert.ok(
+  issuerProjection.items.some((item) => item.credential_hash === happy.metadata.credentialHash),
+);
 await request(
   `/issuances/${happy.draft.id}/confirm`,
   {

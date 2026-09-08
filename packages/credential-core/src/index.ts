@@ -4,6 +4,7 @@ import {
   isAddress,
   keccak256,
   parseAbiParameters,
+  concatHex,
   type Address,
   type Hex,
 } from 'viem';
@@ -34,15 +35,63 @@ export type CredentialMetadata = {
   documentName?: string;
 };
 
+/** Public v2 manifest: claim values may remain with the holder while the root
+ * is published and bound to the on-chain credential hash. */
+export type SelectiveCredentialMetadata = {
+  schemaVersion: 2;
+  credentialHash?: Hex;
+  issuerAddress: Address;
+  learnerAddress: Address;
+  issueDate: string;
+  claimsRoot: Hex;
+  publicClaims?: Record<string, string>;
+};
+
 export type CredentialRecord = CredentialPayload & {
   credentialHash: Hex;
   transactionHash?: Hex;
   blockNumber?: bigint;
 };
 
+/**
+ * A claim committed into a selective-disclosure Merkle tree. The salt keeps
+ * low-entropy values (for example, common skill levels) from being guessed
+ * from a published commitment.
+ */
+export type DisclosureClaim = {
+  name: string;
+  value: string;
+  salt: Hex;
+};
+
+export type DisclosureProof = {
+  claim: DisclosureClaim;
+  siblings: Hex[];
+};
+
+export type SelectiveDisclosure = {
+  version: 1;
+  credentialHash: Hex;
+  claimsRoot: Hex;
+  proofs: DisclosureProof[];
+};
+
+export type SelectiveCredentialPayload = {
+  version: 2;
+  issuerAddress: Address;
+  learnerAddress: Address;
+  issueDate: string;
+  metadataUri: string;
+  claimsRoot: Hex;
+};
+
 const hashParameters = parseAbiParameters(
   'uint8, address, address, string, string, uint64, string',
 );
+const selectiveHashParameters = parseAbiParameters(
+  'uint8, address, address, uint64, string, bytes32',
+);
+const claimParameters = parseAbiParameters('string, string, bytes32');
 
 function normalizedText(value: string, field: string): string {
   const normalized = value.trim().normalize('NFC');
@@ -90,6 +139,142 @@ export function hashCredential(input: Omit<CredentialPayload, 'version'>): Hex {
       payload.metadataUri,
     ]),
   );
+}
+
+export function hashSelectiveCredential(input: Omit<SelectiveCredentialPayload, 'version'>): Hex {
+  const issuerAddress = normalizeAddress(input.issuerAddress, 'issuerAddress');
+  const learnerAddress = normalizeAddress(input.learnerAddress, 'learnerAddress');
+  const issueDate = normalizeIssueDate(input.issueDate);
+  const metadataUri = normalizedText(input.metadataUri, 'metadataUri');
+  if (!/^0x[0-9a-fA-F]{64}$/.test(input.claimsRoot))
+    throw new Error('claimsRoot must be a 32-byte hash');
+  return keccak256(
+    encodeAbiParameters(selectiveHashParameters, [
+      2,
+      issuerAddress,
+      learnerAddress,
+      issueDateSeconds(issueDate),
+      metadataUri,
+      input.claimsRoot,
+    ]),
+  );
+}
+
+function normalizedClaimName(name: string): string {
+  return normalizedText(name, 'claim name');
+}
+
+function claimLeaf(claim: DisclosureClaim): Hex {
+  return keccak256(
+    encodeAbiParameters(claimParameters, [
+      normalizedClaimName(claim.name),
+      normalizedText(claim.value, `claim ${claim.name}`),
+      claim.salt,
+    ]),
+  );
+}
+
+function orderedPair(left: Hex, right: Hex): Hex {
+  return left.toLowerCase() <= right.toLowerCase()
+    ? keccak256(concatHex([left, right]))
+    : keccak256(concatHex([right, left]));
+}
+
+function validateClaims(claims: DisclosureClaim[]): DisclosureClaim[] {
+  if (!claims.length) throw new Error('at least one disclosure claim is required');
+  const names = new Set<string>();
+  return claims.map((claim) => {
+    const normalized = {
+      name: normalizedClaimName(claim.name),
+      value: normalizedText(claim.value, `claim ${claim.name}`),
+      salt: claim.salt,
+    };
+    if (!/^0x[0-9a-fA-F]{64}$/.test(normalized.salt))
+      throw new Error(`claim ${normalized.name} salt must be a 32-byte value`);
+    if (names.has(normalized.name)) throw new Error(`duplicate claim ${normalized.name}`);
+    names.add(normalized.name);
+    return normalized;
+  });
+}
+
+/** Build a deterministic, sorted Merkle root for a complete claim set. */
+export function claimsRoot(claims: DisclosureClaim[]): Hex {
+  let level = validateClaims(claims)
+    .map(claimLeaf)
+    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  while (level.length > 1) {
+    const next: Hex[] = [];
+    for (let index = 0; index < level.length; index += 2)
+      next.push(orderedPair(level[index], level[index + 1] ?? level[index]));
+    level = next;
+  }
+  return level[0];
+}
+
+/** Create proofs for only the selected claim names; unselected values stay local to the holder. */
+export function createSelectiveDisclosure(input: {
+  credentialHash: Hex;
+  claims: DisclosureClaim[];
+  reveal: string[];
+}): SelectiveDisclosure {
+  const normalizedClaims = validateClaims(input.claims);
+  const root = claimsRoot(normalizedClaims);
+  const reveal = new Set(input.reveal.map(normalizedClaimName));
+  if (!reveal.size) throw new Error('at least one claim must be revealed');
+  for (const name of reveal)
+    if (!normalizedClaims.some((claim) => claim.name === name))
+      throw new Error(`cannot reveal unknown claim ${name}`);
+
+  const leaves = normalizedClaims
+    .map((claim) => ({ claim, leaf: claimLeaf(claim) }))
+    .sort((a, b) => a.leaf.toLowerCase().localeCompare(b.leaf.toLowerCase()));
+  const proofs = normalizedClaims
+    .filter((claim) => reveal.has(claim.name))
+    .map((claim) => {
+      let index = leaves.findIndex((item) => item.claim.name === claim.name);
+      let level = leaves.map((item) => item.leaf);
+      const siblings: Hex[] = [];
+      while (level.length > 1) {
+        siblings.push(level[index % 2 === 0 ? index + 1 : index - 1] ?? level[index]);
+        const next: Hex[] = [];
+        for (let cursor = 0; cursor < level.length; cursor += 2)
+          next.push(orderedPair(level[cursor], level[cursor + 1] ?? level[cursor]));
+        index = Math.floor(index / 2);
+        level = next;
+      }
+      return { claim, siblings };
+    });
+  return { version: 1, credentialHash: input.credentialHash, claimsRoot: root, proofs };
+}
+
+export function verifySelectiveDisclosure(
+  disclosure: SelectiveDisclosure,
+  expectedClaimsRoot: Hex,
+): boolean {
+  if (
+    disclosure.version !== 1 ||
+    disclosure.claimsRoot.toLowerCase() !== expectedClaimsRoot.toLowerCase()
+  )
+    return false;
+  if (!disclosure.proofs.length) return false;
+  return disclosure.proofs.every(({ claim, siblings }) => {
+    let current = claimLeaf(claim);
+    for (const sibling of siblings) current = orderedPair(current, sibling);
+    return current.toLowerCase() === disclosure.claimsRoot.toLowerCase();
+  });
+}
+
+/** Verify a presentation and prove that its root is bound to the v2 ledger hash. */
+export function verifySelectiveDisclosureForCredential(
+  disclosure: SelectiveDisclosure,
+  payload: Omit<SelectiveCredentialPayload, 'version' | 'claimsRoot'>,
+): boolean {
+  if (
+    disclosure.credentialHash.toLowerCase() !==
+    hashSelectiveCredential({ ...payload, claimsRoot: disclosure.claimsRoot }).toLowerCase()
+  )
+    return false;
+  return verifySelectiveDisclosure(disclosure, disclosure.claimsRoot);
 }
 
 export function credentialReferenceFromHash(value: string): Hex {

@@ -16,10 +16,13 @@
     "prettier": "^3.6.2"
   },
   "dependencies": {
+    "@credora/contracts": "workspace:*",
     "@credora/credential-core": "workspace:*",
+    "@credora/demo-data": "workspace:*",
     "@credora/shared": "workspace:*",
     "next": "16.2.9",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "viem": "^2.55.13"
   }
 }

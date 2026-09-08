@@ -1,5 +1,7 @@
 import { verificationMessage } from '@credora/credential-core';
 import { fetchVerification } from '../../../lib/verification-api';
+import { AlertIcon, ArrowUpRightIcon, CheckIcon, MinusIcon } from '../../../components/icons';
+import { RetryVerification } from '../../../components/retry-verification';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,15 +29,41 @@ export default async function CredentialVerificationPage({
             : result.state === 'malformed'
               ? 'Reference not understood.'
               : 'Registry lookup unavailable.';
+  const statusLabel =
+    result.state === 'valid'
+      ? 'Verified on chain'
+      : result.state === 'not-found'
+        ? 'No matching record'
+        : result.state === 'metadata-invalid'
+          ? 'Proof mismatch'
+          : result.state === 'metadata-unavailable'
+            ? 'Metadata unavailable'
+            : result.state === 'ledger-unavailable'
+              ? 'Ledger unavailable'
+              : 'Reference needs attention';
+  const statusTone =
+    result.state === 'valid' ? 'success' : result.state === 'not-found' ? 'neutral' : 'warning';
+  const statusIcon =
+    result.state === 'valid' ? (
+      <CheckIcon />
+    ) : result.state === 'not-found' ? (
+      <MinusIcon />
+    ) : (
+      <AlertIcon />
+    );
   return (
     <main className="page-width narrow-page">
-      <p className="eyebrow">Credential result</p>
       <h1>{title}</h1>
       <p className="lede">{message}</p>
-      <div className="result-card">
-        <span className="result-icon">
-          {metadata ? '✓' : result.state === 'not-found' ? '—' : '!'}
-        </span>
+      <div className={`status-badge status-${statusTone}`} role="status">
+        {statusIcon}
+        <span>{statusLabel}</span>
+      </div>
+      <div
+        className={`result-card result-${statusTone}`}
+        role={result.state === 'valid' ? 'status' : 'alert'}
+      >
+        <span className="result-icon">{statusIcon}</span>
         <div>
           <p className="result-label">Submitted reference</p>
           <code>{credentialRef}</code>
@@ -51,8 +79,21 @@ export default async function CredentialVerificationPage({
           <span>Learner: {metadata.learnerAddress}</span>
         </div>
       ) : null}
+      {result.source === 'direct-rpc' ? (
+        <p className="form-help verification-source">
+          Checked directly against the registry and public metadata source.
+        </p>
+      ) : null}
+      {result.state === 'ledger-unavailable' || result.state === 'metadata-unavailable' ? (
+        <div className="verification-actions">
+          <RetryVerification />
+          <span className="form-help">
+            The proof may still be available when the source recovers.
+          </span>
+        </div>
+      ) : null}
       <a className="text-link" href="/verify">
-        Try another reference <span>↗</span>
+        Try another reference <ArrowUpRightIcon />
       </a>
     </main>
   );

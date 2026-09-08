@@ -24,6 +24,10 @@ pnpm test
 pnpm dev
 ```
 
+`pnpm dev` starts the website and API only. The Expo/mobile app is paused while
+the website MVP is being completed; run `pnpm dev:mobile` explicitly when that
+work resumes.
+
 For blockchain development, install Foundry, start Anvil, then run:
 
 ```sh
@@ -45,6 +49,41 @@ Set the resulting `CREDENTIAL_REGISTRY_ADDRESS` in `.env.local` alongside
 `RPC_URL=http://127.0.0.1:8545` before starting the API. The API validates
 issuer authorization, confirms signed transactions against the registry, and
 performs public verification from the chain plus metadata storage.
+
+For the Next.js website, set the public browser-wallet configuration in
+`apps/web/.env.local`:
+
+```sh
+NEXT_PUBLIC_API_URL=http://127.0.0.1:4000
+NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
+NEXT_PUBLIC_IPFS_GATEWAY_URL=https://ipfs.filebase.io/ipfs
+NEXT_PUBLIC_CHAIN_ID=31337
+NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedRegistry
+```
+
+If the API is unavailable, the website uses the RPC and public gateway values
+to verify the registry record directly. Local `local://` metadata remains
+available through the API only; production verification should use IPFS-backed
+metadata for an independently recoverable path.
+
+Role configuration stays server-side:
+
+```sh
+API_SUPERADMIN_ADDRESSES=0xProtocolAdmin
+API_ORG_ADMIN_ADDRESSES=0xOrganizationOperator
+```
+
+The registry itself remains authoritative for `SUPERADMIN` and `ISSUER`
+authority. `ORG_ADMIN` is an operational organization role; it does not bypass
+the on-chain issuer authorization check.
+
+Open `/dashboard` to see the tools available to the connected wallet. A
+superadmin can open `/superadmin` to authorize an issuer, an organization admin
+can open `/org` to manage organization operations, and an issuer can open
+`/issuer` to issue a credential. Open `/wallet` from the learner wallet to see
+confirmed credentials and copy a public `/verify/<credential-hash>` link. The
+browser wallet signs the session challenge and the issuance transaction;
+private keys are never sent to the API.
 
 Copy `.env.example` to `.env.local` or `.env` as appropriate. The default
 configuration is local-only and does not require paid RPC or storage services.
@@ -68,6 +107,17 @@ personal data. Leave the IPFS variables blank for local development.
 
 See `docs/decisions/` for the hash format, immutable record policy, storage
 boundary, and API projection boundary.
+
+## Showcase data
+
+The web app includes `/demo`, a catalog of synthetic engineering-education
+organizations for IIT Bombay, NIT Trichy, IIIT Kottayam, NIT Calicut, and IIT
+Palakkad. Each organization includes sample courses, certifications, fictional
+learners, wallet addresses, skills, grades, and marks. The API exposes the same
+catalog at `GET /demo/catalog`. These fixtures are explicitly not official
+credentials, courses, certifications, or affiliations. A record becomes
+verified only after a real testnet issuance transaction and Filebase/IPFS
+metadata upload.
 
 ## GitHub automation
 
