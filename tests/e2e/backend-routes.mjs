@@ -4,6 +4,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  encodeFunctionData,
   http,
   keccak256,
   toBytes,
@@ -199,11 +200,14 @@ const unavailable = await request(`/credentials/${missingHash}/verify`, {}, 503)
 assert.equal(unavailable.state, 'metadata-unavailable');
 
 const reverted = await issueDraft(issuerHeaders, 'Route reverted transaction');
-const revertedHash = await unauthorizedWallet.writeContract({
-  address: registry,
-  abi: issueAbi,
-  functionName: 'issueCredential',
-  args: [reverted.metadata.credentialHash, learner, reverted.metadata.uri],
+const revertedHash = await unauthorizedWallet.sendTransaction({
+  to: registry,
+  data: encodeFunctionData({
+    abi: issueAbi,
+    functionName: 'issueCredential',
+    args: [reverted.metadata.credentialHash, learner, reverted.metadata.uri],
+  }),
+  gas: 500_000n,
 });
 const revertedResult = await request(
   `/issuances/${reverted.draft.id}/confirm`,
