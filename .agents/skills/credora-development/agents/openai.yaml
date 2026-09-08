@@ -1,0 +1,4 @@
+interface:
+  display_name: "Credora Development"
+  short_description: "Credora implementation and code workflow"
+  default_prompt: "Use $credora-development to implement Credora changes with the repository conventions and protocol safeguards."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Credora Docs"
+  short_description: "Credora documentation and decision records"
+  default_prompt: "Use $credora-docs to update Credora architecture, ADRs, traceability, glossary, and operator documentation."

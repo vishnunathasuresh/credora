@@ -1,0 +1,4 @@
+interface:
+  display_name: "Credora Testing"
+  short_description: "Credora test strategy and verification"
+  default_prompt: "Use $credora-testing to choose and run the right Credora tests, including outage and protocol-integrity cases."

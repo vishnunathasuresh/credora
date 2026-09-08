@@ -1,0 +1,4 @@
+interface:
+  display_name: "Credora Context"
+  short_description: "Credora protocol context and invariants"
+  default_prompt: "Use $credora-context to ground this task in Credora protocol truth and repository boundaries."

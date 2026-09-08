@@ -1,0 +1,4 @@
+interface:
+  display_name: "Credora Architecture"
+  short_description: "Credora architecture and dependency boundaries"
+  default_prompt: "Use $credora-architecture to plan and review changes across Credora apps, packages, chain, storage, and API projections."
