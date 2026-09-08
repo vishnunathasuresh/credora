@@ -10,3 +10,9 @@
   types, hashing, validation, API contracts, and design tokens.
 - Every infrastructure failure must have a distinct user-facing state.
 - Prefer local, self-hostable, and free development dependencies.
+
+## Git Workflow
+
+- Commit work frequently in small, relevant, self-contained commits as implementation progresses.
+- Push completed commits to the configured upstream branch throughout the task; do not wait until the entire task is finished.
+- Do not include unrelated user changes in a commit. Review the staged diff before committing and use the repository's existing branch unless the user requests otherwise.
