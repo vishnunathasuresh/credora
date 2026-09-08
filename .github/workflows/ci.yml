@@ -39,3 +39,88 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge build --root contracts --no-lint
       - run: forge test --root contracts
+
+  api-integration:
+    name: API and registry integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start Anvil
+        shell: bash
+        run: |
+          anvil --host 127.0.0.1 --port 8545 --chain-id 31337 --accounts 10 --balance 10000 > "$RUNNER_TEMP/anvil.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/anvil.pid"
+          for attempt in {1..30}; do
+            key_count=$(grep -Eo '0x[0-9a-fA-F]{64}' "$RUNNER_TEMP/anvil.log" | wc -l)
+            if [ "$key_count" -ge 3 ]; then
+              break
+            fi
+            sleep 1
+          done
+          test "$key_count" -ge 3
+          {
+            echo "ANVIL_DEPLOYER_PRIVATE_KEY=$(grep -Eo '0x[0-9a-fA-F]{64}' "$RUNNER_TEMP/anvil.log" | sed -n '1p')"
+            echo "ANVIL_ISSUER_PRIVATE_KEY=$(grep -Eo '0x[0-9a-fA-F]{64}' "$RUNNER_TEMP/anvil.log" | sed -n '2p')"
+            echo "ANVIL_UNAUTHORIZED_PRIVATE_KEY=$(grep -Eo '0x[0-9a-fA-F]{64}' "$RUNNER_TEMP/anvil.log" | sed -n '3p')"
+          } >> "$GITHUB_ENV"
+
+      - name: Deploy and authorize the test registry
+        shell: bash
+        run: |
+          PRIVATE_KEY="$ANVIL_DEPLOYER_PRIVATE_KEY" pnpm contracts:deploy
+          registry=$(jq -r '.transactions[] | select(.transactionType == "CREATE") | .contractAddress' contracts/broadcast/Deploy.s.sol/31337/run-latest.json)
+          test -n "$registry"
+          issuer=$(cast wallet address --private-key "$ANVIL_ISSUER_PRIVATE_KEY")
+          cast send "$registry" 'setIssuerAuthorization(address,bool)' "$issuer" true \
+            --private-key "$ANVIL_DEPLOYER_PRIVATE_KEY" \
+            --rpc-url http://127.0.0.1:8545
+          {
+            echo "CREDENTIAL_REGISTRY_ADDRESS=$registry"
+            echo "RPC_URL=http://127.0.0.1:8545"
+            echo "CHAIN_ID=31337"
+            echo "API_PORT=4000"
+            echo "API_DATABASE_PATH=$RUNNER_TEMP/credora.sqlite"
+            echo "API_STORAGE_PATH=$RUNNER_TEMP/metadata"
+          } >> "$GITHUB_ENV"
+
+      - name: Start API
+        shell: bash
+        run: |
+          pnpm dev:api > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+
+      - name: Run Anvil-backed API tests
+        run: |
+          pnpm test:e2e:backend
+          pnpm test:e2e:backend:routes
+          pnpm test:e2e:backend:roles
+          pnpm test:e2e:backend:outage
+
+      - name: Upload integration logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-integration-logs
+          path: |
+            ${{ runner.temp }}/anvil.log
+            ${{ runner.temp }}/api.log
