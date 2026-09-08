@@ -22,7 +22,7 @@
     "format": "prettier --write .",
     "contracts:test": "forge test --root contracts",
     "contracts:build": "forge build --root contracts",
-    "contracts:deploy": "forge script script/Deploy.s.sol --root contracts --rpc-url http://127.0.0.1:8545 --broadcast"
+    "contracts:deploy": "forge script script/Deploy.s.sol:Deploy --root contracts --rpc-url http://127.0.0.1:8545 --broadcast"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
