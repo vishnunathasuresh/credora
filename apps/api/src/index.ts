@@ -258,6 +258,15 @@ function requiredString(body: Record<string, unknown>, key: string) {
   return value.trim();
 }
 
+function requiredAddress(body: Record<string, unknown>, key: string) {
+  const value = requiredString(body, key);
+  try {
+    return normalizeAddress(value, key);
+  } catch {
+    throw new CredoraError(`${key} must be a valid EVM address`, 'INVALID_BODY', 400);
+  }
+}
+
 function requiredHash(body: Record<string, unknown>, key: string): Hex {
   try {
     return credentialReferenceFromHash(requiredString(body, key));
@@ -492,7 +501,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'POST' && path === '/auth/challenge') {
     const body = await bodyOf(request);
-    const address = normalizeAddress(requiredString(body, 'address'), 'address');
+    const address = requiredAddress(body, 'address');
     const expiresAt = new Date(Date.now() + challengeTtlMs).toISOString();
     const challenge: AuthChallenge = {
       address,
@@ -512,7 +521,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'POST' && path === '/auth/verify') {
     const body = await bodyOf(request);
-    const address = normalizeAddress(requiredString(body, 'address'), 'address');
+    const address = requiredAddress(body, 'address');
     const signature = requiredString(body, 'signature') as `0x${string}`;
     const challenge = database
       .prepare('SELECT * FROM challenges WHERE address = ?')
@@ -703,7 +712,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     if (!authorized)
       throw new CredoraError('The connected wallet is not an authorized issuer', 'FORBIDDEN', 403);
     const body = await bodyOf(request);
-    const learner = normalizeAddress(requiredString(body, 'learnerAddress'), 'learnerAddress');
+    const learner = requiredAddress(body, 'learnerAddress');
     const skillName = requiredString(body, 'skillName');
     const skillLevel = requiredString(body, 'skillLevel');
     const issueDate = requiredIssueDate(body);
@@ -1045,7 +1054,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
     const body = await bodyOf(request);
     const transactionHash = requiredTransactionHash(body);
-    const issuer = normalizeAddress(requiredString(body, 'issuer'), 'issuer');
+    const issuer = requiredAddress(body, 'issuer');
     if (typeof body.authorized !== 'boolean')
       throw new CredoraError('authorized must be a boolean', 'INVALID_BODY', 400);
     const registry = requireLedger();
