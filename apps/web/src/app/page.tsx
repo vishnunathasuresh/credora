@@ -1,5 +1,6 @@
 import { VerifyForm } from '../components/verify-form';
 import { ArrowDownIcon, ArrowUpRightIcon } from '../components/icons';
+import { ProofStorageVisualizer } from '../components/proof-storage-visualizer';
 
 const principles = [
   [
@@ -35,14 +36,14 @@ export default function HomePage() {
             </a>
           </div>
         </div>
-        <div className="hero-proof" aria-label="Example verified credential">
+        <div className="hero-proof" aria-label="Illustrative credential flow">
           <div className="proof-topline">
-            <span className="signal-dot" /> registry / record 0001
+            <span className="signal-dot" /> illustrative / proof shape
           </div>
           <div className="proof-seal">C</div>
-          <p className="proof-kicker">Credential verified</p>
+          <p className="proof-kicker">Illustrative credential flow</p>
           <h2>Systems thinking</h2>
-          <p className="proof-subtitle">Advanced · issued 11 Aug 2026</p>
+          <p className="proof-subtitle">Advanced · example record</p>
           <div className="proof-meta">
             <span>Issued by</span>
             <strong>Northstar Institute</strong>
@@ -50,7 +51,7 @@ export default function HomePage() {
             <code>0x8f…91ac</code>
           </div>
           <div className="proof-footer">
-            <span>Immutable record</span>
+            <span>Static fixture · not live data</span>
             <ArrowUpRightIcon />
           </div>
         </div>
@@ -68,7 +69,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="principles page-width" id="how-it-works">
+      <ProofStorageVisualizer />
+
+      <section className="principles page-width">
         <div className="section-intro">
           <h2>Trust, without the ceremony.</h2>
         </div>
