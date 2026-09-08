@@ -180,7 +180,7 @@ const { readFile, writeFile } = await import('node:fs/promises');
 const tampered = JSON.parse(await readFile(tamperedPath, 'utf8'));
 tampered.skillLevel = 'Tampered';
 await writeFile(tamperedPath, JSON.stringify(tampered));
-const invalid = await request(`/credentials/${happy.metadata.credentialHash}/verify`);
+const invalid = await request(`/credentials/${happy.metadata.credentialHash}/verify`, {}, 422);
 assert.equal(invalid.state, 'metadata-invalid');
 
 const missingHash = keccak256(toBytes(`missing-${Date.now()}`));
