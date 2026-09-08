@@ -63,7 +63,7 @@ jobs:
           anvil --host 127.0.0.1 --port 8545 --chain-id 31337 --accounts 10 --balance 10000 > "$RUNNER_TEMP/anvil.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/anvil.pid"
           for attempt in {1..30}; do
-            key_count=$(grep -Eo '0x[0-9a-fA-F]{64}' "$RUNNER_TEMP/anvil.log" | wc -l)
+            key_count=$(grep -Eo '0x[0-9a-fA-F]{64}' "$RUNNER_TEMP/anvil.log" | wc -l || true)
             if [ "$key_count" -ge 3 ]; then
               break
             fi
