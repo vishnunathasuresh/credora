@@ -22,7 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <nav className="nav desktop-nav" aria-label="Primary navigation">
                 <a href="/verify">Verify</a>
                 <a href="/demo">Demo data</a>
-                <a href="#how-it-works">How it works</a>
+                <a href="/#how-it-works">How it works</a>
                 <a className="nav-cta" href="/dashboard">
                   Open workspace
                 </a>

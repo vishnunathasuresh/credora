@@ -16,6 +16,8 @@ Use a modern system sans for interface copy and a restrained, tightly tracked di
 
 Use a small number of calm bordered surfaces with 12px radii, one soft elevation level, and clear grouping. Avoid decorative gradients, fake metrics, and unearned customer proof.
 
+Workspace screens use the same surfaces as the public verifier: a strong page heading, one clear primary action, compact status pills, readable forms, and projection views that visibly remain projections. Role-specific actions should stay distinct without creating a new visual language.
+
 ## Landing page intent
 
 The first viewport should make three things obvious within seconds: what Credora is, why the proof is durable, and where a visitor can verify a credential. The proof-path interaction remains the explanatory centerpiece and must retain its illustrative-only label.
