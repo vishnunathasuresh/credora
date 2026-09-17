@@ -21,13 +21,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <div className="header-controls">
               <nav className="nav desktop-nav" aria-label="Primary navigation">
                 <a href="/verify">Verify</a>
-                <a href="/dashboard">Dashboard</a>
-                <a href="/superadmin">Superadmin</a>
-                <a href="/org">Org</a>
-                <a href="/issuer">Issue</a>
-                <a href="/wallet">Wallet</a>
                 <a href="/demo">Demo data</a>
                 <a href="#how-it-works">How it works</a>
+                <a className="nav-cta" href="/dashboard">
+                  Open workspace
+                </a>
               </nav>
               <ThemeToggle />
               <details className="mobile-nav">
