@@ -11,6 +11,7 @@
     "lint": "prettier --check src"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "prettier": "^3.6.2"
@@ -21,6 +22,7 @@
     "@credora/demo-data": "workspace:*",
     "@credora/shared": "workspace:*",
     "next": "16.2.9",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "viem": "^2.55.13"

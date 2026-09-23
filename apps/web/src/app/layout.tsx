@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
 import { MenuIcon } from '../components/icons';
 import { ThemeToggle } from '../components/theme-toggle';
@@ -6,6 +6,14 @@ import { ThemeToggle } from '../components/theme-toggle';
 export const metadata: Metadata = {
   title: 'Credora — credentials you can carry',
   description: 'Issue, own, and independently verify digital credentials.',
+  applicationName: 'Credora',
+  manifest: '/manifest.webmanifest',
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#f4f1ea',
+  colorScheme: 'light dark',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

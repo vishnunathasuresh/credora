@@ -1961,6 +1961,136 @@ h3 {
   font-size: 0.76rem;
 }
 
+.icon-button {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  display: inline-flex;
+  height: 38px;
+  justify-content: center;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+  width: 38px;
+}
+
+.icon-button:hover {
+  background: var(--accent-soft);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.share-dialog-backdrop {
+  align-items: center;
+  background: color-mix(in oklch, var(--ink) 48%, transparent);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 20;
+}
+
+.share-dialog {
+  background: var(--paper-strong);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px color-mix(in oklch, var(--ink) 22%, transparent);
+  max-height: min(760px, calc(100vh - 40px));
+  max-width: 470px;
+  overflow: auto;
+  width: 100%;
+}
+
+.share-dialog-header {
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 22px 24px;
+}
+
+.share-dialog-header h2 {
+  font-size: 1.55rem;
+  margin: 0;
+}
+
+.share-dialog-content {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.credential-qr {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: block;
+  height: 280px;
+  object-fit: contain;
+  padding: 10px;
+  width: 280px;
+}
+
+.credential-qr-loading {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.8rem;
+  justify-content: center;
+}
+
+.share-dialog-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 36ch;
+}
+
+.share-dialog-url {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 9px 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-dialog-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+@media (max-width: 760px) {
+  .share-dialog-backdrop {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .share-dialog {
+    max-height: calc(100vh - 20px);
+  }
+
+  .credential-qr {
+    height: 240px;
+    width: 240px;
+  }
+}
+
 .demo-page h1 {
   font-family:
     system-ui,

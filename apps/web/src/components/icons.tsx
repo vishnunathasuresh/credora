@@ -24,6 +24,26 @@ export function ArrowUpRightIcon({ size = 16, strokeWidth = 1.8 }: IconProps) {
   );
 }
 
+export function CloseIcon({ size = 18, strokeWidth = 1.8 }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="icon"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="m6 6 12 12M18 6 6 18"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function ArrowDownIcon({ size = 16, strokeWidth = 1.8 }: IconProps) {
   return (
     <svg

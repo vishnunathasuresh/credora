@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRightIcon, CheckIcon } from './icons';
+import { CredentialShare } from './credential-share';
 import { credoraApi } from '../lib/credora-api';
 import {
   connectWalletSession,
@@ -152,6 +153,10 @@ export function HolderWallet() {
                     >
                       {copied === credential.credential_hash ? 'Copied' : 'Copy link'}
                     </button>
+                    <CredentialShare
+                      credentialHash={credential.credential_hash}
+                      credentialName={credential.skill_name}
+                    />
                   </div>
                 </article>
               ))}

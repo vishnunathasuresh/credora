@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { credentialRegistryAbi } from '@credora/contracts';
 import { createWalletClient, custom, defineChain, getAddress, isAddress, type Hex } from 'viem';
 import { AlertIcon, ArrowUpRightIcon, CheckIcon } from './icons';
+import { CredentialShare } from './credential-share';
 import { credoraApi, type ApiError } from '../lib/credora-api';
 import {
   browserWalletProvider,
@@ -415,6 +416,10 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                     <a className="text-link" href={`/verify/${result.credentialHash}`}>
                       Open verification <ArrowUpRightIcon />
                     </a>
+                    <CredentialShare
+                      credentialHash={result.credentialHash}
+                      credentialName={form.skillName}
+                    />
                   </div>
                 </div>
               ) : null}
