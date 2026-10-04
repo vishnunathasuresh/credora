@@ -39,7 +39,11 @@ Compose Button, Input, H1, H2, Paragraph, Text, Separator, Spinner, ScrollView, 
 
 Empty-library help includes Add and Scan actions. Saved entries show the credential name, inspectable hash, and a reminder to recheck the record. Verification results use a named outcome, explanation, and retry or save/export actions as appropriate. Loading spinners and polite status announcements accompany asynchronous work. Error copy distinguishes service, ledger, metadata, input, camera, storage, and sharing failures.
 
-Pair QR presentation with the credential hash and a public-link sharing action. Public JSON export follows successful service-backed verification and explains that recipients must reverify; avoid visual badges that imply an exported file independently proves validity.
+Pair a credential QR with readable credential details and an optional collapsed hash. The wallet share panel uses one expiring QR for the selected set, with a visible expiry choice, QR image share action, and revocation. Public JSON export follows successful service-backed verification and explains that recipients must reverify; avoid visual badges that imply an exported file independently proves validity.
+
+Native credential cards may use restrained GL artwork for depth; keep the
+information and QR in ordinary accessible Tamagui controls and retain a
+static fallback for web preview or devices without a working GL context.
 
 ## Do's and Don'ts
 

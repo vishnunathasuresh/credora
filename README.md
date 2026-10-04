@@ -185,10 +185,17 @@ use a separate development wallet and never fund these accounts on a public chai
 The API/registry configuration determines which issuer addresses are authorized.
 Creating a wallet does not grant an issuer or administrative role.
 
-The mobile app has Credentials, Verify, and Setup tabs. It stores only public
-references and display names on the device, shows verification-link QR codes,
-and exports public credential JSON after a fresh service-backed check. Saved
-links and exported copies are not offline proofs or proof of wallet control.
+The mobile app has Credentials, Verify, and Setup tabs. It stores public
+references and display names on the device, presents verified details in a
+credential card, and can group selected credentials into one expiring QR
+(1, 7, or 30 days). The QR resolves through the API; the verifier then checks
+each credential against its public record. It does not prove the presenter
+controls the learner wallet, and a copied QR or public record cannot be
+recalled. The native share action exports the QR as a PNG image. Credential
+cards use a small native WebGL artwork header on Android
+and iOS, with a static fallback in the browser preview. The app exports public
+credential JSON after a fresh service-backed check. Saved links and exported
+copies are not offline proofs.
 Original PDF/image attachment downloads are not part of the current metadata
 model. Native signing-wallet integration is not included; use the web holder
 flow to obtain your issued credential links.

@@ -30,6 +30,7 @@ type OrganizationApplication = {
   id: string;
   organizationName: string;
   websiteUrl: string;
+  logoUrl: string | null;
   applicantAddress: string;
   status: string;
   createdAt: string;
@@ -38,6 +39,7 @@ type OrganizationRecord = {
   id: string;
   name: string;
   websiteUrl: string;
+  logoUrl: string | null;
   adminAddress: string;
   status: 'active' | 'suspended';
   createdAt: string;
@@ -514,9 +516,20 @@ export function AdminWorkspace() {
                 const item = applications.find((entry) => entry.id === reviewTarget)!;
                 return (
                   <div className="organization-review-detail">
+                    {item.logoUrl ? (
+                      <img
+                        className="organization-review-logo"
+                        src={item.logoUrl}
+                        alt={`${item.organizationName} submitted logo`}
+                        referrerPolicy="no-referrer"
+                        onError={(event) => (event.currentTarget.hidden = true)}
+                      />
+                    ) : null}
                     <strong>{item.organizationName}</strong>
                     <span>Self-reported website</span>
                     <code>{item.websiteUrl}</code>
+                    <span>Self-reported logo</span>
+                    <code>{item.logoUrl ?? 'No logo submitted'}</code>
                     <span>Applicant wallet</span>
                     <code>{item.applicantAddress}</code>
                     <p>
@@ -532,6 +545,15 @@ export function AdminWorkspace() {
                 const item = organizations.find((entry) => entry.id === reviewTarget)!;
                 return (
                   <div className="organization-review-detail">
+                    {item.logoUrl ? (
+                      <img
+                        className="organization-review-logo"
+                        src={item.logoUrl}
+                        alt={`${item.name} logo`}
+                        referrerPolicy="no-referrer"
+                        onError={(event) => (event.currentTarget.hidden = true)}
+                      />
+                    ) : null}
                     <strong>{item.name}</strong>
                     <code>{item.websiteUrl}</code>
                     <code>{item.adminAddress}</code>

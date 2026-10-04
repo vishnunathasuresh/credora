@@ -4,7 +4,8 @@ import { Button } from './ui/button';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRightIcon, CheckIcon } from './icons';
-import { CredentialShare } from './credential-share';
+import { CredentialCard } from './credential-card';
+import { WalletShare } from './wallet-share';
 import { credoraApi } from '../lib/credora-api';
 import {
   connectWalletSession,
@@ -20,6 +21,8 @@ type CredentialRow = {
   issue_date: string;
   skill_name: string;
   skill_level: string;
+  organization_name: string | null;
+  organization_logo_url: string | null;
 };
 
 function shortAddress(value: string) {
@@ -165,44 +168,48 @@ export function HolderWallet() {
               ) : null}
             </div>
           ) : credentials.length ? (
-            <div className="credential-list">
-              {credentials.map((credential) => (
-                <article className="credential-row" key={credential.credential_hash}>
-                  <div>
-                    <span className="state-label state-confirmed">
-                      Listed by issuer · verify proof
-                    </span>
-                    <h3>{credential.skill_name}</h3>
-                    <p>
-                      {credential.skill_level} · issued{' '}
-                      {new Date(credential.issue_date).toLocaleDateString()}
-                    </p>
-                    <span className="credential-issuer">
-                      Issuer {shortAddress(credential.issuer)}
-                    </span>
-                  </div>
-                  <div className="credential-actions">
-                    <a className="text-link" href={`/verify/${credential.credential_hash}`}>
-                      Verify <ArrowUpRightIcon />
-                    </a>
-                    <Button asChild variant="outline">
-                      <a href={`/verify/${credential.credential_hash}`}>Show credential</a>
-                    </Button>
-                    <Button
-                      className="text-button"
-                      type="button"
-                      onClick={() => copyLink(credential.credential_hash)}
-                    >
-                      {copied === credential.credential_hash ? 'Copied' : 'Copy link'}
-                    </Button>
-                    <CredentialShare
+            <>
+              <WalletShare credentials={credentials} />
+              <div className="credential-list credential-card-list">
+                {credentials.map((credential) => (
+                  <div className="holder-credential-item" key={credential.credential_hash}>
+                    <CredentialCard
+                      metadata={{
+                        schemaVersion: 1,
+                        skillName: credential.skill_name,
+                        skillLevel: credential.skill_level,
+                        issueDate: credential.issue_date,
+                        issuerAddress: credential.issuer as `0x${string}`,
+                        learnerAddress: credential.learner as `0x${string}`,
+                      }}
                       credentialHash={credential.credential_hash}
-                      credentialName={credential.skill_name}
+                      issuerProfile={
+                        credential.organization_name
+                          ? {
+                              name: credential.organization_name,
+                              websiteUrl: '',
+                              logoUrl: credential.organization_logo_url,
+                            }
+                          : null
+                      }
+                      verified={false}
                     />
+                    <div className="credential-actions">
+                      <a className="text-link" href={`/verify/${credential.credential_hash}`}>
+                        Verify public record <ArrowUpRightIcon />
+                      </a>
+                      <Button
+                        className="text-button"
+                        type="button"
+                        onClick={() => copyLink(credential.credential_hash)}
+                      >
+                        {copied === credential.credential_hash ? 'Copied' : 'Copy link'}
+                      </Button>
+                    </div>
                   </div>
-                </article>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="empty-state">
               <strong>No confirmed credentials found.</strong>

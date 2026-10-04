@@ -14,6 +14,23 @@ export type VerificationResult = {
   source?: 'api' | 'direct-rpc';
 };
 
+export async function fetchIssuerProfile(address: string) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
+  try {
+    const response = await fetch(
+      `${apiUrl.replace(/\/$/, '')}/organizations/by-issuer/${encodeURIComponent(address)}`,
+      { cache: 'no-store' },
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as {
+      organization?: { name: string; websiteUrl: string; logoUrl: string | null } | null;
+    };
+    return body.organization ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchVerification(reference: string): Promise<VerificationResult> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
   try {

@@ -7,7 +7,93 @@ export type VerificationResult = {
   message: string;
   metadata?: CredentialMetadata;
 };
-export type SavedCredential = { hash: string; name: string; savedAt: string };
+export type SavedCredential = {
+  hash: string;
+  name: string;
+  savedAt: string;
+  metadata?: CredentialMetadata;
+};
+export type WalletShare = {
+  id: string;
+  token: string;
+  managementToken: string;
+  expiresAt: string;
+  durationDays: number;
+  credentialHashes: string[];
+};
+export type PublicWalletShare = {
+  expiresAt: string;
+  credentials: { credentialHash: string }[];
+};
+
+export function parseShareToken(value: string, webUrl: string): string | undefined {
+  try {
+    const expected = new URL(webUrl);
+    const parsed = new URL(value.trim());
+    const match = parsed.pathname.match(/^\/share\/([A-Za-z0-9_-]{43})\/?$/);
+    if (
+      parsed.origin !== expected.origin ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash
+    )
+      return undefined;
+    return match?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+export async function createWalletShare(
+  apiUrl: string,
+  credentialHashes: string[],
+  durationDays: number,
+): Promise<Omit<WalletShare, 'credentialHashes'>> {
+  const response = await fetch(`${apiUrl.replace(/\/$/, '')}/wallet/shares`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ credentialHashes, durationDays }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body?.message ?? 'The share service is unavailable.');
+  return body;
+}
+
+export async function getPublicWalletShare(
+  apiUrl: string,
+  token: string,
+): Promise<PublicWalletShare> {
+  const response = await fetch(
+    `${apiUrl.replace(/\/$/, '')}/wallet/shares/${encodeURIComponent(token)}`,
+  );
+  const body = await response.json();
+  if (!response.ok) throw new Error(body?.message ?? 'This share is unavailable.');
+  return body;
+}
+
+export async function revokeWalletShare(apiUrl: string, share: WalletShare): Promise<void> {
+  const response = await fetch(`${apiUrl.replace(/\/$/, '')}/wallet/shares/${share.id}`, {
+    method: 'DELETE',
+    headers: { 'x-share-management-token': share.managementToken },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 410)
+    throw new Error(body?.message ?? 'This share could not be turned off.');
+}
+
+export async function getIssuerProfile(apiUrl: string, address: string) {
+  try {
+    const response = await fetch(
+      `${apiUrl.replace(/\/$/, '')}/organizations/by-issuer/${encodeURIComponent(address)}`,
+    );
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.organization ?? null;
+  } catch {
+    return null;
+  }
+}
 const states: VerificationState[] = [
   'valid',
   'not-found',
@@ -87,7 +173,30 @@ export function readSavedCredentials(raw: string | null): SavedCredential[] {
       ),
     )
     .slice(0, 100)
-    .map(({ hash, name, savedAt }) => ({ hash: parseReference(hash)!, name, savedAt }));
+    .map(({ hash, name, savedAt, metadata }) => {
+      const normalizedMetadata = readCredentialMetadata(metadata);
+      return {
+        hash: parseReference(hash)!,
+        name,
+        savedAt,
+        ...(normalizedMetadata ? { metadata: normalizedMetadata } : {}),
+      };
+    });
+}
+
+function readCredentialMetadata(value: unknown): CredentialMetadata | undefined {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('schemaVersion' in value) ||
+    value.schemaVersion !== 1
+  )
+    return undefined;
+  try {
+    return parseMetadata(value as CredentialMetadata);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseMetadata(value: CredentialMetadata): CredentialMetadata {

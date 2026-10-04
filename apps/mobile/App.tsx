@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
-  Share,
+  Image,
   useColorScheme,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
+import type Svg from 'react-native-svg';
 import {
   Button,
   H1,
@@ -29,19 +30,27 @@ import {
   YStack,
 } from 'tamagui';
 import config from './tamagui.config';
+import { CredentialArt } from './src/credential-art';
 import { AppIcon } from './src/icons';
 import {
   parseReference,
+  parseShareToken,
   readSavedCredentials,
   resultTitles,
   verifyCredential,
+  createWalletShare,
+  getIssuerProfile,
+  getPublicWalletShare,
+  revokeWalletShare,
   type SavedCredential,
   type VerificationResult,
+  type WalletShare,
 } from './src/credentials';
 
 type Tab = 'wallet' | 'verify' | 'settings';
 const libraryKey = 'credora-public-library-v1';
 const settingsKey = 'credora-mobile-settings-v1';
+const walletShareKey = 'credora-mobile-wallet-share-v1';
 const defaultApi = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
 const defaultWeb = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000';
 
@@ -89,19 +98,50 @@ function MobileApp() {
   const [notice, setNotice] = useState('');
   const [scan, setScan] = useState(false);
   const [present, setPresent] = useState<SavedCredential | null>(null);
+  const [presentLogo, setPresentLogo] = useState<{ name: string; logoUrl: string | null } | null>(
+    null,
+  );
+  const [showHash, setShowHash] = useState(false);
+  const [selectedForShare, setSelectedForShare] = useState<string[]>([]);
+  const [shareDuration, setShareDuration] = useState(7);
+  const [activeShare, setActiveShare] = useState<WalletShare | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [presentedShare, setPresentedShare] = useState<{
+    token: string;
+    expiresAt: string;
+    items: {
+      hash: string;
+      result: VerificationResult;
+      logo: { name: string; logoUrl: string | null } | null;
+    }[];
+  } | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const requestId = useRef(0);
   const scanned = useRef(false);
+  const walletQrRef = useRef<Svg | null>(null);
+  const credentialQrRef = useRef<Svg | null>(null);
   const verificationUrl = present ? `${webUrl.replace(/\/$/, '')}/verify/${present.hash}` : '';
 
   useEffect(() => {
     void (async () => {
       try {
-        const [saved, settings] = await Promise.all([
+        const [saved, settings, savedShare] = await Promise.all([
           AsyncStorage.getItem(libraryKey),
           AsyncStorage.getItem(settingsKey),
+          AsyncStorage.getItem(walletShareKey),
         ]);
         setLibrary(readSavedCredentials(saved));
+        if (savedShare) {
+          const share = JSON.parse(savedShare) as WalletShare;
+          if (
+            typeof share.token === 'string' &&
+            typeof share.managementToken === 'string' &&
+            Date.parse(share.expiresAt) > Date.now() &&
+            Array.isArray(share.credentialHashes)
+          )
+            setActiveShare(share);
+          else await AsyncStorage.removeItem(walletShareKey);
+        }
         setLibraryLoaded(true);
         if (settings) {
           const value = JSON.parse(settings);
@@ -128,6 +168,10 @@ function MobileApp() {
         setScan(false);
         return true;
       }
+      if (presentedShare) {
+        setPresentedShare(null);
+        return true;
+      }
       if (present) {
         setPresent(null);
         return true;
@@ -139,7 +183,7 @@ function MobileApp() {
       return false;
     });
     return () => handler.remove();
-  }, [scan, present, tab]);
+  }, [scan, present, presentedShare, tab]);
 
   function changeReference(value: string) {
     requestId.current++;
@@ -195,11 +239,142 @@ function MobileApp() {
     }
     await store(
       [
-        { hash: checkedHash, name: result.metadata.skillName, savedAt: new Date().toISOString() },
+        {
+          hash: checkedHash,
+          name: result.metadata.skillName,
+          savedAt: new Date().toISOString(),
+          metadata: result.metadata,
+        },
         ...library.filter((item) => item.hash !== checkedHash),
       ],
       'Credential link saved on this device.',
     );
+  }
+
+  async function showCredential(item: SavedCredential) {
+    setBusy(true);
+    setNotice('Checking the current public record…');
+    try {
+      const checked = await verifyCredential(apiUrl, item.hash);
+      if (checked.state !== 'valid' || !checked.metadata) {
+        setNotice(`${resultTitles[checked.state]}: ${checked.message}`);
+        return;
+      }
+      const profile = await getIssuerProfile(apiUrl, checked.metadata.issuerAddress);
+      setPresent({ ...item, name: checked.metadata.skillName, metadata: checked.metadata });
+      setPresentLogo(profile);
+      setShowHash(false);
+      setNotice('');
+    } catch {
+      setNotice('The credential could not be checked. Retry when the service is available.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createShare() {
+    if (!selectedForShare.length || selectedForShare.length > 25 || shareBusy) return;
+    setShareBusy(true);
+    setNotice('Preparing a share QR…');
+    try {
+      if (activeShare) await revokeWalletShare(apiUrl, activeShare);
+      await AsyncStorage.removeItem(walletShareKey);
+      setActiveShare(null);
+      const created = await createWalletShare(apiUrl, selectedForShare, shareDuration);
+      const next: WalletShare = { ...created, credentialHashes: [...selectedForShare] };
+      await AsyncStorage.setItem(walletShareKey, JSON.stringify(next));
+      setActiveShare(next);
+      setNotice('Previous QR turned off. This QR shares only the selected credentials.');
+    } catch (caught) {
+      setNotice(
+        caught instanceof Error
+          ? caught.message
+          : 'The share service is unavailable. Your previous share was turned off if the request completed.',
+      );
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function turnOffShare() {
+    if (!activeShare || shareBusy) return;
+    setShareBusy(true);
+    try {
+      await revokeWalletShare(apiUrl, activeShare);
+      await AsyncStorage.removeItem(walletShareKey);
+      setActiveShare(null);
+      setNotice('This QR is off. A saved or photographed copy cannot be recalled.');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Could not turn off this QR.');
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function openSharedPresentation(token: string) {
+    setBusy(true);
+    setNotice('Loading and checking shared credentials…');
+    try {
+      const share = await getPublicWalletShare(apiUrl, token);
+      const items = await Promise.all(
+        share.credentials.map(async ({ credentialHash }) => {
+          const checked = await verifyCredential(apiUrl, credentialHash);
+          const logo = checked.metadata
+            ? await getIssuerProfile(apiUrl, checked.metadata.issuerAddress)
+            : null;
+          return { hash: credentialHash, result: checked, logo };
+        }),
+      );
+      setPresentedShare({ token, expiresAt: share.expiresAt, items });
+      setNotice('');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'This share is unavailable.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function shareQrImage(svg: Svg | null, fileName: string, title: string) {
+    if (!svg) {
+      setNotice('The QR image is still preparing. Wait a moment and try again.');
+      return;
+    }
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        try {
+          svg.toDataURL(resolve);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      if (Platform.OS === 'web') {
+        const anchor = document.createElement('a');
+        anchor.href = `data:image/png;base64,${base64}`;
+        anchor.download = fileName;
+        anchor.click();
+        setNotice('QR image downloaded. Share the image with your verifier.');
+        return;
+      }
+      const file = new File(Paths.cache, fileName);
+      file.create({ overwrite: true });
+      file.write(base64, { encoding: 'base64' });
+      if (!(await Sharing.isAvailableAsync())) {
+        setNotice('Image sharing is unavailable. Keep the QR visible for your verifier to scan.');
+        return;
+      }
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'image/png',
+        dialogTitle: title,
+        UTI: 'public.png',
+      });
+    } catch {
+      setNotice('The QR image could not be shared. Keep it visible for your verifier to scan.');
+    }
+  }
+
+  async function shareWalletQr() {
+    if (!activeShare) return;
+    await shareQrImage(walletQrRef.current, 'credora-selected-credentials.png', 'Share QR image');
   }
 
   async function download() {
@@ -260,14 +435,6 @@ function MobileApp() {
         );
     } catch {
       setNotice('The camera could not be opened. Paste the credential link instead.');
-    }
-  }
-
-  async function share() {
-    try {
-      await Share.share({ message: verificationUrl, title: present?.name });
-    } catch {
-      setNotice('Sharing is unavailable. You can show the QR code instead.');
     }
   }
 
@@ -353,49 +520,202 @@ function MobileApp() {
                       scanned.current = true;
                       setScan(false);
                       const hash = parseReference(data);
-                      if (!hash) {
+                      if (hash) {
+                        changeReference(hash);
+                        setTab('verify');
+                        void verify(hash);
+                        return;
+                      }
+                      const shareToken = parseShareToken(data, webUrl);
+                      if (shareToken) {
+                        setTab('wallet');
+                        void openSharedPresentation(shareToken);
+                        return;
+                      }
+                      if (!hash && !shareToken) {
                         setNotice(
-                          'This QR is not a Credora credential link. Paste a valid reference or scan another code.',
+                          'This QR is not a credential or selected-share QR from your configured Credora site. Paste a reference or check your Website setting.',
                         );
                         return;
                       }
-                      changeReference(hash);
-                      setTab('verify');
-                      void verify(hash);
                     }}
                   />
                   <Button minHeight={48} onPress={() => setScan(false)}>
                     Cancel scan
                   </Button>
                 </YStack>
-              ) : present ? (
+              ) : presentedShare ? (
                 <YStack gap="$4">
-                  <Button minHeight={48} onPress={() => setPresent(null)}>
+                  <Button minHeight={48} onPress={() => setPresentedShare(null)}>
                     Back to credentials
                   </Button>
-                  <H1 fontSize={30}>{present.name}</H1>
+                  <H1 fontSize={30}>Shared credentials</H1>
                   <Paragraph>
-                    Show this code to a verifier. They will check the latest public record. A saved
-                    link alone does not prove validity or wallet ownership.
+                    Each item is checked against the public record. This share expires{' '}
+                    {new Date(presentedShare.expiresAt).toLocaleString()}. It does not prove who is
+                    presenting the records.
                   </Paragraph>
                   <YStack
+                    alignSelf="center"
                     alignItems="center"
                     padding="$4"
                     backgroundColor="white"
                     borderRadius="$4"
                   >
                     <QRCode
-                      value={verificationUrl}
-                      size={240}
+                      value={`${webUrl.replace(/\/$/, '')}/share/${presentedShare.token}`}
+                      size={208}
                       color="black"
                       backgroundColor="white"
                     />
                   </YStack>
-                  <Text selectable color="$color" fontSize={13}>
-                    {present.hash}
-                  </Text>
-                  <Button themeInverse minHeight={48} onPress={share}>
-                    Share verification link
+                  {presentedShare.items.map(({ hash, result: checked, logo }) =>
+                    checked.state === 'valid' && checked.metadata ? (
+                      <YStack
+                        key={hash}
+                        gap="$3"
+                        paddingBottom="$4"
+                        borderWidth={1}
+                        borderColor="$borderColor"
+                        borderRadius="$4"
+                        overflow="hidden"
+                      >
+                        <CredentialArt />
+                        <YStack paddingHorizontal="$4" gap="$3">
+                          <XStack gap="$3" alignItems="center">
+                            {logo?.logoUrl ? (
+                              <Image
+                                source={{ uri: logo.logoUrl }}
+                                resizeMode="contain"
+                                style={{ width: 52, height: 52, borderRadius: 8 }}
+                                accessibilityLabel={`${logo.name} logo`}
+                              />
+                            ) : null}
+                            <YStack flex={1}>
+                              <Text fontSize={20} fontWeight="700" color="$color">
+                                {checked.metadata.skillName}
+                              </Text>
+                              <Paragraph>{logo?.name ?? 'Credential issuer'}</Paragraph>
+                            </YStack>
+                          </XStack>
+                          <Paragraph>
+                            {checked.metadata.skillLevel} · issued{' '}
+                            {new Date(checked.metadata.issueDate).toLocaleDateString()}
+                          </Paragraph>
+                          <Paragraph>Holder: {checked.metadata.learnerAddress}</Paragraph>
+                          <Paragraph>Issuer: {checked.metadata.issuerAddress}</Paragraph>
+                          <Paragraph color="$color" fontSize={13}>
+                            Included in the single QR above.
+                          </Paragraph>
+                        </YStack>
+                      </YStack>
+                    ) : (
+                      <YStack
+                        key={hash}
+                        gap="$2"
+                        padding="$4"
+                        borderWidth={1}
+                        borderColor="$borderColor"
+                        borderRadius="$4"
+                      >
+                        <H2 fontSize={20}>{resultTitles[checked.state]}</H2>
+                        <Paragraph>{checked.message}</Paragraph>
+                        <Text selectable color="$color" fontSize={12}>
+                          {hash}
+                        </Text>
+                      </YStack>
+                    ),
+                  )}
+                  <Paragraph fontSize={13}>
+                    Expiring or turning off this QR stops future access to the selection. Saved
+                    copies and individual public verification records cannot be recalled.
+                  </Paragraph>
+                </YStack>
+              ) : present ? (
+                <YStack gap="$4">
+                  <Button minHeight={48} onPress={() => setPresent(null)}>
+                    Back to credentials
+                  </Button>
+                  <YStack
+                    gap="$4"
+                    borderWidth={1}
+                    borderColor="$borderColor"
+                    borderRadius="$4"
+                    backgroundColor="$background"
+                    overflow="hidden"
+                  >
+                    <CredentialArt />
+                    <YStack padding="$5" gap="$4">
+                      <XStack alignItems="center" gap="$3">
+                        {presentLogo?.logoUrl ? (
+                          <Image
+                            source={{ uri: presentLogo.logoUrl }}
+                            resizeMode="contain"
+                            style={{ width: 60, height: 60, borderRadius: 10 }}
+                            accessibilityLabel={`${presentLogo.name} logo`}
+                          />
+                        ) : null}
+                        <YStack flex={1}>
+                          <H2 fontSize={25}>{present.metadata?.skillName ?? present.name}</H2>
+                          <Paragraph>{presentLogo?.name ?? 'Credential issuer'}</Paragraph>
+                        </YStack>
+                      </XStack>
+                      {present.metadata ? (
+                        <>
+                          <Paragraph>
+                            {present.metadata.skillLevel} · issued{' '}
+                            {new Date(present.metadata.issueDate).toLocaleDateString()}
+                          </Paragraph>
+                          <Paragraph>Holder: {present.metadata.learnerAddress}</Paragraph>
+                          <Paragraph>Issuer: {present.metadata.issuerAddress}</Paragraph>
+                        </>
+                      ) : null}
+                      <Paragraph>
+                        Show this QR to share the public verification record. The check runs against
+                        the current chain and metadata; this does not prove who is holding the
+                        phone.
+                      </Paragraph>
+                      <YStack
+                        alignSelf="center"
+                        alignItems="center"
+                        padding="$4"
+                        backgroundColor="white"
+                        borderRadius="$4"
+                      >
+                        <QRCode
+                          getRef={(ref) => (credentialQrRef.current = ref)}
+                          value={verificationUrl}
+                          size={216}
+                          color="black"
+                          backgroundColor="white"
+                        />
+                      </YStack>
+                      <Button minHeight={48} onPress={() => setShowHash(!showHash)}>
+                        {showHash ? 'Hide credential hash' : 'Show credential hash'}
+                      </Button>
+                      {showHash ? (
+                        <Text selectable color="$color" fontSize={12}>
+                          {present.hash}
+                        </Text>
+                      ) : null}
+                    </YStack>
+                  </YStack>
+                  <Paragraph>
+                    Organization branding is a profile decoration. The verified proof binds the
+                    issuer and holder addresses, credential details, issue date, and metadata.
+                  </Paragraph>
+                  <Button
+                    themeInverse
+                    minHeight={48}
+                    onPress={() =>
+                      void shareQrImage(
+                        credentialQrRef.current,
+                        'credora-credential-qr.png',
+                        'Share credential QR image',
+                      )
+                    }
+                  >
+                    Share verification QR
                   </Button>
                   <Button
                     minHeight={48}
@@ -460,32 +780,123 @@ function MobileApp() {
                     </YStack>
                   ) : (
                     <YStack gap="$4">
+                      <YStack
+                        gap="$3"
+                        padding="$4"
+                        borderWidth={1}
+                        borderColor="$borderColor"
+                        borderRadius="$4"
+                      >
+                        <H2 fontSize={23}>One QR for this selection</H2>
+                        <Paragraph>
+                          Choose the public records below and set when their shared page expires.
+                          Anyone with the QR can see the selection until it expires or you turn it
+                          off.
+                        </Paragraph>
+                        <XStack flexWrap="wrap" gap="$2">
+                          {[1, 7, 30].map((days) => (
+                            <Button
+                              key={days}
+                              minHeight={44}
+                              themeInverse={shareDuration === days}
+                              accessibilityRole="radio"
+                              accessibilityState={{ selected: shareDuration === days }}
+                              onPress={() => setShareDuration(days)}
+                            >
+                              {days} day{days === 1 ? '' : 's'}
+                            </Button>
+                          ))}
+                        </XStack>
+                        <Button
+                          themeInverse
+                          minHeight={48}
+                          disabled={
+                            !selectedForShare.length || selectedForShare.length > 25 || shareBusy
+                          }
+                          onPress={() => void createShare()}
+                        >
+                          {shareBusy
+                            ? 'Preparing QR…'
+                            : activeShare
+                              ? 'Replace share QR'
+                              : `Create QR · ${selectedForShare.length} selected`}
+                        </Button>
+                        {selectedForShare.length > 25 ? (
+                          <Paragraph color="$color">
+                            Choose up to 25 credentials per share so the page stays quick to open.
+                          </Paragraph>
+                        ) : null}
+                        {activeShare ? (
+                          <YStack gap="$3" alignItems="center" paddingTop="$2">
+                            <QRCode
+                              getRef={(ref) => (walletQrRef.current = ref)}
+                              value={`${webUrl.replace(/\/$/, '')}/share/${activeShare.token}`}
+                              size={220}
+                              color="black"
+                              backgroundColor="white"
+                            />
+                            <Paragraph>
+                              {activeShare.credentialHashes.length} selected · expires{' '}
+                              {new Date(activeShare.expiresAt).toLocaleString()}
+                            </Paragraph>
+                            <Paragraph fontSize={13}>
+                              The QR groups public proofs; it does not prove who is holding the
+                              phone. Already viewed or saved copies cannot be recalled.
+                            </Paragraph>
+                            <XStack flexWrap="wrap" gap="$2" justifyContent="center">
+                              <Button minHeight={48} onPress={() => void shareWalletQr()}>
+                                Share QR image
+                              </Button>
+                              <Button minHeight={48} onPress={() => void turnOffShare()}>
+                                Turn off QR
+                              </Button>
+                            </XStack>
+                          </YStack>
+                        ) : null}
+                      </YStack>
                       {library.map((item) => (
                         <YStack
                           key={item.hash}
                           gap="$3"
-                          paddingVertical="$4"
-                          borderBottomWidth={1}
+                          padding="$4"
+                          borderWidth={1}
                           borderColor="$borderColor"
+                          borderRadius="$4"
                         >
                           <H2 fontSize={22}>{item.name}</H2>
                           <Paragraph>
-                            Saved link · check the current record before relying on it
+                            Saved public record · check the current proof before relying on it
                           </Paragraph>
-                          <Text color="$color" fontSize={12} selectable>
-                            {item.hash}
-                          </Text>
+                          {item.metadata ? (
+                            <Paragraph>
+                              {item.metadata.skillLevel} · issued{' '}
+                              {new Date(item.metadata.issueDate).toLocaleDateString()}
+                            </Paragraph>
+                          ) : null}
                           <XStack flexWrap="wrap" gap="$2">
                             <Button
                               themeInverse
                               minHeight={48}
-                              onPress={() => {
-                                setPresent(item);
-                                setNotice('');
-                              }}
-                              accessibilityLabel={`Show QR for ${item.name}`}
+                              onPress={() => void showCredential(item)}
+                              accessibilityLabel={`Check and show ${item.name} credential card and QR`}
                             >
-                              Show QR
+                              Show credential card
+                            </Button>
+                            <Button
+                              minHeight={48}
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: selectedForShare.includes(item.hash) }}
+                              onPress={() =>
+                                setSelectedForShare((current) =>
+                                  current.includes(item.hash)
+                                    ? current.filter((hash) => hash !== item.hash)
+                                    : [...current, item.hash],
+                                )
+                              }
+                            >
+                              {selectedForShare.includes(item.hash)
+                                ? 'Remove from share'
+                                : 'Add to share'}
                             </Button>
                             <Button
                               minHeight={48}

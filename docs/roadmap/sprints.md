@@ -52,7 +52,7 @@ Exit signal: an issuer can prepare one credential, see every infrastructure
 state, and reach a confirmed on-chain record without private key material ever
 entering the API.
 
-## Sprint 03 — Holder wallet and sharing (website complete)
+## Sprint 03 — Holder wallet and sharing (web and mobile UI implemented)
 
 Goal: make credentials portable for learners without weakening privacy.
 
@@ -60,9 +60,12 @@ Goal: make credentials portable for learners without weakening privacy.
 - [x] Add share links that expose only public proof and approved metadata.
 - [x] Keep sensitive details local and document the selective-disclosure boundary.
 - [x] Add recovery/empty/offline states that do not claim a credential is invalid.
+- [x] Add an expiring one-QR share for the holder-selected public credential set.
+- [x] Reverify each included proof independently when a verifier opens a share.
+- [x] Add Tamagui holder/verifier flows, QR scanning, and native credential cards.
 
-The mobile implementation is intentionally paused until the website product is
-stable.
+Native device/emulator QA, including camera permissions, QR scanning, safe areas,
+screen readers, and the system share sheet, remains before native release.
 
 Website exit signal: an admin can authorize an issuer, an issuer can issue an
 immutable credential, and a learner can copy a public verification link.
@@ -98,6 +101,5 @@ Exit evidence still needed: API role and concurrent-review integration checks,
 plus a browser pass of the applicant QR, superadmin decision, suspended access,
 and the separate issuer-authorization flow.
 
-The website is the finished MVP target for this phase. Mobile remains paused by
-choice; its shared protocol packages remain typechecked and ready for a later
-native pass.
+The web and native UI implementation is complete for this phase. The native
+bundle is build-checked, while release readiness still requires device QA.

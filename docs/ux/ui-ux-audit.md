@@ -126,3 +126,29 @@ document overflow. It did not exercise a signed application, scanned QR,
 superadmin decision, or registry-backed issuance. The existing 15/20 UI score
 is the baseline audit score; this workflow has no authenticated visual or
 end-to-end score yet.
+
+## Selected wallet QR and credential cards
+
+The holder can now pick up to 25 public credentials and publish one expiring
+share QR for the fixed selection. Expiry options are 1, 7, or 30 days. The
+receiver resolves only that list, then each proof is checked independently;
+ledger outages remain distinct from invalid records. The management secret is
+revocation-only. The card presents organization branding as profile decoration,
+with a collapsible hash for technical cross-checking. A stable wallet-profile
+QR is intentionally not used. This share does not prove presenter identity and
+cannot recall individually public credentials or copies already made.
+
+The 2026-10-04 share update passed the production web build, API build, mobile
+typecheck/tests, Android/iOS Hermes export, and `test:e2e:wallet-shares`. The
+Impeccable detector returned no findings for changed web/native UI files. T3
+DOM checks at 1280px and 390px found no horizontal overflow; the selected-share
+receiver exposed the expected noindex metadata, accessible QR label, expiry,
+and an explicit ledger-unavailable message. The T3 snapshot endpoint failed
+repeatedly for this tab, so the update has no saved screenshot or fresh visual
+capture. Native WebGL artwork is in the Expo GL bundle, but physical-device
+shader rendering and fallback behavior have not been exercised.
+
+The full UI score remains the previous 15/20 baseline. This source and browser
+pass is not a re-score of every authenticated, issuer, superadmin, organization,
+and native device state. Native runtime QA and authenticated wallet workflow
+checks remain release evidence gaps.

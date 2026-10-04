@@ -12,8 +12,8 @@ The app is a local public-link library, not an embedded signing wallet. It store
 
 ## Primary tasks
 
-- **Credentials:** begin with a truthful empty library, add a link after a successful check, show its QR, share the public verification URL, check again, or remove the local link. Removing a link does not change the immutable issued credential. The library holds up to 100 links.
-- **Verify:** paste a public `/verify/` link or hash, or scan a QR. Verification uses the configured API and needs a connection. Scanning extracts a credential reference and does not automatically open the scanned website. A matching proof does not establish that the presenter controls the holder wallet.
+- **Credentials:** begin with a truthful empty library, add a link after a successful check, show verified details in a credential card, share the credential QR image, create one expiring QR image for selected credentials, check again, or remove a local link. Removing a link does not change the immutable issued credential. The library holds up to 100 links and a share can contain up to 25.
+- **Verify:** paste a public `/verify/` link or hash, or scan a credential or selected-share QR. Verification uses the configured API and needs a connection. Scanning extracts a credential reference or an allowed share token and does not automatically open an arbitrary scanned website. A matching proof does not establish that the presenter controls the holder wallet.
 - **Setup:** explain verification without a wallet, official wallet installation, private backup information, sharing a public address with the issuer, and web wallet sign-in. Expose the API and public website addresses for local or deployed services; these select the service and registry the user trusts.
 
 Wallet-based discovery happens on the web: open the holder wallet in a compatible wallet browser, connect, sign the login message, and copy public credential links into the native library. Login signing costs no gas. Credora never asks for a recovery phrase or private key.

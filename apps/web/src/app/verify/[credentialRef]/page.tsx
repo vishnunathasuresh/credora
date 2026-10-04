@@ -1,7 +1,8 @@
 import { verificationMessage } from '@credora/credential-core';
-import { fetchVerification } from '../../../lib/verification-api';
+import { fetchIssuerProfile, fetchVerification } from '../../../lib/verification-api';
 import { AlertIcon, ArrowUpRightIcon, CheckIcon, MinusIcon } from '../../../components/icons';
 import { RetryVerification } from '../../../components/retry-verification';
+import { CredentialCard } from '../../../components/credential-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ export default async function CredentialVerificationPage({
     : { state: 'malformed' as const, message: 'This reference is not a valid credential hash.' };
   const message = result.message ?? verificationMessage(result.state);
   const metadata = result.state === 'valid' ? result.metadata : undefined;
+  const issuerProfile = metadata ? await fetchIssuerProfile(metadata.issuerAddress) : null;
   const title =
     result.state === 'valid'
       ? 'Credential verified.'
@@ -59,26 +61,22 @@ export default async function CredentialVerificationPage({
         {statusIcon}
         <span>{statusLabel}</span>
       </div>
-      <div
-        className={`result-card result-${statusTone}`}
-        role={result.state === 'valid' ? 'status' : 'alert'}
-      >
-        <span className="result-icon">{statusIcon}</span>
-        <div>
-          <p className="result-label">Submitted reference</p>
-          <code>{credentialRef}</code>
-        </div>
-      </div>
       {metadata ? (
-        <div className="verification-note">
-          <strong>{metadata.skillName}</strong>
-          <span>
-            {metadata.skillLevel} · issued {metadata.issueDate}
-          </span>
-          <span>Issuer: {metadata.issuerAddress}</span>
-          <span>Learner: {metadata.learnerAddress}</span>
+        <CredentialCard
+          metadata={metadata}
+          credentialHash={credentialRef}
+          issuerProfile={issuerProfile}
+          showQr
+        />
+      ) : (
+        <div className={`result-card result-${statusTone}`} role="alert">
+          <span className="result-icon">{statusIcon}</span>
+          <div>
+            <p className="result-label">Submitted reference</p>
+            <code>{credentialRef}</code>
+          </div>
         </div>
-      ) : null}
+      )}
       {result.source === 'direct-rpc' ? (
         <p className="form-help verification-source">
           Checked directly against the registry and public metadata source.

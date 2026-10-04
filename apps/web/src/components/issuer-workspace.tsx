@@ -56,6 +56,7 @@ type OrganizationApplication = {
   id: string;
   organizationName: string;
   websiteUrl: string;
+  logoUrl: string | null;
   applicantAddress: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
@@ -119,6 +120,7 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
     useState<OrganizationApplication | null>(null);
   const [organizationName, setOrganizationName] = useState('');
   const [organizationWebsite, setOrganizationWebsite] = useState('');
+  const [organizationLogoUrl, setOrganizationLogoUrl] = useState('');
   const [applicationBusy, setApplicationBusy] = useState(false);
   const [applicationReviewUrl, setApplicationReviewUrl] = useState('');
   const applicationQrRef = useRef<ReactQRCodeRef>(null);
@@ -212,13 +214,18 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
         '/org/applications',
         {
           method: 'POST',
-          body: JSON.stringify({ organizationName, websiteUrl: organizationWebsite }),
+          body: JSON.stringify({
+            organizationName,
+            websiteUrl: organizationWebsite,
+            logoUrl: organizationLogoUrl,
+          }),
         },
         session.token,
       );
       setOrganizationApplication(application);
       setOrganizationName('');
       setOrganizationWebsite('');
+      setOrganizationLogoUrl('');
     } catch (caught) {
       setError(friendlyError(caught));
     } finally {
@@ -485,9 +492,21 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                     required
                   />
                 </Label>
+                <Label>
+                  Organization logo URL (optional)
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    value={organizationLogoUrl}
+                    onChange={(event) => setOrganizationLogoUrl(event.target.value)}
+                    placeholder="https://example.org/assets/logo.png"
+                    maxLength={2048}
+                  />
+                </Label>
                 <p className="form-help">
-                  The website is self-reported. A superadmin checks it independently before
-                  approving. Your wallet signature proves control of the requesting address only.
+                  The website and logo are self-reported. The logo must come from the same HTTPS
+                  site. A superadmin checks them independently before approving. Branding is for
+                  display and is not part of the credential proof.
                 </p>
                 <Button className="button button-dark" type="submit" disabled={applicationBusy}>
                   {applicationBusy ? 'Submitting request…' : 'Submit for superadmin review'}

@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseReference, readSavedCredentials, verifyCredential } from './credentials';
+import {
+  parseReference,
+  parseShareToken,
+  readSavedCredentials,
+  verifyCredential,
+} from './credentials';
 const hash = `0x${'a'.repeat(64)}`;
 
 test('accepts hashes and public verification links without following arbitrary QR URLs', () => {
@@ -14,6 +19,14 @@ test('accepts hashes and public verification links without following arbitrary Q
   ])
     assert.equal(parseReference(value), undefined);
 });
+test('accepts only wallet-share QR links from the configured Credora site', () => {
+  const token = 'A'.repeat(43);
+  const website = 'https://credora.example';
+  assert.equal(parseShareToken(`${website}/share/${token}`, website), token);
+  assert.equal(parseShareToken(`https://attacker.example/share/${token}`, website), undefined);
+  assert.equal(parseShareToken(`${website}/share/${token}?other=1`, website), undefined);
+  assert.equal(parseShareToken(`${website}/verify/${hash}`, website), undefined);
+});
 test('saved library retains references, never accepts cached verification state as proof', () => {
   assert.deepEqual(readSavedCredentials(null), []);
   const rows = readSavedCredentials(
@@ -25,7 +38,37 @@ test('saved library retains references, never accepts cached verification state 
   );
   assert.equal(rows.length, 1);
   assert.equal('state' in rows[0], false);
+  assert.equal('metadata' in rows[0], false);
   assert.throws(() => readSavedCredentials('{}'));
+});
+test('saved display details are normalized, not treated as verified state', () => {
+  const rows = readSavedCredentials(
+    JSON.stringify([
+      {
+        hash,
+        name: 'Credential name',
+        savedAt: '2026-10-04',
+        metadata: {
+          schemaVersion: 1,
+          skillName: 'Systems thinking',
+          skillLevel: 'Advanced',
+          issueDate: '2026-10-04T00:00:00Z',
+          issuerAddress: '0x1111111111111111111111111111111111111111',
+          learnerAddress: '0x2222222222222222222222222222222222222222',
+        },
+        state: 'valid',
+      },
+      {
+        hash: `0x${'b'.repeat(64)}`,
+        name: 'Bad cached details',
+        savedAt: '2026-10-04',
+        metadata: { schemaVersion: 1, skillName: 'Incomplete' },
+      },
+    ]),
+  );
+  assert.equal(rows[0].metadata?.skillName, 'Systems thinking');
+  assert.equal('state' in rows[0], false);
+  assert.equal(rows[1].metadata, undefined);
 });
 test('keeps proof failures distinct from service failures and rejects incomplete valid responses', async () => {
   const originalFetch = globalThis.fetch;
