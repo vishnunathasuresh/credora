@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -96,6 +96,7 @@ const storage: MetadataStorage =
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 const rateLimits = new Map<string, { startedAt: number; count: number }>();
 const organizationApplicationRateLimits = new Map<string, { startedAt: number; count: number }>();
+const walletShareRateLimits = new Map<string, { startedAt: number; count: number }>();
 const metrics = new Map<string, number>();
 const configuredSuperadminAddresses = new Set(
   (process.env.API_SUPERADMIN_ADDRESSES ?? process.env.API_ADMIN_ADDRESSES ?? '')
@@ -133,8 +134,8 @@ function originHeaders(request: IncomingMessage) {
   return {
     ...jsonHeaders,
     ...(allowedOrigin ? { 'access-control-allow-origin': allowedOrigin } : {}),
-    'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type,authorization',
+    'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization,x-share-management-token',
     'x-content-type-options': 'nosniff',
     'cache-control': 'no-store',
     ...(hstsEnabled ? { 'strict-transport-security': 'max-age=31536000' } : {}),
@@ -161,12 +162,13 @@ function fail(request: IncomingMessage, response: ServerResponse, error: unknown
     response.setHeader('retry-after', Math.ceil(rateLimitWindowMs / 1000).toString());
   if (normalized.code === 'ORGANIZATION_INTAKE_LIMITED')
     response.setHeader('retry-after', Math.ceil(organizationIntakeWindowMs / 1000).toString());
+  if (normalized.code === 'SHARE_RATE_LIMITED') response.setHeader('retry-after', '3600');
   console.error(
     JSON.stringify({
       level: 'error',
       event: 'api_request_failed',
       method: request.method,
-      path: request.url,
+      path: request.url?.replace(/\/shares\/[^/?]+/g, '/shares/[redacted]'),
       code: normalized.code,
       status: normalized.status,
     }),
@@ -232,11 +234,15 @@ function cleanupExpiredData() {
   const now = new Date().toISOString();
   database.prepare('DELETE FROM challenges WHERE expires_at <= ?').run(now);
   database.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
+  database.prepare('DELETE FROM wallet_shares WHERE expires_at <= ?').run(now);
   const cutoff = new Date(Date.now() - rateLimitWindowMs).getTime();
   for (const [key, value] of rateLimits) if (value.startedAt < cutoff) rateLimits.delete(key);
   const organizationCutoff = Date.now() - organizationIntakeWindowMs;
   for (const [key, value] of organizationApplicationRateLimits)
     if (value.startedAt < organizationCutoff) organizationApplicationRateLimits.delete(key);
+  const walletShareCutoff = Date.now() - 60 * 60_000;
+  for (const [key, value] of walletShareRateLimits)
+    if (value.startedAt < walletShareCutoff) walletShareRateLimits.delete(key);
 }
 
 function clientKey(request: IncomingMessage) {
@@ -275,6 +281,34 @@ function checkOrganizationApplicationRateLimit(request: IncomingMessage) {
       429,
     );
   current.count += 1;
+}
+
+function checkWalletShareRateLimit(request: IncomingMessage) {
+  const now = Date.now();
+  const key = clientKey(request);
+  const current = walletShareRateLimits.get(key);
+  if (!current || now - current.startedAt >= 60 * 60_000) {
+    walletShareRateLimits.set(key, { startedAt: now, count: 1 });
+    return;
+  }
+  if (current.count >= 10)
+    throw new CredoraError(
+      'Too many share codes were created from this network. Try again in an hour.',
+      'SHARE_RATE_LIMITED',
+      429,
+    );
+  current.count += 1;
+}
+
+function sha256(value: string) {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function secureTokenMatches(candidate: string | undefined, expectedHash: string) {
+  if (!candidate || !/^[A-Za-z0-9_-]{43}$/.test(candidate)) return false;
+  const actual = Buffer.from(sha256(candidate), 'hex');
+  const expected = Buffer.from(expectedHash, 'hex');
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 function requireSession(request: IncomingMessage) {
@@ -704,9 +738,13 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       throw new CredoraError('limit must be 1-100', 'INVALID_QUERY', 400);
     const items = database
       .prepare(
-        `SELECT credential_hash, issuer, learner, metadata_uri, transaction_hash,
-                block_number, state, issue_date, skill_name, skill_level
+        `SELECT issuances.credential_hash, issuances.issuer, issuances.learner,
+                issuances.metadata_uri, issuances.transaction_hash, issuances.block_number,
+                issuances.state, issuances.issue_date, issuances.skill_name, issuances.skill_level,
+                organizations.name AS organization_name,
+                organizations.logo_url AS organization_logo_url
          FROM issuances
+         LEFT JOIN organizations ON organizations.id = issuances.organization_id
          WHERE learner = ? AND state = 'confirmed'
          ORDER BY issue_date DESC
          LIMIT ?`,
@@ -718,6 +756,154 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       source: 'api-projection',
       sourceNote: 'Public proof remains authoritative on the registry and metadata source.',
     });
+    return;
+  }
+
+  const publicOrganization = path.match(/^\/organizations\/by-issuer\/([^/]+)$/);
+  if (method === 'GET' && publicOrganization) {
+    let address: Address;
+    try {
+      address = normalizeAddress(decodeURIComponent(publicOrganization[1]), 'issuer');
+    } catch {
+      throw new CredoraError('Issuer address must be a valid EVM address', 'INVALID_QUERY', 400);
+    }
+    const organization =
+      database
+        .prepare(
+          "SELECT name AS name, website_url AS websiteUrl, logo_url AS logoUrl FROM organizations WHERE admin_address = ? AND status = 'active'",
+        )
+        .get(address) ?? null;
+    send(request, response, 200, { organization });
+    return;
+  }
+
+  if (method === 'POST' && path === '/wallet/shares') {
+    checkWalletShareRateLimit(request);
+    const body = await bodyOf(request);
+    if (
+      !Array.isArray(body.credentialHashes) ||
+      body.credentialHashes.length < 1 ||
+      body.credentialHashes.length > 25
+    )
+      throw new CredoraError(
+        'Choose between 1 and 25 credentials to share',
+        'INVALID_SHARE_SELECTION',
+        400,
+      );
+    const durationDays = body.durationDays;
+    if (durationDays !== 1 && durationDays !== 7 && durationDays !== 30)
+      throw new CredoraError(
+        'Choose a share duration of 1, 7, or 30 days',
+        'INVALID_SHARE_DURATION',
+        400,
+      );
+    const credentialHashes = body.credentialHashes.map((value) => {
+      if (typeof value !== 'string')
+        throw new CredoraError('Every credential reference must be a hash', 'INVALID_BODY', 400);
+      try {
+        return credentialReferenceFromHash(value).toLowerCase();
+      } catch {
+        throw new CredoraError(
+          'Every credential reference must be a valid hash',
+          'INVALID_BODY',
+          400,
+        );
+      }
+    });
+    if (new Set(credentialHashes).size !== credentialHashes.length)
+      throw new CredoraError(
+        'Remove duplicate credentials from the selection',
+        'INVALID_BODY',
+        400,
+      );
+    const activeShareCount = database
+      .prepare(
+        'SELECT COUNT(*) AS count FROM wallet_shares WHERE revoked_at IS NULL AND expires_at > ?',
+      )
+      .get(new Date().toISOString()) as { count: number };
+    if (Number(activeShareCount.count) >= 10_000)
+      throw new CredoraError(
+        'The sharing service is busy. Try again later.',
+        'SHARE_CAPACITY_REACHED',
+        503,
+      );
+
+    const id = randomUUID();
+    const token = randomBytes(32).toString('base64url');
+    const managementToken = randomBytes(32).toString('base64url');
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + durationDays * 24 * 60 * 60_000).toISOString();
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      database
+        .prepare(
+          'INSERT INTO wallet_shares (id, token_hash, management_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(id, sha256(token), sha256(managementToken), createdAt.toISOString(), expiresAt);
+      const addCredential = database.prepare(
+        'INSERT INTO wallet_share_credentials (share_id, credential_hash, position) VALUES (?, ?, ?)',
+      );
+      credentialHashes.forEach((hash, position) => addCredential.run(id, hash, position));
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      throw error;
+    }
+    audit('public-share', 'wallet_share_created', {
+      shareId: id,
+      count: credentialHashes.length,
+      durationDays,
+      expiresAt,
+    });
+    send(request, response, 201, { id, token, managementToken, expiresAt, durationDays });
+    return;
+  }
+
+  const publicShare = path.match(/^\/wallet\/shares\/([A-Za-z0-9_-]{43})$/);
+  if (method === 'GET' && publicShare) {
+    const token = publicShare[1];
+    const share = database
+      .prepare(
+        'SELECT id, expires_at AS expiresAt, revoked_at AS revokedAt FROM wallet_shares WHERE token_hash = ?',
+      )
+      .get(sha256(token)) as
+      { id: string; expiresAt: string; revokedAt: string | null } | undefined;
+    if (!share) throw new CredoraError('This share code is unavailable', 'SHARE_NOT_FOUND', 404);
+    if (share.revokedAt || Date.parse(share.expiresAt) <= Date.now())
+      throw new CredoraError('This share code has expired or was turned off', 'SHARE_EXPIRED', 410);
+    const credentials = database
+      .prepare(
+        'SELECT credential_hash AS credentialHash FROM wallet_share_credentials WHERE share_id = ? ORDER BY position ASC',
+      )
+      .all(share.id);
+    send(request, response, 200, { expiresAt: share.expiresAt, credentials });
+    return;
+  }
+
+  const revokeShare = path.match(/^\/wallet\/shares\/([0-9a-f-]{36})$/i);
+  if (method === 'DELETE' && revokeShare) {
+    const id = revokeShare[1];
+    const share = database
+      .prepare(
+        'SELECT management_hash AS managementHash, expires_at AS expiresAt, revoked_at AS revokedAt FROM wallet_shares WHERE id = ?',
+      )
+      .get(id) as
+      { managementHash: string; expiresAt: string; revokedAt: string | null } | undefined;
+    if (!share) throw new CredoraError('Share code not found', 'NOT_FOUND', 404);
+    if (!secureTokenMatches(header(request, 'x-share-management-token'), share.managementHash))
+      throw new CredoraError('Share management key required', 'FORBIDDEN', 403);
+    if (share.revokedAt || Date.parse(share.expiresAt) <= Date.now())
+      throw new CredoraError(
+        'This share code has expired or was already turned off',
+        'SHARE_EXPIRED',
+        410,
+      );
+    const revokedAt = new Date().toISOString();
+    database
+      .prepare('UPDATE wallet_shares SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL')
+      .run(revokedAt, id);
+    audit('public-share', 'wallet_share_revoked', { shareId: id, revokedAt });
+    send(request, response, 200, { id, revokedAt });
     return;
   }
 
@@ -797,6 +983,33 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         400,
       );
     const websiteUrl = website.toString();
+    const logoInput = typeof body.logoUrl === 'string' ? body.logoUrl.trim() : '';
+    let logoUrl: string | null = null;
+    if (logoInput) {
+      let logo: URL;
+      try {
+        logo = new URL(logoInput);
+      } catch {
+        throw new CredoraError(
+          'Organization logo must be an HTTPS image on its official website',
+          'INVALID_BODY',
+          400,
+        );
+      }
+      if (
+        logo.protocol !== 'https:' ||
+        logo.username ||
+        logo.password ||
+        logo.origin !== website.origin ||
+        logoInput.length > 2048
+      )
+        throw new CredoraError(
+          'Organization logo must use the same HTTPS website origin as the organization site',
+          'INVALID_BODY',
+          400,
+        );
+      logoUrl = logo.toString();
+    }
     if (
       configuredOrgAdminAddresses.has(session.address.toLowerCase()) ||
       session.roles.includes('ORG_ADMIN')
@@ -843,9 +1056,9 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       database
         .prepare(
           `INSERT INTO organization_applications
-          (id, organization_name, website_url, applicant_address, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)`,
+          (id, organization_name, website_url, applicant_address, status, created_at, logo_url) VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
         )
-        .run(id, name, websiteUrl, session.address, createdAt);
+        .run(id, name, websiteUrl, session.address, createdAt, logoUrl);
     } catch (error) {
       if (isSqliteConstraint(error))
         throw new CredoraError(
@@ -855,11 +1068,12 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         );
       throw error;
     }
-    audit(session.address, 'organization_application_submitted', { id, name, websiteUrl });
+    audit(session.address, 'organization_application_submitted', { id, name, websiteUrl, logoUrl });
     send(request, response, 201, {
       id,
       organizationName: name,
       websiteUrl,
+      logoUrl,
       applicantAddress: session.address,
       status: 'pending',
       createdAt,
@@ -872,6 +1086,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const application = database
       .prepare(
         `SELECT id, organization_name AS organizationName, website_url AS websiteUrl,
+      logo_url AS logoUrl,
       applicant_address AS applicantAddress, status, created_at AS createdAt, reviewed_at AS reviewedAt
       FROM organization_applications WHERE applicant_address = ? ORDER BY created_at DESC LIMIT 1`,
       )
@@ -885,13 +1100,13 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const applications = database
       .prepare(
         `SELECT id, organization_name AS organizationName, website_url AS websiteUrl,
-      applicant_address AS applicantAddress, status, created_at AS createdAt
+      logo_url AS logoUrl, applicant_address AS applicantAddress, status, created_at AS createdAt
       FROM organization_applications WHERE status = 'pending' ORDER BY created_at ASC LIMIT 100`,
       )
       .all();
     const organizations = database
       .prepare(
-        `SELECT id, name, website_url AS websiteUrl, admin_address AS adminAddress, status,
+        `SELECT id, name, website_url AS websiteUrl, logo_url AS logoUrl, admin_address AS adminAddress, status,
       created_at AS createdAt FROM organizations ORDER BY created_at DESC LIMIT 100`,
       )
       .all();
@@ -907,7 +1122,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const [, applicationId, decision] = organizationDecision;
     const application = database
       .prepare(
-        `SELECT id, organization_name, website_url, applicant_address, status
+        `SELECT id, organization_name, website_url, logo_url, applicant_address, status
       FROM organization_applications WHERE id = ?`,
       )
       .get(applicationId) as
@@ -915,6 +1130,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
           id: string;
           organization_name: string;
           website_url: string;
+          logo_url: string | null;
           applicant_address: string;
           status: string;
         }
@@ -946,8 +1162,8 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         database
           .prepare(
             `INSERT INTO organizations
-        (id, application_id, name, website_url, admin_address, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+        (id, application_id, name, website_url, admin_address, status, created_at, updated_at, logo_url)
+        VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
           )
           .run(
             randomUUID(),
@@ -957,6 +1173,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
             application.applicant_address,
             reviewedAt,
             reviewedAt,
+            application.logo_url,
           );
       database
         .prepare(
@@ -972,6 +1189,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
             applicant: application.applicant_address,
             organizationName: application.organization_name,
             websiteUrl: application.website_url,
+            logoUrl: application.logo_url,
           }),
         );
       database.exec('COMMIT');

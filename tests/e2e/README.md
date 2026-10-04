@@ -28,3 +28,11 @@ pnpm test:e2e:backend:routes
 The route suite covers malformed input, missing sessions, unauthorized issuers,
 metadata outages, metadata tampering, duplicate confirmations, and reverted
 transactions.
+
+The selected wallet-share test starts an isolated in-memory API and checks
+creation, credential selection, expiry, revocation authority, and token
+redaction. Run it without Anvil or IPFS:
+
+```sh
+pnpm test:e2e:wallet-shares
+```

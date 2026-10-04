@@ -16,6 +16,7 @@
     "test:e2e:backend:routes": "pnpm --filter @credora/api exec node ../../tests/e2e/backend-routes.mjs",
     "test:e2e:backend:roles": "pnpm --filter @credora/api exec node ../../tests/e2e/backend-roles.mjs",
     "test:e2e:backend:outage": "pnpm --filter @credora/api exec node ../../tests/e2e/backend-outage.mjs",
+    "test:e2e:wallet-shares": "node tests/e2e/wallet-shares.mjs",
     "test:e2e:ipfs": "pnpm --filter @credora/api exec tsx ../../tests/e2e/ipfs-smoke.mjs",
     "lint": "pnpm exec prettier --check \"apps/**/*.{ts,tsx,js,jsx,mjs,json,css}\" \"packages/**/*.{ts,tsx,js,jsx,mjs,json}\" \"tests/**/*.mjs\" \"scripts/**/*.mjs\" package.json pnpm-workspace.yaml \".github/workflows/*.yml\" deploy/docker-compose.yml deploy/README.md",
     "typecheck": "pnpm -r --if-present typecheck",

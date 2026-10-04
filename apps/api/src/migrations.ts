@@ -114,6 +114,30 @@ const migrations: Migration[] = [
       CREATE INDEX issuances_by_organization ON issuances(organization_id, created_at DESC);
     `,
   },
+  {
+    version: 7,
+    name: 'expiring_selected_wallet_shares',
+    sql: `
+      ALTER TABLE organization_applications ADD COLUMN logo_url TEXT;
+      ALTER TABLE organizations ADD COLUMN logo_url TEXT;
+      CREATE TABLE wallet_shares (
+        id TEXT PRIMARY KEY,
+        token_hash TEXT NOT NULL UNIQUE,
+        management_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT
+      );
+      CREATE TABLE wallet_share_credentials (
+        share_id TEXT NOT NULL REFERENCES wallet_shares(id) ON DELETE CASCADE,
+        credential_hash TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        PRIMARY KEY (share_id, credential_hash),
+        UNIQUE (share_id, position)
+      );
+      CREATE INDEX wallet_shares_active_expiry ON wallet_shares(expires_at) WHERE revoked_at IS NULL;
+    `,
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {

@@ -25,6 +25,15 @@ unavailable without changing verification truth. A direct verifier can read
 the registry and IPFS without authenticating to Credora. Verification treats
 ledger availability and metadata availability as separate failure states.
 
+Wallet sharing is a short-lived API capability that groups up to 25 explicitly
+selected public credential hashes behind one QR. The API stores only SHA-256
+token digests and selection hashes; the separate management secret can revoke
+the share but cannot change its contents. Expiry or revocation stops future
+bundle lookup. Individual public proof records and copies already made by a
+verifier remain public. Opening a share does not prove that the presenter
+controls any learner wallet; each credential must still be verified through
+the normal chain and IPFS path.
+
 Production organizations should use a multisig or equivalent admin policy for
 issuer-key authorization. Organization applications require explicit
 superadmin review. That review does not grant issuer status; the registry still
@@ -47,6 +56,7 @@ Credential ── projects to ─ 0..* API rows
 ```
 
 See [ADR 0008](../decisions/0008-reviewed-organization-enrollment.md) for the
-manual enrollment and role boundary, and the other ADRs and [glossary](../glossary.md)
+manual enrollment and role boundary, [ADR 0009](../decisions/0009-expiring-selected-wallet-shares.md)
+for wallet share capabilities, and the other ADRs and [glossary](../glossary.md)
 for proof invariants, privacy rules, and the future organization-registry
 migration boundary.
