@@ -29,6 +29,7 @@ import {
   YStack,
 } from 'tamagui';
 import config from './tamagui.config';
+import { AppIcon } from './src/icons';
 import {
   parseReference,
   readSavedCredentials,
@@ -452,7 +453,7 @@ function MobileApp() {
                       >
                         Add a credential
                       </Button>
-                      <Button minHeight={48} onPress={startScan}>
+                      <Button minHeight={48} icon={<AppIcon name="scan" />} onPress={startScan}>
                         Scan a QR code
                       </Button>
                     </YStack>
@@ -566,7 +567,12 @@ function MobileApp() {
                     <Button themeInverse minHeight={48} disabled={busy} onPress={() => verify()}>
                       {busy ? 'Checking public record…' : 'Verify credential'}
                     </Button>
-                    <Button minHeight={48} disabled={busy} onPress={startScan}>
+                    <Button
+                      minHeight={48}
+                      disabled={busy}
+                      icon={<AppIcon name="scan" />}
+                      onPress={startScan}
+                    >
                       Scan QR code
                     </Button>
                   </YStack>
@@ -607,7 +613,12 @@ function MobileApp() {
                               ? 'Update saved link'
                               : 'Save to my credentials'}
                           </Button>
-                          <Button themeInverse minHeight={48} onPress={download}>
+                          <Button
+                            themeInverse
+                            minHeight={48}
+                            icon={<AppIcon name="download" />}
+                            onPress={download}
+                          >
                             Download credential JSON
                           </Button>
                           <Paragraph fontSize={13}>
@@ -714,7 +725,7 @@ function MobileApp() {
                 <Button
                   key={value}
                   flex={1}
-                  minHeight={52}
+                  minHeight={64}
                   themeInverse={tab === value}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: tab === value }}
@@ -723,7 +734,12 @@ function MobileApp() {
                     setNotice('');
                   }}
                 >
-                  {value === 'wallet' ? 'Credentials' : value === 'verify' ? 'Verify' : 'Setup'}
+                  <YStack alignItems="center" gap="$1">
+                    <AppIcon name={value} size={20} />
+                    <Text color="$color" fontSize={12}>
+                      {value === 'wallet' ? 'Credentials' : value === 'verify' ? 'Verify' : 'Setup'}
+                    </Text>
+                  </YStack>
                 </Button>
               ))}
             </XStack>

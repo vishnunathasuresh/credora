@@ -89,22 +89,21 @@ native screenshots or runtime tests.
 | P1 release validation | Camera permission/scanning, native JSON export/share, safe areas, rotation, large text, VoiceOver/TalkBack and system Back | Validate on actual Android/iOS phones before claiming native release readiness; `$impeccable audit` with native captures        |
 | P2                    | Native ScrollView renders saved links eagerly, bounded at 100 (`apps/mobile/App.tsx`)                                      | Profile a populated library on a phone; virtualize if scrolling/startup cost warrants it; `$impeccable optimize`                |
 | P2 validation         | Authenticated issuer/admin/organization workflows and real issued credentials                                              | Exercise with authorized test wallets and configured Anvil/IPFS; disconnected screenshots and fixtures do not prove these flows |
-| P3                    | Legacy CSS rules coexist with shadcn utility classes                                                                       | Consolidate as a separate measured extraction task to avoid future token precedence regressions; `$impeccable harden`          |
+| P3                    | Legacy CSS rules coexist with shadcn utility classes                                                                       | Consolidate as a separate measured extraction task to avoid future token precedence regressions; `$impeccable harden`           |
 
 P0 issues: none observed. Open native release validation is an evidence gap,
 not a claim that the camera or share sheet is broken. Native signing-wallet
 integration and original attachment downloads were not implemented; the app
 uses the web wallet flow and exports the public credential JSON available in v1.
 
-The final reviewer disposition is **recapture**: functional/source fixes are
-resolved at their stated scope, while final web screenshots and native device
-evidence remain incomplete. See [finish review](finish-review.md).
+The final reviewer disposition is **ship for the scored web fixes only**:
+settled desktop and phone captures now confirm the homepage action, verifier
+copy and Hugeicons rendering. See [finish review](finish-review.md). Native
+device evidence and authenticated workflow coverage remain incomplete.
 
 The next visual step after device/authenticated checks is `$impeccable polish`.
 Keep it bounded to defects demonstrated by those checks.
 
-Final screenshot recapture was blocked by a T3 preview capture error. Navigation,
-DOM checks and computed contrast remained available, but settled replacement
-screenshots could not be produced. The reviewer therefore cannot certify the
-full final visual surface; the earlier captures and source/interaction evidence
-remain the supported audit scope. No alternative browser substituted for it.
+Hugeicons supplies the web and native glyphs. Native imports individual icon
+modules so Metro does not include the entire free icon catalogue. Icons retain
+visible action labels and are hidden from assistive technology when decorative.

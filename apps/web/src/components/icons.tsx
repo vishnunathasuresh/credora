@@ -1,191 +1,190 @@
-type IconProps = {
-  size?: number;
-  strokeWidth?: number;
-};
+import { HugeiconsIcon } from '@hugeicons/react';
+import type { ComponentProps } from 'react';
+import {
+  ArrowUpRight01Icon,
+  Cancel01Icon,
+  ArrowDown01Icon,
+  Tick02Icon,
+  Alert02Icon,
+  MinusSignIcon,
+  Menu01Icon,
+  Sun03Icon,
+  Moon02Icon,
+} from '@hugeicons/core-free-icons';
 
-export function ArrowUpRightIcon({ size = 16, strokeWidth = 1.8 }: IconProps) {
+type IconProps = Omit<ComponentProps<typeof HugeiconsIcon>, 'icon'>;
+
+export function ArrowUpRightIcon({
+  size = 16,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={ArrowUpRight01Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M6 18 18 6M8 6h10v10"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function CloseIcon({ size = 18, strokeWidth = 1.8 }: IconProps) {
+export function CloseIcon({
+  size = 18,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={Cancel01Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="m6 6 12 12M18 6 6 18"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function ArrowDownIcon({ size = 16, strokeWidth = 1.8 }: IconProps) {
+export function ArrowDownIcon({
+  size = 16,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={ArrowDown01Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M12 5v14m-6-6 6 6 6-6"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function CheckIcon({ size = 22, strokeWidth = 1.8 }: IconProps) {
+export function CheckIcon({
+  size = 22,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={Tick02Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="m5 12 4.5 4.5L19 7"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function AlertIcon({ size = 22, strokeWidth = 1.8 }: IconProps) {
+export function AlertIcon({
+  size = 22,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={Alert02Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M12 4 21 19H3L12 4Z"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 9v4m0 3h.01"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function MinusIcon({ size = 22, strokeWidth = 1.8 }: IconProps) {
+export function MinusIcon({
+  size = 22,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={MinusSignIcon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path d="M6 12h12" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function MenuIcon({ size = 18, strokeWidth = 1.8 }: IconProps) {
+export function MenuIcon({
+  size = 18,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={Menu01Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M4 7h16M4 12h16M4 17h16"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function SunIcon({ size = 16, strokeWidth = 1.8 }: IconProps) {
+export function SunIcon({ size = 16, strokeWidth = 1.8, className = 'icon', ...props }: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={Sun03Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth={strokeWidth} />
-      <path
-        d="M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2m15.2-6.7-1.4 1.4M7.7 16.3l-1.4 1.4m11.4 0-1.4-1.4M7.7 7.7 6.3 6.3"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-    </svg>
+      {...props}
+    />
   );
 }
 
-export function MoonIcon({ size = 16, strokeWidth = 1.8 }: IconProps) {
+export function MoonIcon({
+  size = 16,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
   return (
-    <svg
+    <HugeiconsIcon
+      icon={Moon02Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
       aria-hidden="true"
-      className="icon"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M19.5 15.7A8 8 0 0 1 8.3 4.5 8 8 0 1 0 19.5 15.7Z"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      {...props}
+    />
+  );
+}
+
+export function ChevronDownIcon({
+  size = 16,
+  strokeWidth = 1.8,
+  className = 'icon',
+  ...props
+}: IconProps) {
+  return (
+    <HugeiconsIcon
+      icon={ArrowDown01Icon}
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
+      aria-hidden="true"
+      {...props}
+    />
   );
 }

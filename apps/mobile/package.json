@@ -19,6 +19,8 @@
     "@credora/credential-core": "workspace:*",
     "@credora/shared": "workspace:*",
     "@expo/metro-runtime": "~6.1.2",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react-native": "^1.0.16",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tamagui/config": "^1.144.4",
     "expo": "~54.0.37",

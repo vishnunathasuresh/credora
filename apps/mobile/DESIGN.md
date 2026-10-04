@@ -21,7 +21,7 @@ Use the configured Tamagui type system. Current task headings are 32px, scan/pre
 
 ## Layout
 
-Phone-first, single-column task content scrolls within safe areas, with a header above and three persistent bottom tabs: Credentials, Verify, Setup. Content is full width up to 720px and centered on wider previews. Use Tamagui spacing tokens for grouping. Buttons have at least 48px height, inputs 52px, and tabs 52px; wrapping action rows accommodate limited width.
+Phone-first, single-column task content scrolls within safe areas, with a header above and three persistent bottom tabs: Credentials, Verify, Setup. Content is full width up to 720px and centered on wider previews. Use Tamagui spacing tokens for grouping. Buttons have at least 48px height, inputs 52px, and tabs at least 64px; wrapping action rows accommodate limited width.
 
 Scan and QR presentation temporarily replace the task view and hide the tab bar. Provide explicit cancel/back actions; Android back returns through these views before leaving the app. iOS keyboard avoidance and scrollable forms keep entry tasks usable.
 
@@ -35,7 +35,7 @@ Use the configured Tamagui radius tokens for cards, status notices, and QR panel
 
 ## Components
 
-Compose Button, Input, H1, H2, Paragraph, Text, Separator, Spinner, ScrollView, XStack, and YStack from Tamagui. Keep camera, QR rendering, safe areas, and system sharing native. Do not reproduce web Dialog or DOM controls inside the native app.
+Compose Button, Input, H1, H2, Paragraph, Text, Separator, Spinner, ScrollView, XStack, and YStack from Tamagui. Use Hugeicons stroke-rounded icons through the native wrapper for navigation, scanning and downloads. Decorative icons inherit theme color and are hidden from accessibility traversal; visible labels remain the accessible control names. Keep camera, QR rendering, safe areas, and system sharing native. Do not reproduce web Dialog or DOM controls inside the native app.
 
 Empty-library help includes Add and Scan actions. Saved entries show the credential name, inspectable hash, and a reminder to recheck the record. Verification results use a named outcome, explanation, and retry or save/export actions as appropriate. Loading spinners and polite status announcements accompany asynchronous work. Error copy distinguishes service, ledger, metadata, input, camera, storage, and sharing failures.
 

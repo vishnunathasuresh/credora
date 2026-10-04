@@ -24,7 +24,7 @@ The first viewport should make three things obvious within seconds: what Credora
 
 ## Components
 
-Web controls use the checked-in shadcn components in `apps/web/src/components/ui`: Button, Input, Textarea, NativeSelect, Label, Card, Badge, and Dialog. Extend these primitives instead of introducing a second control system. Keep action links as links through Button's `asChild` support. Use the primary button for the main task, outline for secondary actions, ghost for navigation, and destructive styling for destructive actions. Preserve visible focus, disabled, loading, and error states.
+Web controls use the checked-in shadcn components in `apps/web/src/components/ui`: Button, Input, Textarea, NativeSelect, Label, Card, Badge, and Dialog. Extend these primitives instead of introducing a second control system. Use Hugeicons stroke-rounded glyphs through the local icon wrapper, including icons inside shadcn primitives. Keep action links as links through Button's `asChild` support. Use the primary button for the main task, outline for secondary actions, ghost for navigation, and destructive styling for destructive actions. Preserve visible focus, disabled, loading, and error states.
 
 Radix-backed Dialog owns web QR sharing and narrow-screen navigation, including a named title, description, close action, and focus management. QR sharing exposes the public verification URL alongside the code; copy/share failures retain an actionable fallback. QR download is an image of the public link, not a credential document or independent proof.
 
