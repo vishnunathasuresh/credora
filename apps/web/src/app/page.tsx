@@ -48,7 +48,6 @@ export default function HomePage() {
           </div>
         </div>
         <div className="hero-record-wrap">
-          <div className="hero-record-grid" aria-hidden="true" />
           <div className="hero-proof" aria-label="Illustrative credential flow">
             <div className="record-header">
               <div>
