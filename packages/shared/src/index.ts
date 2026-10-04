@@ -32,3 +32,17 @@ export class CredoraError extends Error {
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
+
+/** Extract a public credential reference without navigating to a supplied URL. */
+export function parseCredentialReference(value: string): string | undefined {
+  const input = value.trim();
+  if (/^0x[\da-fA-F]{64}$/.test(input)) return input.toLowerCase();
+  try {
+    const url = new URL(input);
+    if (!['https:', 'http:'].includes(url.protocol)) return;
+    const match = url.pathname.match(/^\/verify\/(0x[\da-fA-F]{64})\/?$/);
+    return match?.[1].toLowerCase();
+  } catch {
+    return;
+  }
+}

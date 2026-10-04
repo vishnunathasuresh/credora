@@ -3,8 +3,19 @@
     "name": "Credora",
     "slug": "credora",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
-    "android": { "package": "org.credora.app" }
+    "android": {
+      "package": "org.credora.app"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Credora to scan public credential QR codes.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ]
   }
 }

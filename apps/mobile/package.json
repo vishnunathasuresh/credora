@@ -2,13 +2,15 @@
   "name": "@credora/mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "expo/AppEntry.js",
+  "main": "index.ts",
   "scripts": {
     "dev": "expo start",
     "start": "expo start",
     "android": "expo start --android",
     "web": "expo start --web",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsx --test src/credentials.test.ts",
+    "export": "expo export"
   },
   "devDependencies": {
     "@types/react": "^19.1.17"
