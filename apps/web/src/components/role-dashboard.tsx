@@ -1,4 +1,6 @@
 'use client';
+import { WalletGuide } from './wallet-guide';
+import { Button } from './ui/button';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRightIcon, CheckIcon } from './icons';
@@ -100,9 +102,9 @@ export function RoleDashboard() {
         <section className="workspace-panel workspace-connect">
           <h2>Connect your wallet.</h2>
           <p>Credora signs a session challenge only. Private keys stay in the browser wallet.</p>
-          <button className="button button-dark" type="button" onClick={connect} disabled={busy}>
+          <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect wallet'}
-          </button>
+          </Button>
           {error ? (
             <p className="form-help form-error" role="alert">
               {error}
@@ -130,6 +132,7 @@ export function RoleDashboard() {
           </div>
         </>
       )}
+      {!session ? <WalletGuide /> : null}
     </main>
   );
 }

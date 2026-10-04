@@ -1,4 +1,5 @@
 'use client';
+import { Button } from './ui/button';
 
 import { useEffect, useState } from 'react';
 import { MoonIcon, SunIcon } from './icons';
@@ -22,7 +23,7 @@ export function ThemeToggle() {
   }
 
   return (
-    <button
+    <Button
       className="theme-toggle"
       onClick={toggle}
       type="button"
@@ -31,6 +32,6 @@ export function ThemeToggle() {
     >
       {dark ? <SunIcon /> : <MoonIcon />}
       <span>{dark ? 'Light' : 'Dark'}</span>
-    </button>
+    </Button>
   );
 }

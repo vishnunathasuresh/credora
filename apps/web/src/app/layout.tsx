@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
-import { MenuIcon } from '../components/icons';
+import { MobileNavigation } from '../components/mobile-navigation';
 import { ThemeToggle } from '../components/theme-toggle';
 
 export const metadata: Metadata = {
@@ -20,6 +20,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
         <div className="shell">
           <header className="topbar">
             <a className="wordmark" href="/" aria-label="Credora home">
@@ -29,6 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <div className="header-controls">
               <nav className="nav desktop-nav" aria-label="Primary navigation">
                 <a href="/verify">Verify</a>
+                <a href="/wallet">My credentials</a>
                 <a href="/demo">Demo data</a>
                 <a href="/#how-it-works">How it works</a>
                 <a className="nav-cta" href="/dashboard">
@@ -36,25 +40,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 </a>
               </nav>
               <ThemeToggle />
-              <details className="mobile-nav">
-                <summary>
-                  <span>Menu</span>
-                  <MenuIcon />
-                </summary>
-                <nav className="mobile-nav-panel" aria-label="Mobile navigation">
-                  <a href="/verify">Verify a credential</a>
-                  <a href="/dashboard">Choose workspace</a>
-                  <a href="/superadmin">Superadmin control</a>
-                  <a href="/org">Organization workspace</a>
-                  <a href="/issuer">Issue a credential</a>
-                  <a href="/wallet">Open wallet</a>
-                  <a href="/demo">Explore demo data</a>
-                  <a href="/#how-it-works">How it works</a>
-                </nav>
-              </details>
+              <MobileNavigation />
             </div>
           </header>
-          {children}
+          <div id="main-content" tabIndex={-1}>
+            {children}
+          </div>
           <footer className="footer">
             <span>Credora protocol · open, portable, independently checkable</span>
             <span>Built for the next keeper of your work</span>

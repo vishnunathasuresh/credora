@@ -1,4 +1,5 @@
 'use client';
+import { Button } from '../../../components/ui/button';
 
 import { useTransition } from 'react';
 
@@ -13,14 +14,14 @@ export default function VerificationError({ reset }: { reset: () => void }) {
         again or return to the verification form.
       </p>
       <div className="verification-actions">
-        <button
+        <Button
           className="button button-dark"
           type="button"
           onClick={() => startTransition(() => reset())}
           disabled={isPending}
         >
           {isPending ? 'Trying again…' : 'Try again'}
-        </button>
+        </Button>
         <a className="text-link" href="/verify">
           Back to verification
         </a>

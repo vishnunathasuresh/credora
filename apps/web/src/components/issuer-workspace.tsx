@@ -1,4 +1,10 @@
 'use client';
+import { WalletGuide } from './wallet-guide';
+import { NativeSelect, NativeSelectOption } from './ui/native-select';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { credentialRegistryAbi } from '@credora/contracts';
@@ -255,9 +261,9 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
           </p>
         </div>
         {session ? (
-          <button className="text-button" type="button" onClick={disconnect}>
+          <Button className="text-button" type="button" onClick={disconnect}>
             Disconnect {shortAddress(session.address)}
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -268,14 +274,14 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             Credora asks the wallet to sign a one-time session challenge. Private keys never enter
             the API.
           </p>
-          <button
+          <Button
             className="button button-dark"
             type="button"
             onClick={connect}
             disabled={connecting}
           >
             {connecting ? 'Connecting…' : 'Connect issuer wallet'}
-          </button>
+          </Button>
         </section>
       ) : !hasWorkspaceAccess ? (
         <section className="workspace-panel workspace-connect">
@@ -341,61 +347,61 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                 </p>
               ) : (
                 <form className="workspace-form" onSubmit={submit} aria-busy={busy}>
-                  <label>
+                  <Label>
                     Learner wallet address
-                    <input
+                    <Input
                       value={form.learnerAddress}
                       onChange={(event) => updateField('learnerAddress', event.target.value)}
                       placeholder="0x…"
                       required
                       spellCheck={false}
                     />
-                  </label>
-                  <label>
+                  </Label>
+                  <Label>
                     Skill or credential name
-                    <input
+                    <Input
                       value={form.skillName}
                       onChange={(event) => updateField('skillName', event.target.value)}
                       placeholder="Systems thinking"
                       required
                     />
-                  </label>
+                  </Label>
                   <div className="form-two-column">
-                    <label>
+                    <Label>
                       Level
-                      <select
+                      <NativeSelect
                         value={form.skillLevel}
                         onChange={(event) => updateField('skillLevel', event.target.value)}
                       >
-                        <option>Foundational</option>
-                        <option>Intermediate</option>
-                        <option>Advanced</option>
-                        <option>Expert</option>
-                      </select>
-                    </label>
-                    <label>
+                        <NativeSelectOption>Foundational</NativeSelectOption>
+                        <NativeSelectOption>Intermediate</NativeSelectOption>
+                        <NativeSelectOption>Advanced</NativeSelectOption>
+                        <NativeSelectOption>Expert</NativeSelectOption>
+                      </NativeSelect>
+                    </Label>
+                    <Label>
                       Issue date
-                      <input
+                      <Input
                         type="date"
                         value={form.issueDate}
                         onChange={(event) => updateField('issueDate', event.target.value)}
                         required
                       />
-                    </label>
+                    </Label>
                   </div>
-                  <label>
+                  <Label>
                     Public description <span className="field-optional">Optional</span>
-                    <textarea
+                    <Textarea
                       value={form.description}
                       onChange={(event) => updateField('description', event.target.value)}
                       placeholder="Keep this concise and free of unnecessary personal data."
                       rows={4}
                     />
-                  </label>
+                  </Label>
                   <div className="form-actions">
-                    <button className="button button-dark" type="submit" disabled={busy}>
+                    <Button className="button button-dark" type="submit" disabled={busy}>
                       {busy ? 'Working…' : 'Prepare and issue'}
-                    </button>
+                    </Button>
                     <span className="form-help" aria-live="polite">
                       {phaseCopy}
                     </span>
@@ -469,6 +475,7 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
           </div>
         </>
       )}
+      {!session ? <WalletGuide /> : null}
     </main>
   );
 }

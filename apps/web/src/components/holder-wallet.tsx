@@ -1,4 +1,6 @@
 'use client';
+import { WalletGuide } from './wallet-guide';
+import { Button } from './ui/button';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRightIcon, CheckIcon } from './icons';
@@ -88,9 +90,9 @@ export function HolderWallet() {
           </p>
         </div>
         {session ? (
-          <button className="text-button" type="button" onClick={disconnect}>
+          <Button className="text-button" type="button" onClick={disconnect}>
             Disconnect {shortAddress(session.address)}
-          </button>
+          </Button>
         ) : null}
       </div>
       {!session ? (
@@ -100,9 +102,9 @@ export function HolderWallet() {
             Credora uses a signed session to show credentials bound to this learner address. It
             never asks for your private key.
           </p>
-          <button className="button button-dark" type="button" onClick={connect} disabled={busy}>
+          <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect learner wallet'}
-          </button>
+          </Button>
           {error ? (
             <p className="form-help form-error" role="alert">
               {error}
@@ -132,7 +134,9 @@ export function HolderWallet() {
               {credentials.map((credential) => (
                 <article className="credential-row" key={credential.credential_hash}>
                   <div>
-                    <span className="state-label state-confirmed">confirmed on chain</span>
+                    <span className="state-label state-confirmed">
+                      Listed by issuer · verify proof
+                    </span>
                     <h3>{credential.skill_name}</h3>
                     <p>
                       {credential.skill_level} · issued{' '}
@@ -146,13 +150,16 @@ export function HolderWallet() {
                     <a className="text-link" href={`/verify/${credential.credential_hash}`}>
                       Verify <ArrowUpRightIcon />
                     </a>
-                    <button
+                    <Button asChild variant="outline">
+                      <a href={`/verify/${credential.credential_hash}`}>Show credential</a>
+                    </Button>
+                    <Button
                       className="text-button"
                       type="button"
                       onClick={() => copyLink(credential.credential_hash)}
                     >
                       {copied === credential.credential_hash ? 'Copied' : 'Copy link'}
-                    </button>
+                    </Button>
                     <CredentialShare
                       credentialHash={credential.credential_hash}
                       credentialName={credential.skill_name}
@@ -176,6 +183,7 @@ export function HolderWallet() {
           ) : null}
         </section>
       )}
+      {!session ? <WalletGuide /> : null}
     </main>
   );
 }

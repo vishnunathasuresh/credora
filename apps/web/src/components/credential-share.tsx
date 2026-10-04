@@ -1,8 +1,17 @@
 'use client';
+import { Button } from './ui/button';
 
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
-import { ArrowUpRightIcon, CloseIcon } from './icons';
+import { ArrowUpRightIcon } from './icons';
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from './ui/dialog';
 
 type CredentialShareProps = {
   credentialHash: string;
@@ -20,7 +29,6 @@ export function CredentialShare({ credentialHash, credentialName }: CredentialSh
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const verificationUrl = useMemo(() => shareUrl(credentialHash), [credentialHash]);
-  const dialogTitleId = `share-title-${credentialHash.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
   useEffect(() => {
     if (!open) return;
@@ -64,80 +72,58 @@ export function CredentialShare({ credentialHash, credentialName }: CredentialSh
   }
 
   return (
-    <>
-      <button
-        className="text-button"
-        type="button"
-        aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
-      >
-        Share QR
-      </button>
-      {open ? (
-        <div
-          className="share-dialog-backdrop"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
-        >
-          <section
-            className="share-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={dialogTitleId}
-          >
-            <div className="share-dialog-header">
-              <div>
-                <p className="panel-label">Public verification</p>
-                <h2 id={dialogTitleId}>Share {credentialName}</h2>
-              </div>
-              <button
-                className="icon-button"
-                type="button"
-                aria-label="Close sharing dialog"
-                onClick={() => setOpen(false)}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <div className="share-dialog-content">
-              {qrDataUrl ? (
-                <img
-                  className="credential-qr"
-                  src={qrDataUrl}
-                  alt={`QR code for the public verification link for ${credentialName}`}
-                />
-              ) : (
-                <div className="credential-qr credential-qr-loading" aria-live="polite">
-                  {error ? 'QR unavailable' : 'Generating QR…'}
-                </div>
-              )}
-              <p className="share-dialog-note">
-                Scan this code to open the public verifier. It contains only the verification link,
-                not private learner details.
-              </p>
-              <code className="share-dialog-url">{verificationUrl}</code>
-              <div className="share-dialog-actions">
-                <button className="button button-dark" type="button" onClick={shareLink}>
-                  Share link
-                </button>
-                <button className="button button-outline" type="button" onClick={copyLink}>
-                  {copied ? 'Copied' : 'Copy link'}
-                </button>
-                <a className="text-link" href={verificationUrl} onClick={() => setOpen(false)}>
-                  Open verifier <ArrowUpRightIcon />
-                </a>
-              </div>
-              {error ? (
-                <p className="form-help form-error" role="alert">
-                  {error}
-                </p>
-              ) : null}
-            </div>
-          </section>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" type="button">
+          Share QR
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Share {credentialName}</DialogTitle>
+          <DialogDescription>
+            Scan to check the public record. This link contains no private learner details.
+          </DialogDescription>
+        </DialogHeader>
+        {qrDataUrl ? (
+          <img
+            className="credential-qr"
+            width={280}
+            height={280}
+            src={qrDataUrl}
+            alt={`Verification QR for ${credentialName}`}
+          />
+        ) : (
+          <p role="status">{error ? 'QR unavailable' : 'Generating QR…'}</p>
+        )}
+        <code className="share-dialog-url">{verificationUrl}</code>
+        <div className="share-dialog-actions">
+          <Button onClick={shareLink}>Share link</Button>
+          <Button variant="outline" onClick={copyLink}>
+            {copied ? 'Copied' : 'Copy link'}
+          </Button>
+          {qrDataUrl ? (
+            <Button variant="outline" asChild>
+              <a href={qrDataUrl} download={`credora-${credentialHash}.png`}>
+                Download QR
+              </a>
+            </Button>
+          ) : null}
+          <Button variant="link" asChild>
+            <a href={verificationUrl}>
+              Open verifier <ArrowUpRightIcon />
+            </a>
+          </Button>
         </div>
-      ) : null}
-    </>
+        {error ? (
+          <p className="form-help form-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <span className="sr-only" role="status">
+          {copied ? 'Link copied' : ''}
+        </span>
+      </DialogContent>
+    </Dialog>
   );
 }

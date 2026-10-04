@@ -1,4 +1,7 @@
 'use client';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,9 +32,9 @@ export function VerifyForm() {
         startTransition(() => router.push(`/verify/${encodeURIComponent(reference.trim())}`));
       }}
     >
-      <label htmlFor="credential-reference">Credential hash</label>
+      <Label htmlFor="credential-reference">Credential hash</Label>
       <div className="form-row">
-        <input
+        <Input
           id="credential-reference"
           ref={inputRef}
           value={reference}
@@ -48,9 +51,9 @@ export function VerifyForm() {
           aria-invalid={Boolean(error)}
           aria-describedby="credential-reference-help"
         />
-        <button className="button button-dark" type="submit" disabled={isPending}>
+        <Button className="button button-dark" type="submit" disabled={isPending}>
           {isPending ? 'Checking…' : 'Verify credential'}
-        </button>
+        </Button>
       </div>
       <div
         id="credential-reference-help"

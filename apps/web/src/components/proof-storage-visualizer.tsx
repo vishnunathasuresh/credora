@@ -1,4 +1,5 @@
 'use client';
+import { Button } from './ui/button';
 
 import { useState } from 'react';
 import { CheckIcon } from './icons';
@@ -111,7 +112,7 @@ export function ProofStorageVisualizer() {
             const active = stage.id === activeStage.id;
             return (
               <li className={`proof-stage${active ? ' proof-stage-active' : ''}`} key={stage.id}>
-                <button
+                <Button
                   type="button"
                   className="proof-stage-button"
                   aria-pressed={active}
@@ -123,7 +124,7 @@ export function ProofStorageVisualizer() {
                     <strong>{stage.title}</strong>
                     <span>{stage.summary}</span>
                   </span>
-                </button>
+                </Button>
                 {index < stages.length - 1 ? (
                   <span className="proof-stage-connector" aria-hidden="true" />
                 ) : null}

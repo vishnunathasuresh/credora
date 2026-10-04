@@ -1,4 +1,8 @@
 'use client';
+import { WalletGuide } from './wallet-guide';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 import { useState, type FormEvent } from 'react';
 import { credentialRegistryAbi } from '@credora/contracts';
@@ -175,9 +179,9 @@ export function AdminWorkspace() {
             This action requires the registry administrator account and a browser wallet connected
             to the configured chain.
           </p>
-          <button className="button button-dark" type="button" onClick={connect} disabled={busy}>
+          <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect admin wallet'}
-          </button>
+          </Button>
           {error ? (
             <p className="form-help form-error" role="alert">
               {error}
@@ -232,9 +236,9 @@ export function AdminWorkspace() {
             </div>
           ) : null}
           <form className="workspace-form" onSubmit={submit} aria-busy={busy}>
-            <label>
+            <Label>
               Issuer wallet address
-              <input
+              <Input
                 value={issuer}
                 onChange={(event) => {
                   setIssuer(event.target.value);
@@ -244,17 +248,17 @@ export function AdminWorkspace() {
                 required
                 spellCheck={false}
               />
-            </label>
+            </Label>
             <div className="form-actions">
-              <button className="button button-dark" type="submit" disabled={busy}>
+              <Button className="button button-dark" type="submit" disabled={busy}>
                 Authorize issuer
-              </button>
-              <button className="text-button" type="button" onClick={checkStatus} disabled={busy}>
+              </Button>
+              <Button className="text-button" type="button" onClick={checkStatus} disabled={busy}>
                 Check current status
-              </button>
-              <button className="text-button" type="button" onClick={reconcile} disabled={busy}>
+              </Button>
+              <Button className="text-button" type="button" onClick={reconcile} disabled={busy}>
                 Reconcile projection
-              </button>
+              </Button>
             </div>
           </form>
           {authorized !== undefined ? (
@@ -275,6 +279,7 @@ export function AdminWorkspace() {
           ) : null}
         </section>
       )}
+      {!session ? <WalletGuide /> : null}
     </main>
   );
 }

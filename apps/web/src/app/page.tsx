@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button';
 import { VerifyForm } from '../components/verify-form';
 import { ArrowDownIcon, ArrowUpRightIcon } from '../components/icons';
 import { ProofStorageVisualizer } from '../components/proof-storage-visualizer';
@@ -28,12 +29,16 @@ export default function HomePage() {
             and anyone can verify it without an account or a wallet.
           </p>
           <div className="hero-actions">
-            <a className="button button-dark" href="/verify">
-              Verify a credential <ArrowUpRightIcon />
-            </a>
-            <a className="button button-outline" href="#how-it-works">
-              See how it works <ArrowDownIcon />
-            </a>
+            <Button asChild>
+              <a href="/verify">
+                Verify a credential <ArrowUpRightIcon />
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="#how-it-works">
+                See how it works <ArrowDownIcon />
+              </a>
+            </Button>
           </div>
           <div className="hero-note">
             <span className="hero-note-mark" aria-hidden="true">
