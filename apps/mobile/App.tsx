@@ -81,6 +81,7 @@ function MobileApp() {
   const [webUrl, setWebUrl] = useState(defaultWeb);
   const [apiDraft, setApiDraft] = useState(defaultApi);
   const [webDraft, setWebDraft] = useState(defaultWeb);
+  const [serverSettingsExpanded, setServerSettingsExpanded] = useState(false);
   const [reference, setReference] = useState('');
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [checkedHash, setCheckedHash] = useState('');
@@ -405,7 +406,7 @@ function MobileApp() {
                       void verify(present.hash);
                     }}
                   >
-                    Check again & download
+                    Check current record
                   </Button>
                 </YStack>
               ) : tab === 'wallet' ? (
@@ -494,7 +495,7 @@ function MobileApp() {
                                 void verify(item.hash);
                               }}
                             >
-                              Verify & download
+                              Verify credential
                             </Button>
                             <Button
                               minHeight={48}
@@ -664,39 +665,53 @@ function MobileApp() {
                     the Credora website and sign the login message. Signing in does not cost gas.
                   </Paragraph>
                   <Separator />
-                  <H2 fontSize={22}>Development servers</H2>
-                  <Paragraph>
-                    On a phone, localhost points to the phone. Use your computer’s LAN address and
-                    keep both devices on the same Wi-Fi. For a deployed service, use HTTPS. These
-                    addresses select which service and registry you trust.
-                  </Paragraph>
-                  <Text color="$color" fontWeight="600">
-                    API server
-                  </Text>
-                  <Input
-                    accessibilityLabel="API server address"
-                    minHeight={52}
-                    value={apiDraft}
-                    onChangeText={setApiDraft}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="url"
-                  />
-                  <Text color="$color" fontWeight="600">
-                    Public website
-                  </Text>
-                  <Input
-                    accessibilityLabel="Public website address"
-                    minHeight={52}
-                    value={webDraft}
-                    onChangeText={setWebDraft}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="url"
-                  />
-                  <Button themeInverse minHeight={48} disabled={!ready} onPress={saveSettings}>
-                    Save server addresses
+                  <Button
+                    minHeight={48}
+                    accessibilityState={{ expanded: serverSettingsExpanded }}
+                    accessibilityHint="Shows the API and website addresses used by this app."
+                    onPress={() => setServerSettingsExpanded((expanded) => !expanded)}
+                  >
+                    {serverSettingsExpanded
+                      ? 'Hide development server settings'
+                      : 'Show development server settings'}
                   </Button>
+                  {serverSettingsExpanded ? (
+                    <YStack gap="$3">
+                      <H2 fontSize={22}>Development servers</H2>
+                      <Paragraph>
+                        On a phone, localhost points to the phone. Use your computer’s LAN address
+                        and keep both devices on the same Wi-Fi. For a deployed service, use HTTPS.
+                        These addresses select which service and registry you trust.
+                      </Paragraph>
+                      <Text color="$color" fontWeight="600">
+                        API server
+                      </Text>
+                      <Input
+                        accessibilityLabel="API server address"
+                        minHeight={52}
+                        value={apiDraft}
+                        onChangeText={setApiDraft}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                      />
+                      <Text color="$color" fontWeight="600">
+                        Public website
+                      </Text>
+                      <Input
+                        accessibilityLabel="Public website address"
+                        minHeight={52}
+                        value={webDraft}
+                        onChangeText={setWebDraft}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                      />
+                      <Button themeInverse minHeight={48} disabled={!ready} onPress={saveSettings}>
+                        Save server addresses
+                      </Button>
+                    </YStack>
+                  ) : null}
                 </>
               )}
               {notice ? (
