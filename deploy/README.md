@@ -11,5 +11,8 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 Caddy terminates HTTPS and renews certificates for `CREDORA_DOMAIN`. The API
 keeps the SQLite database, metadata, and rotating backups in the `credora-data`
-volume. Restore by stopping the API, replacing `credora.sqlite` with a verified
+volume. The Compose API service trusts forwarded client IP headers only from
+the private Caddy-facing deployment path so per-network intake limits use the
+visitor address. Keep the API off public ports when `API_TRUST_PROXY=true`.
+Restore by stopping the API, replacing `credora.sqlite` with a verified
 backup, and starting the stack again.

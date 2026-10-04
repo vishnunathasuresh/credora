@@ -20,11 +20,11 @@ Credora separates the authoritative blockchain proof from the metadata and rebui
 
 ## Operating Context
 
-The web app includes public verification, issuer and organization workspaces, a holder wallet, administrative surfaces, and an illustrative proof-path walkthrough. The homepage must distinguish static demo content from live verification. The Expo/Tamagui mobile app provides a local public-link library, QR presentation and scanning, service-backed verification, and public JSON export. Its child PRODUCT.md owns native platform context; signing-wallet sessions remain in the web holder flow.
+The web app includes public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet, administrative surfaces, and an illustrative proof-path walkthrough. The homepage must distinguish static demo content from live verification. The Expo/Tamagui mobile app provides a local public-link library, QR presentation and scanning, service-backed verification, and public JSON export. Its child PRODUCT.md owns native platform context; signing-wallet sessions remain in the web holder flow.
 
 ## Capabilities and Constraints
 
-- The blockchain registry is authoritative for credential existence, issuer, learner, metadata URI, issuance time, and authorization.
+- The blockchain registry is authoritative for credential existence, issuer, learner, metadata URI, issuance time, and issuer authorization. `ORG_ADMIN` is a separate superadmin-reviewed operational role.
 - Credential hashes use versioned Keccak-256 and are distinct from IPFS CIDs.
 - Issued credentials are immutable in v1.
 - A verifier should not need a wallet for read-only verification.

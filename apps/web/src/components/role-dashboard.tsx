@@ -61,6 +61,15 @@ export function RoleDashboard() {
               },
             ]
           : []),
+        ...(!session.roles.includes('ORG_ADMIN')
+          ? [
+              {
+                href: '/org',
+                title: 'Request an organization workspace',
+                body: 'Submit your wallet and organization name for superadmin review.',
+              },
+            ]
+          : []),
         ...(session.roles.includes('ISSUER')
           ? [
               {

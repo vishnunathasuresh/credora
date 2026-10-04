@@ -1,17 +1,17 @@
 # Initial traceability
 
-| Requirement                | Implementation boundary                                                      |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| Wallet authentication      | `packages/auth`, app wallet adapters                                         |
-| Organization authorization | Next registry revision; v1 issuer role remains supported during migration    |
-| Authorized issuance        | `contracts/src/CredentialRegistry.sol` plus organization/issuer-key registry |
-| Deterministic proof        | `packages/credential-core`                                                   |
-| Selective disclosure       | `packages/credential-core` v2 Merkle commitments and presentations           |
-| Metadata storage           | `packages/storage` (IPFS CID manifests; local adapters for development)      |
-| Independent verification   | `packages/blockchain`, `/verify`, direct RPC/gateway mode                    |
-| Skill Wallet               | `apps/web`, `apps/mobile`                                                    |
-| Audit projection           | `apps/api`, contract events                                                  |
-| Low-cost MVP               | Anvil, local storage, SQLite                                                 |
+| Requirement                              | Implementation boundary                                                                                     |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Wallet authentication                    | `packages/auth`, app wallet adapters                                                                        |
+| Organization enrollment and admin access | Superadmin-reviewed API applications and organization records in `apps/api`; web request/QR/review surfaces |
+| Authorized issuance                      | `contracts/src/CredentialRegistry.sol`; organization approval cannot bypass the registry issuer check       |
+| Deterministic proof                      | `packages/credential-core`                                                                                  |
+| Selective disclosure                     | `packages/credential-core` v2 Merkle commitments and presentations                                          |
+| Metadata storage                         | `packages/storage` (IPFS CID manifests; local adapters for development)                                     |
+| Independent verification                 | `packages/blockchain`, `/verify`, direct RPC/gateway mode                                                   |
+| Skill Wallet                             | `apps/web`, `apps/mobile`                                                                                   |
+| Audit projection                         | `apps/api`, contract events                                                                                 |
+| Low-cost MVP                             | Anvil, local storage, SQLite                                                                                |
 
 ## Decentralization advantages
 

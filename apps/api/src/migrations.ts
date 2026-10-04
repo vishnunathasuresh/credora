@@ -81,6 +81,39 @@ const migrations: Migration[] = [
     name: 'issuance_projection_source',
     sql: "ALTER TABLE issuances ADD COLUMN projection_source TEXT NOT NULL DEFAULT 'api'",
   },
+  {
+    version: 6,
+    name: 'organization_intake_and_scoped_issuances',
+    sql: `
+      CREATE TABLE organization_applications (
+        id TEXT PRIMARY KEY,
+        organization_name TEXT NOT NULL,
+        website_url TEXT NOT NULL,
+        applicant_address TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+        created_at TEXT NOT NULL,
+        reviewed_at TEXT,
+        reviewed_by TEXT
+      );
+      CREATE UNIQUE INDEX organization_applications_one_pending_per_wallet
+        ON organization_applications(applicant_address) WHERE status = 'pending';
+      CREATE UNIQUE INDEX organization_applications_one_pending_name
+        ON organization_applications(lower(organization_name)) WHERE status = 'pending';
+      CREATE TABLE organizations (
+        id TEXT PRIMARY KEY,
+        application_id TEXT NOT NULL UNIQUE REFERENCES organization_applications(id),
+        name TEXT NOT NULL,
+        website_url TEXT NOT NULL,
+        admin_address TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL CHECK (status IN ('active', 'suspended')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX organizations_unique_name ON organizations(lower(name));
+      ALTER TABLE issuances ADD COLUMN organization_id TEXT REFERENCES organizations(id);
+      CREATE INDEX issuances_by_organization ON issuances(organization_id, created_at DESC);
+    `,
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {

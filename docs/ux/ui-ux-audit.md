@@ -107,3 +107,22 @@ Keep it bounded to defects demonstrated by those checks.
 Hugeicons supplies the web and native glyphs. Native imports individual icon
 modules so Metro does not include the entire free icon catalogue. Icons retain
 visible action labels and are hidden from assistive technology when decorative.
+
+## Organization enrollment update
+
+The `/org` request path now requires an authenticated wallet, an organization
+name, and a self-reported HTTPS website. It creates only a pending application.
+The applicant QR opens its opaque request reference in the protected
+superadmin review queue; it contains no name, wallet address, approval secret,
+or capability. The reviewer sees the submitted wallet and website and is told
+to verify both through an independent source. The queue is rate-limited and
+bounded. Approval, rejection, suspension, and reactivation require the
+superadmin API role.
+
+The web production build and API TypeScript build pass, and the SQLite
+organization migration starts successfully against an in-memory database.
+T3 preview confirmed the disconnected `/org` route at 390px and 1280px without
+document overflow. It did not exercise a signed application, scanned QR,
+superadmin decision, or registry-backed issuance. The existing 15/20 UI score
+is the baseline audit score; this workflow has no authenticated visual or
+end-to-end score yet.

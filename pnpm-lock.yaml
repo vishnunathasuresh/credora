@@ -144,6 +144,9 @@ importers:
       '@hugeicons/react':
         specifier: ^1.1.10
         version: 1.1.10(react@19.2.3)
+      '@lglab/react-qr-code':
+        specifier: ^1.7.3
+        version: 1.7.3(react@19.2.3)
       '@radix-ui/react-dialog':
         specifier: ^1.1.23
         version: 1.1.23(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1314,6 +1317,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lglab/react-qr-code@1.7.3':
+    resolution: {integrity: sha512-gVcknLUtgJalQBo8i/UoGLvQk+sSdOhTg3fAIwpTN7BwrWpWkrT+D1dvY0TSZH+awaYMd/iGr10y3KIMxkJYMQ==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@motionone/animation@10.18.0':
     resolution: {integrity: sha512-9z2p5GFGCm0gBsZbi8rVMOAJCtw1WqBTIPw3ozk06gDvZInBPIsQcHgYogEJ4yuHJ+akuW8g1SEIOpTOvYs8hw==}
@@ -5983,6 +5991,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lglab/react-qr-code@1.7.3(react@19.2.3)':
+    dependencies:
+      react: 19.2.3
 
   '@motionone/animation@10.18.0':
     dependencies:

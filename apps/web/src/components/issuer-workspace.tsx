@@ -6,7 +6,8 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ReactQRCode, type ReactQRCodeRef } from '@lglab/react-qr-code';
 import { credentialRegistryAbi } from '@credora/contracts';
 import { createWalletClient, custom, defineChain, getAddress, isAddress, type Hex } from 'viem';
 import { AlertIcon, ArrowUpRightIcon, CheckIcon } from './icons';
@@ -45,8 +46,19 @@ type IssuanceResponse = {
 
 type OrganizationOverview = {
   issuanceCounts: Record<string, number>;
+  organization: { id: string; name: string } | null;
+  issuerAuthorization: 'authorized' | 'not-authorized' | 'unavailable';
   projection: string;
   projectionNote: string;
+};
+
+type OrganizationApplication = {
+  id: string;
+  organizationName: string;
+  websiteUrl: string;
+  applicantAddress: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
 };
 
 const contractAddress = process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS;
@@ -103,23 +115,58 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
   const [session, setSession] = useState<WalletSession>();
   const [issuances, setIssuances] = useState<IssuanceRow[]>([]);
   const [organizationOverview, setOrganizationOverview] = useState<OrganizationOverview>();
+  const [organizationApplication, setOrganizationApplication] =
+    useState<OrganizationApplication | null>(null);
+  const [organizationName, setOrganizationName] = useState('');
+  const [organizationWebsite, setOrganizationWebsite] = useState('');
+  const [applicationBusy, setApplicationBusy] = useState(false);
+  const [applicationReviewUrl, setApplicationReviewUrl] = useState('');
+  const applicationQrRef = useRef<ReactQRCodeRef>(null);
   const [form, setForm] = useState(initialForm);
   const [phase, setPhase] = useState<IssuancePhase>('idle');
   const [error, setError] = useState('');
   const [result, setResult] = useState<IssuanceResponse>();
   const [connecting, setConnecting] = useState(false);
 
-  const isIssuer = session?.roles.includes('ISSUER') ?? false;
+  const isIssuer =
+    audience === 'organization'
+      ? organizationOverview?.issuerAuthorization === 'authorized'
+      : (session?.roles.includes('ISSUER') ?? false);
+  const issuerStatus =
+    audience === 'organization'
+      ? (organizationOverview?.issuerAuthorization ?? 'unavailable')
+      : isIssuer
+        ? 'authorized'
+        : 'not-authorized';
   const isOrgAdmin = session?.roles.includes('ORG_ADMIN') ?? false;
-  const hasWorkspaceAccess = audience === 'organization' ? isOrgAdmin || isIssuer : true;
+  const hasWorkspaceAccess = audience === 'organization' ? isOrgAdmin : true;
   const busy = !['idle', 'confirmed', 'error'].includes(phase);
+
+  useEffect(() => {
+    if (organizationApplication?.status === 'pending')
+      setApplicationReviewUrl(
+        `${window.location.origin}/superadmin?organizationApplication=${encodeURIComponent(organizationApplication.id)}`,
+      );
+    else setApplicationReviewUrl('');
+  }, [organizationApplication?.id, organizationApplication?.status]);
 
   const loadWorkspace = useCallback(
     async (current: WalletSession) => {
       const me = await credoraApi<WalletSession>('/me', {}, current.token);
       const refreshed = { ...current, ...me };
       setSession(refreshed);
-      if (!refreshed.roles.includes('ISSUER') && !refreshed.roles.includes('ORG_ADMIN')) {
+      if (audience === 'organization') {
+        const mine = await credoraApi<{ application: OrganizationApplication | null }>(
+          '/org/applications/mine',
+          {},
+          current.token,
+        );
+        setOrganizationApplication(mine.application);
+      }
+      if (
+        (audience === 'organization' && !refreshed.roles.includes('ORG_ADMIN')) ||
+        (!refreshed.roles.includes('ISSUER') && !refreshed.roles.includes('ORG_ADMIN'))
+      ) {
         setIssuances([]);
         return;
       }
@@ -152,6 +199,30 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
       setError(friendlyError(caught));
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function submitOrganizationApplication(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session) return;
+    setApplicationBusy(true);
+    setError('');
+    try {
+      const application = await credoraApi<OrganizationApplication>(
+        '/org/applications',
+        {
+          method: 'POST',
+          body: JSON.stringify({ organizationName, websiteUrl: organizationWebsite }),
+        },
+        session.token,
+      );
+      setOrganizationApplication(application);
+      setOrganizationName('');
+      setOrganizationWebsite('');
+    } catch (caught) {
+      setError(friendlyError(caught));
+    } finally {
+      setApplicationBusy(false);
     }
   }
 
@@ -269,7 +340,7 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
 
       {!session ? (
         <section className="workspace-panel workspace-connect">
-          <h2>Connect the {audience === 'organization' ? 'organization' : 'issuer'} wallet.</h2>
+          <h2>Connect the {audience === 'organization' ? 'applicant' : 'issuer'} wallet.</h2>
           <p>
             Credora asks the wallet to sign a one-time session challenge. Private keys never enter
             the API.
@@ -280,16 +351,155 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             onClick={connect}
             disabled={connecting}
           >
-            {connecting ? 'Connecting…' : 'Connect issuer wallet'}
+            {connecting
+              ? 'Connecting…'
+              : audience === 'organization'
+                ? 'Connect applicant wallet'
+                : 'Connect issuer wallet'}
           </Button>
+          {error ? (
+            <p className="form-help form-error" role="alert">
+              {error}
+            </p>
+          ) : null}
         </section>
       ) : !hasWorkspaceAccess ? (
         <section className="workspace-panel workspace-connect">
-          <div className="status-badge status-warning">
-            <AlertIcon /> Organization role required
-          </div>
-          <h2>This wallet is not assigned to an organization.</h2>
-          <p>Connect a wallet with the organization-admin role to access this workspace.</p>
+          {organizationApplication?.status === 'pending' ? (
+            <>
+              <div className="status-badge status-warning">Awaiting superadmin review</div>
+              <h2>{organizationApplication.organizationName}</h2>
+              <p>
+                Your request is pending. An administrator must review and approve it before this
+                wallet receives organization access. Scanning this QR opens the protected request in
+                the superadmin workspace; it does not approve the request.
+              </p>
+              {applicationReviewUrl ? (
+                <div className="organization-application-qr">
+                  <ReactQRCode
+                    ref={applicationQrRef}
+                    value={applicationReviewUrl}
+                    size={232}
+                    marginSize={4}
+                    level="H"
+                    background="#ffffff"
+                    dataModulesSettings={{ color: '#111827', style: 'rounded' }}
+                    finderPatternOuterSettings={{ color: '#111827', style: 'rounded-sm' }}
+                    finderPatternInnerSettings={{ color: '#111827', style: 'rounded-sm' }}
+                    svgProps={{
+                      role: 'img',
+                      'aria-label': 'QR code for the superadmin organization review',
+                    }}
+                  />
+                </div>
+              ) : (
+                <p role="status">Preparing the protected review QR…</p>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!applicationReviewUrl}
+                onClick={() =>
+                  applicationQrRef.current?.download({
+                    name: 'credora-organization-review',
+                    format: 'png',
+                    size: 640,
+                  })
+                }
+              >
+                Download QR to share
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={applicationBusy}
+                onClick={() => {
+                  setApplicationBusy(true);
+                  setError('');
+                  void loadWorkspace(session)
+                    .catch((caught) => setError(friendlyError(caught)))
+                    .finally(() => setApplicationBusy(false));
+                }}
+              >
+                {applicationBusy ? 'Checking…' : 'Check review status'}
+              </Button>
+              <p className="form-help">
+                Applicant wallet:{' '}
+                <code>{shortAddress(organizationApplication.applicantAddress)}</code>
+              </p>
+            </>
+          ) : organizationApplication?.status === 'approved' ? (
+            <>
+              <div className="status-badge status-warning">
+                <AlertIcon /> Organization access unavailable
+              </div>
+              <h2>{organizationApplication.organizationName}</h2>
+              <p>
+                This organization’s access is currently suspended. Contact a Credora superadmin.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="status-badge status-warning">
+                <AlertIcon />{' '}
+                {organizationApplication?.status === 'rejected'
+                  ? 'Request not approved'
+                  : 'Organization access requires approval'}
+              </div>
+              <h2>
+                {organizationApplication?.status === 'rejected'
+                  ? 'Submit a new request.'
+                  : 'Request an organization workspace.'}
+              </h2>
+              <p>
+                A superadmin reviews every request. Submitting creates a pending application only;
+                it cannot grant roles or authorize credential issuance. Your connected wallet will
+                own the request if it is approved.
+              </p>
+              <form
+                className="workspace-form"
+                onSubmit={submitOrganizationApplication}
+                aria-busy={applicationBusy}
+              >
+                <Label>
+                  Organization name
+                  <Input
+                    value={organizationName}
+                    onChange={(event) => setOrganizationName(event.target.value)}
+                    placeholder="Example Learning Institute"
+                    minLength={2}
+                    maxLength={120}
+                    autoComplete="organization"
+                    required
+                  />
+                </Label>
+                <Label>
+                  Official organization website
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    value={organizationWebsite}
+                    onChange={(event) => setOrganizationWebsite(event.target.value)}
+                    placeholder="https://example.org"
+                    maxLength={2048}
+                    required
+                  />
+                </Label>
+                <p className="form-help">
+                  The website is self-reported. A superadmin checks it independently before
+                  approving. Your wallet signature proves control of the requesting address only.
+                </p>
+                <Button className="button button-dark" type="submit" disabled={applicationBusy}>
+                  {applicationBusy ? 'Submitting request…' : 'Submit for superadmin review'}
+                </Button>
+              </form>
+            </>
+          )}
+          {error ? (
+            <p className="form-help form-error" role="alert">
+              {error}
+            </p>
+          ) : null}
         </section>
       ) : (
         <>
@@ -303,7 +513,10 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                   <p className="panel-label">Operational projection</p>
                   <h2>Organization overview</h2>
                 </div>
-                <span className="panel-note">{organizationOverview.projection}</span>
+                <span className="panel-note">
+                  {organizationOverview.organization?.name ?? 'Configured organization'} ·{' '}
+                  {organizationOverview.projection}
+                </span>
               </div>
               <div className="overview-stats">
                 <div>
@@ -335,15 +548,38 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                   </p>
                   <h2>New credential</h2>
                 </div>
-                <span className={`status-badge status-${isIssuer ? 'success' : 'warning'}`}>
-                  {isIssuer ? <CheckIcon /> : <AlertIcon />}
-                  {isIssuer ? 'Authorized issuer' : 'Not authorized'}
+                <span
+                  className={`status-badge status-${issuerStatus === 'authorized' ? 'success' : 'warning'}`}
+                >
+                  {issuerStatus === 'authorized' ? <CheckIcon /> : <AlertIcon />}
+                  {issuerStatus === 'authorized'
+                    ? 'Authorized issuer'
+                    : issuerStatus === 'unavailable'
+                      ? 'Issuer status unavailable'
+                      : 'Not authorized'}
                 </span>
               </div>
               {!isIssuer ? (
                 <p className="form-help form-error">
-                  This wallet is connected, but the registry has not authorized it to issue
-                  credentials.
+                  {issuerStatus === 'unavailable'
+                    ? 'The registry could not be reached, so issuer permission cannot be confirmed. No issuance has been started.'
+                    : 'This wallet is not authorized by the registry to issue credentials. Ask a superadmin to authorize it on-chain.'}
+                  {audience === 'organization' && issuerStatus === 'unavailable' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={applicationBusy}
+                      onClick={() => {
+                        setApplicationBusy(true);
+                        setError('');
+                        void loadWorkspace(session!)
+                          .catch((caught) => setError(friendlyError(caught)))
+                          .finally(() => setApplicationBusy(false));
+                      }}
+                    >
+                      {applicationBusy ? 'Checking…' : 'Retry registry check'}
+                    </Button>
+                  ) : null}
                 </p>
               ) : (
                 <form className="workspace-form" onSubmit={submit} aria-busy={busy}>

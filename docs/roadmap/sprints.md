@@ -83,6 +83,21 @@ Goal: validate the system when convenience infrastructure is unhealthy.
 Exit signal: API outage, stale projection, gateway outage, and invalid metadata
 are visibly distinct and independently diagnosable.
 
+## Organization enrollment — implementation in progress
+
+- Applicants authenticate with their own wallet and submit one pending
+  organization name and HTTPS website.
+- A QR points to the protected superadmin review queue; it carries no role or
+  approval credential.
+- A superadmin independently reviews and explicitly approves or rejects.
+  Organization access can later be suspended or restored.
+- Issuer authority remains a separate on-chain check. The v1 organization
+  record currently has one admin wallet and does not support team membership.
+
+Exit evidence still needed: API role and concurrent-review integration checks,
+plus a browser pass of the applicant QR, superadmin decision, suspended access,
+and the separate issuer-authorization flow.
+
 The website is the finished MVP target for this phase. Mobile remains paused by
 choice; its shared protocol packages remain typechecked and ready for a later
 native pass.

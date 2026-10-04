@@ -69,6 +69,7 @@ Role configuration stays server-side:
 
 ```sh
 API_SUPERADMIN_ADDRESSES=0xProtocolAdmin
+# Optional trusted bootstrap override; use reviewed requests for normal onboarding.
 API_ORG_ADMIN_ADDRESSES=0xOrganizationOperator
 ```
 
@@ -83,6 +84,31 @@ can open `/org` to manage organization operations, and an issuer can open
 confirmed credentials and copy a public `/verify/<credential-hash>` link. The
 browser wallet signs the session challenge and the issuance transaction;
 private keys are never sent to the API.
+
+### Organization onboarding
+
+An applicant opens `/org`, connects a wallet, and submits an organization name
+and its self-reported HTTPS website. Credora stores one pending request for
+that wallet. A superadmin scans the resulting QR to open the protected request
+in `/superadmin`, independently checks the organization and applicant wallet,
+then explicitly approves or rejects it. The applicant can download and share a
+QR that contains only a random request reference; it does not grant access.
+The API rejects duplicate pending requests
+and every review action is role-gated and audited.
+
+Approval grants `ORG_ADMIN` to that applicant wallet in the API-backed
+organization record. It does not authorize credential issuance. The same
+wallet must separately be authorized as an issuer on the configured registry
+by a superadmin before it can issue. Superadmins can suspend or reactivate
+organization access; a suspension takes effect on the next API request.
+Suspension does not revoke the wallet’s on-chain issuer authorization; revoke
+that separately from the superadmin issuer controls if the wallet must stop
+issuing as well.
+Enrollment records require the API SQLite database to persist and be backed
+up. This v1 flow records one organization admin wallet and does not yet invite
+additional organization team members. For a phone to scan a local-development
+QR, open Credora at a LAN-reachable host/IP before generating it; production
+deployments must use HTTPS.
 
 Copy `.env.example` to `.env.local` or `.env` as appropriate. The default
 configuration is local-only and does not require paid RPC or storage services.

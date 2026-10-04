@@ -40,6 +40,11 @@ const chainChunkSize = BigInt(process.env.CHAIN_SYNC_CHUNK_SIZE ?? 2_000);
 const chainReorgRescanBlocks = BigInt(process.env.CHAIN_REORG_RESCAN_BLOCKS ?? 12);
 const rateLimitWindowMs = Number(process.env.API_RATE_LIMIT_WINDOW_MS ?? 60_000);
 const rateLimitMax = Number(process.env.API_RATE_LIMIT_MAX ?? 120);
+const organizationIntakeWindowMs = Number(
+  process.env.API_ORG_APPLICATION_WINDOW_MS ?? 24 * 60 * 60_000,
+);
+const organizationIntakeMax = Number(process.env.API_ORG_APPLICATION_MAX_PER_IP ?? 5);
+const organizationIntakeMaxPending = Number(process.env.API_ORG_APPLICATION_MAX_PENDING ?? 100);
 const trustProxy = process.env.API_TRUST_PROXY === 'true';
 const hstsEnabled = process.env.API_HSTS === 'true';
 const allowedOrigins = new Set(
@@ -51,6 +56,7 @@ const allowedOrigins = new Set(
 if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
 
 const database = new DatabaseSync(databasePath);
+database.exec('PRAGMA foreign_keys = ON');
 migrateDatabase(database);
 
 const rpcUrl = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
@@ -89,6 +95,7 @@ const storage: MetadataStorage =
     : new FileStorage(process.env.API_STORAGE_PATH ?? './.data/metadata');
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 const rateLimits = new Map<string, { startedAt: number; count: number }>();
+const organizationApplicationRateLimits = new Map<string, { startedAt: number; count: number }>();
 const metrics = new Map<string, number>();
 const configuredSuperadminAddresses = new Set(
   (process.env.API_SUPERADMIN_ADDRESSES ?? process.env.API_ADMIN_ADDRESSES ?? '')
@@ -106,6 +113,13 @@ const configuredOrgAdminAddresses = new Set(
 function stringifyJson(value: unknown) {
   return JSON.stringify(value, (_key, nested) =>
     typeof nested === 'bigint' ? nested.toString() : nested,
+  );
+}
+
+function isSqliteConstraint(error: unknown) {
+  return (
+    error instanceof Error &&
+    String((error as Error & { code?: string }).code ?? '').startsWith('SQLITE_CONSTRAINT')
   );
 }
 
@@ -145,6 +159,8 @@ function fail(request: IncomingMessage, response: ServerResponse, error: unknown
         );
   if (normalized.code === 'RATE_LIMITED')
     response.setHeader('retry-after', Math.ceil(rateLimitWindowMs / 1000).toString());
+  if (normalized.code === 'ORGANIZATION_INTAKE_LIMITED')
+    response.setHeader('retry-after', Math.ceil(organizationIntakeWindowMs / 1000).toString());
   console.error(
     JSON.stringify({
       level: 'error',
@@ -195,10 +211,20 @@ function currentSession(request: IncomingMessage) {
   const row = database.prepare('SELECT * FROM sessions WHERE token = ?').get(token) as
     { token: string; address: string; roles: string; expires_at: string } | undefined;
   if (!row || Date.parse(row.expires_at) <= Date.now()) return undefined;
+  const address = normalizeAddress(row.address, 'session.address');
+  const roles = JSON.parse(row.roles) as Role[];
+  const organization = database
+    .prepare("SELECT id FROM organizations WHERE admin_address = ? AND status = 'active'")
+    .get(address) as { id: string } | undefined;
+  if (organization && !roles.includes('ORG_ADMIN')) roles.unshift('ORG_ADMIN');
+  else if (!organization && !configuredOrgAdminAddresses.has(address.toLowerCase())) {
+    const index = roles.indexOf('ORG_ADMIN');
+    if (index >= 0) roles.splice(index, 1);
+  }
   return {
     token: row.token,
-    address: normalizeAddress(row.address, 'session.address'),
-    roles: JSON.parse(row.roles) as Role[],
+    address,
+    roles,
   };
 }
 
@@ -208,6 +234,9 @@ function cleanupExpiredData() {
   database.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
   const cutoff = new Date(Date.now() - rateLimitWindowMs).getTime();
   for (const [key, value] of rateLimits) if (value.startedAt < cutoff) rateLimits.delete(key);
+  const organizationCutoff = Date.now() - organizationIntakeWindowMs;
+  for (const [key, value] of organizationApplicationRateLimits)
+    if (value.startedAt < organizationCutoff) organizationApplicationRateLimits.delete(key);
 }
 
 function clientKey(request: IncomingMessage) {
@@ -231,6 +260,23 @@ function checkRateLimit(request: IncomingMessage) {
     throw new CredoraError('Too many requests', 'RATE_LIMITED', 429);
 }
 
+function checkOrganizationApplicationRateLimit(request: IncomingMessage) {
+  const now = Date.now();
+  const key = clientKey(request);
+  const current = organizationApplicationRateLimits.get(key);
+  if (!current || now - current.startedAt >= organizationIntakeWindowMs) {
+    organizationApplicationRateLimits.set(key, { startedAt: now, count: 1 });
+    return;
+  }
+  if (current.count >= organizationIntakeMax)
+    throw new CredoraError(
+      'Too many organization requests from this network. Please try again tomorrow.',
+      'ORGANIZATION_INTAKE_LIMITED',
+      429,
+    );
+  current.count += 1;
+}
+
 function requireSession(request: IncomingMessage) {
   const session = currentSession(request);
   if (!session) throw new CredoraError('A valid wallet session is required', 'UNAUTHORIZED', 401);
@@ -244,6 +290,20 @@ function isSuperadmin(session: { roles: Role[] }) {
 function requireSuperadmin(request: IncomingMessage) {
   const session = requireSession(request);
   if (!isSuperadmin(session)) throw new CredoraError('Superadmin role required', 'FORBIDDEN', 403);
+  return session;
+}
+
+async function requireCurrentSuperadmin(request: IncomingMessage) {
+  const session = requireSuperadmin(request);
+  if (configuredSuperadminAddresses.has(session.address.toLowerCase())) return session;
+  if (!blockchain) throw ledgerUnavailable();
+  try {
+    if (!(await blockchain.isAdmin(session.address)))
+      throw new CredoraError('Current on-chain superadmin authority is required', 'FORBIDDEN', 403);
+  } catch (error) {
+    if (error instanceof CredoraError) throw error;
+    throw ledgerUnavailable();
+  }
   return session;
 }
 
@@ -565,6 +625,10 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       if (!roles.includes(role)) roles.unshift(role);
     };
     if (configuredOrgAdminAddresses.has(address.toLowerCase())) addRole('ORG_ADMIN');
+    const approvedOrganization = database
+      .prepare("SELECT id FROM organizations WHERE admin_address = ? AND status = 'active'")
+      .get(address) as { id: string } | undefined;
+    if (approvedOrganization) addRole('ORG_ADMIN');
     if (configuredSuperadminAddresses.has(address.toLowerCase())) {
       addRole('SUPERADMIN');
       addRole('ADMIN');
@@ -611,16 +675,24 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const limitValue = Number(url.searchParams.get('limit') ?? 50);
     if (!Number.isInteger(limitValue) || limitValue < 1 || limitValue > 100)
       throw new CredoraError('limit must be 1-100', 'INVALID_QUERY', 400);
+    const organization = isOrgAdmin(session)
+      ? (database
+          .prepare("SELECT id FROM organizations WHERE admin_address = ? AND status = 'active'")
+          .get(session.address) as { id: string } | undefined)
+      : undefined;
     const items = database
       .prepare(
-        `SELECT id, issuer, learner, skill_name, skill_level, issue_date, metadata_uri,
+        organization
+          ? `SELECT id, issuer, learner, skill_name, skill_level, issue_date, metadata_uri,
                 credential_hash, transaction_hash, block_number, state, created_at
-         FROM issuances
-         WHERE issuer = ?
-         ORDER BY created_at DESC
-         LIMIT ?`,
+         FROM issuances WHERE organization_id = ?
+         ORDER BY created_at DESC LIMIT ?`
+          : `SELECT id, issuer, learner, skill_name, skill_level, issue_date, metadata_uri,
+                credential_hash, transaction_hash, block_number, state, created_at
+         FROM issuances WHERE issuer = ?
+         ORDER BY created_at DESC LIMIT ?`,
       )
-      .all(session.address, limitValue);
+      .all(organization?.id ?? session.address, limitValue);
     send(request, response, 200, { items, limit: limitValue });
     return;
   }
@@ -651,18 +723,33 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (method === 'GET' && path === '/org/overview') {
     const session = requireSession(request);
-    if (!isOrgAdmin(session) && !session.roles.includes('ISSUER'))
+    if (!isOrgAdmin(session))
       throw new CredoraError('Organization-admin role required', 'FORBIDDEN', 403);
+    const organization = database
+      .prepare("SELECT id, name FROM organizations WHERE admin_address = ? AND status = 'active'")
+      .get(session.address) as { id: string; name: string } | undefined;
     const counts = database
       .prepare(
         `SELECT state, COUNT(*) AS count
          FROM issuances
-         WHERE issuer = ?
+         WHERE ${organization ? 'organization_id = ?' : 'issuer = ?'}
          GROUP BY state`,
       )
-      .all(session.address) as { state: string; count: number }[];
+      .all(organization?.id ?? session.address) as { state: string; count: number }[];
+    let issuerAuthorization: 'authorized' | 'not-authorized' | 'unavailable' = 'unavailable';
+    if (blockchain) {
+      try {
+        issuerAuthorization = (await blockchain.isIssuerAuthorized(session.address))
+          ? 'authorized'
+          : 'not-authorized';
+      } catch {
+        // Keep organization access available, but never imply the issuer check passed.
+      }
+    }
     send(request, response, 200, {
       address: session.address,
+      organization: organization ? { id: organization.id, name: organization.name } : null,
+      issuerAuthorization,
       roles: session.roles,
       issuanceCounts: Object.fromEntries(counts.map((row) => [row.state, Number(row.count)])),
       projection: 'api',
@@ -671,8 +758,263 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
+  if (method === 'POST' && path === '/org/applications') {
+    const session = requireSession(request);
+    checkOrganizationApplicationRateLimit(request);
+    const pendingCount = database
+      .prepare("SELECT COUNT(*) AS count FROM organization_applications WHERE status = 'pending'")
+      .get() as { count: number };
+    if (Number(pendingCount.count) >= organizationIntakeMaxPending)
+      throw new CredoraError(
+        'The organization review queue is full. Please try again after requests have been reviewed.',
+        'APPLICATION_QUEUE_FULL',
+        429,
+      );
+    const body = await bodyOf(request);
+    const name = requiredString(body, 'organizationName').normalize('NFC').replace(/\s+/g, ' ');
+    if (name.length < 2 || name.length > 120 || /[\u0000-\u001f\u007f]/.test(name))
+      throw new CredoraError(
+        'Organization name must be 2-120 readable characters',
+        'INVALID_BODY',
+        400,
+      );
+    const websiteInput = requiredString(body, 'websiteUrl');
+    let website: URL;
+    try {
+      website = new URL(websiteInput);
+    } catch {
+      throw new CredoraError('Enter the organization’s public HTTPS website', 'INVALID_BODY', 400);
+    }
+    if (
+      website.protocol !== 'https:' ||
+      website.username ||
+      website.password ||
+      websiteInput.length > 2048
+    )
+      throw new CredoraError(
+        'Organization website must be a public HTTPS URL',
+        'INVALID_BODY',
+        400,
+      );
+    const websiteUrl = website.toString();
+    if (
+      configuredOrgAdminAddresses.has(session.address.toLowerCase()) ||
+      session.roles.includes('ORG_ADMIN')
+    )
+      throw new CredoraError(
+        'This wallet already has organization access',
+        'ALREADY_ORG_ADMIN',
+        409,
+      );
+    const existing = database
+      .prepare(
+        "SELECT id FROM organizations WHERE admin_address = ? AND status IN ('active', 'suspended')",
+      )
+      .get(session.address);
+    if (existing)
+      throw new CredoraError('This wallet already owns an organization', 'APPLICATION_EXISTS', 409);
+    const pending = database
+      .prepare(
+        "SELECT id FROM organization_applications WHERE applicant_address = ? AND status = 'pending'",
+      )
+      .get(session.address);
+    if (pending)
+      throw new CredoraError(
+        'This wallet already has a request awaiting review',
+        'APPLICATION_PENDING',
+        409,
+      );
+    const duplicateName =
+      database
+        .prepare(
+          "SELECT id FROM organization_applications WHERE lower(organization_name) = lower(?) AND status = 'pending'",
+        )
+        .get(name) ??
+      database.prepare('SELECT id FROM organizations WHERE lower(name) = lower(?)').get(name);
+    if (duplicateName)
+      throw new CredoraError(
+        'An organization with this name is already registered or awaiting review',
+        'ORGANIZATION_NAME_TAKEN',
+        409,
+      );
+    const id = randomUUID();
+    const createdAt = new Date().toISOString();
+    try {
+      database
+        .prepare(
+          `INSERT INTO organization_applications
+          (id, organization_name, website_url, applicant_address, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)`,
+        )
+        .run(id, name, websiteUrl, session.address, createdAt);
+    } catch (error) {
+      if (isSqliteConstraint(error))
+        throw new CredoraError(
+          'A request from this wallet or an organization with this name is already pending',
+          'APPLICATION_PENDING',
+          409,
+        );
+      throw error;
+    }
+    audit(session.address, 'organization_application_submitted', { id, name, websiteUrl });
+    send(request, response, 201, {
+      id,
+      organizationName: name,
+      websiteUrl,
+      applicantAddress: session.address,
+      status: 'pending',
+      createdAt,
+    });
+    return;
+  }
+
+  if (method === 'GET' && path === '/org/applications/mine') {
+    const session = requireSession(request);
+    const application = database
+      .prepare(
+        `SELECT id, organization_name AS organizationName, website_url AS websiteUrl,
+      applicant_address AS applicantAddress, status, created_at AS createdAt, reviewed_at AS reviewedAt
+      FROM organization_applications WHERE applicant_address = ? ORDER BY created_at DESC LIMIT 1`,
+      )
+      .get(session.address);
+    send(request, response, 200, { application: application ?? null });
+    return;
+  }
+
+  if (method === 'GET' && path === '/superadmin/organization-applications') {
+    await requireCurrentSuperadmin(request);
+    const applications = database
+      .prepare(
+        `SELECT id, organization_name AS organizationName, website_url AS websiteUrl,
+      applicant_address AS applicantAddress, status, created_at AS createdAt
+      FROM organization_applications WHERE status = 'pending' ORDER BY created_at ASC LIMIT 100`,
+      )
+      .all();
+    const organizations = database
+      .prepare(
+        `SELECT id, name, website_url AS websiteUrl, admin_address AS adminAddress, status,
+      created_at AS createdAt FROM organizations ORDER BY created_at DESC LIMIT 100`,
+      )
+      .all();
+    send(request, response, 200, { applications, organizations });
+    return;
+  }
+
+  const organizationDecision = path.match(
+    /^\/superadmin\/organization-applications\/([0-9a-f-]{36})\/(approve|reject)$/i,
+  );
+  if (method === 'POST' && organizationDecision) {
+    const session = await requireCurrentSuperadmin(request);
+    const [, applicationId, decision] = organizationDecision;
+    const application = database
+      .prepare(
+        `SELECT id, organization_name, website_url, applicant_address, status
+      FROM organization_applications WHERE id = ?`,
+      )
+      .get(applicationId) as
+      | {
+          id: string;
+          organization_name: string;
+          website_url: string;
+          applicant_address: string;
+          status: string;
+        }
+      | undefined;
+    if (!application) throw new CredoraError('Organization request not found', 'NOT_FOUND', 404);
+    if (application.status !== 'pending')
+      throw new CredoraError('This request has already been reviewed', 'APPLICATION_REVIEWED', 409);
+    const reviewedAt = new Date().toISOString();
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      const updated = database
+        .prepare(
+          `UPDATE organization_applications SET status = ?, reviewed_at = ?, reviewed_by = ?
+        WHERE id = ? AND status = 'pending'`,
+        )
+        .run(
+          decision === 'approve' ? 'approved' : 'rejected',
+          reviewedAt,
+          session.address,
+          applicationId,
+        );
+      if (Number(updated.changes) !== 1)
+        throw new CredoraError(
+          'This request has already been reviewed',
+          'APPLICATION_REVIEWED',
+          409,
+        );
+      if (decision === 'approve')
+        database
+          .prepare(
+            `INSERT INTO organizations
+        (id, application_id, name, website_url, admin_address, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+          )
+          .run(
+            randomUUID(),
+            applicationId,
+            application.organization_name,
+            application.website_url,
+            application.applicant_address,
+            reviewedAt,
+            reviewedAt,
+          );
+      database
+        .prepare(
+          'INSERT INTO audit_logs (id, actor, action, timestamp, details) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(
+          randomUUID(),
+          session.address,
+          `organization_application_${decision === 'approve' ? 'approved' : 'rejected'}`,
+          reviewedAt,
+          stringifyJson({
+            applicationId,
+            applicant: application.applicant_address,
+            organizationName: application.organization_name,
+            websiteUrl: application.website_url,
+          }),
+        );
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      if (isSqliteConstraint(error))
+        throw new CredoraError(
+          'This wallet or organization name is already registered',
+          'ORGANIZATION_CONFLICT',
+          409,
+        );
+      throw error;
+    }
+    send(request, response, 200, {
+      id: applicationId,
+      status: decision === 'approve' ? 'approved' : 'rejected',
+    });
+    return;
+  }
+
+  const organizationStatus = path.match(
+    /^\/superadmin\/organizations\/([0-9a-f-]{36})\/(suspend|reactivate)$/i,
+  );
+  if (method === 'POST' && organizationStatus) {
+    const session = await requireCurrentSuperadmin(request);
+    const [, organizationId, action] = organizationStatus;
+    const status = action === 'suspend' ? 'suspended' : 'active';
+    const updated = database
+      .prepare('UPDATE organizations SET status = ?, updated_at = ? WHERE id = ?')
+      .run(status, new Date().toISOString(), organizationId);
+    if (Number(updated.changes) !== 1)
+      throw new CredoraError('Organization not found', 'NOT_FOUND', 404);
+    audit(
+      session.address,
+      action === 'suspend' ? 'organization_suspended' : 'organization_reactivated',
+      { organizationId },
+    );
+    send(request, response, 200, { id: organizationId, status });
+    return;
+  }
+
   if (method === 'GET' && path === '/superadmin/overview') {
-    const session = requireSuperadmin(request);
+    const session = await requireCurrentSuperadmin(request);
     const issuanceCount = database.prepare('SELECT COUNT(*) AS count FROM issuances').get() as {
       count: number;
     };
@@ -722,8 +1064,8 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       .prepare(
         `
       INSERT INTO issuances
-        (id, issuer, learner, skill_name, skill_level, issue_date, state, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, issuer, learner, skill_name, skill_level, issue_date, state, created_at, organization_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
@@ -735,6 +1077,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         issueDate,
         state,
         new Date().toISOString(),
+        (
+          database
+            .prepare("SELECT id FROM organizations WHERE admin_address = ? AND status = 'active'")
+            .get(session.address) as { id: string } | undefined
+        )?.id ?? null,
       );
     audit(session.address, 'issuance_draft_created', { id, learner, skillName, skillLevel });
     send(request, response, 201, {
