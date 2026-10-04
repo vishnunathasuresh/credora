@@ -8,7 +8,7 @@ adapter.
 ## Workspace
 
 - `apps/web` — Next.js web application, dashboards, and public verification.
-- `apps/mobile` — Expo React Native Android application for wallet, sharing,
+- `apps/mobile` — Expo React Native / Tamagui holder and verifier for saved links, sharing,
   and verification flows.
 - `apps/api` — small TypeScript API for sessions, operational state, and
   projections. It never overrides the blockchain.
@@ -24,9 +24,8 @@ pnpm test
 pnpm dev
 ```
 
-`pnpm dev` starts the website and API only. The Expo/mobile app is paused while
-the website MVP is being completed; run `pnpm dev:mobile` explicitly when that
-work resumes.
+`pnpm dev` starts the website and API only. Run `pnpm dev:mobile` explicitly
+to open the Expo holder/verifier app.
 
 For blockchain development, install Foundry, start Anvil, then run:
 
@@ -133,3 +132,56 @@ New pull requests request a review from GitHub Copilot through
 `.github/workflows/copilot-review.yml`. Copilot code review must be enabled for
 the repository or organization, and its review is advisory rather than a
 required approval.
+
+## Wallet setup and mobile credentials
+
+You do not need a wallet to verify a credential. On the website, open `/verify`
+and paste a public verification link or hash. The mobile verifier also accepts
+links and scans public credential QR codes.
+
+To find credentials issued to your wallet address:
+
+1. Install an Ethereum-compatible wallet from its [official website](https://metamask.io/download/)
+   and follow its account and backup instructions. Never enter a recovery phrase
+   or private key in Credora. [MetaMask setup guidance](https://support.metamask.io/start/creating-a-new-wallet)
+   explains its supported account creation options.
+2. Copy your public `0x` address and give it to the issuer before issuance.
+3. Open `/wallet` in the desktop browser with the wallet extension, or in your
+   wallet app’s browser on mobile. Connect and approve the login message. This
+   signs a message, not a transaction, and costs no gas.
+4. Open a credential’s verifier or Share QR. Anyone can check its public record.
+
+Issuers need an authorized address and the configured network to issue. For
+local Anvil development, use chain ID `31337`, currency `ETH`, and RPC
+`http://127.0.0.1:8545` on the same computer. A phone needs a reachable LAN RPC
+address instead. Anvil’s funded development accounts are public test accounts;
+use a separate development wallet and never fund these accounts on a public chain.
+The API/registry configuration determines which issuer addresses are authorized.
+Creating a wallet does not grant an issuer or administrative role.
+
+The mobile app has Credentials, Verify, and Setup tabs. It stores only public
+references and display names on the device, shows verification-link QR codes,
+and exports public credential JSON after a fresh service-backed check. Saved
+links and exported copies are not offline proofs or proof of wallet control.
+Original PDF/image attachment downloads are not part of the current metadata
+model. Native signing-wallet integration is not included; use the web holder
+flow to obtain your issued credential links.
+
+```sh
+pnpm dev:mobile
+# Browser preview of the same Tamagui UI:
+pnpm --filter @credora/mobile web
+# Reproducible native JS bundle checks, without building an installable app:
+pnpm --filter @credora/mobile exec expo export --platform android --platform ios
+```
+
+Set `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_WEB_URL`, or edit the server addresses
+in the app’s Setup tab. For Expo Go on a physical phone, both devices must be on
+the same network and the API must listen on a reachable interface. `localhost`
+on the phone refers to the phone. Use an externally reachable website URL for
+QR codes shared outside your development network; use HTTPS for deployed services.
+Camera access is requested only when Scan is chosen. If permission is denied,
+paste a link instead. An unavailable API, ledger, metadata source, or device
+storage has a distinct message and never marks a credential invalid.
+
+Validation scope and open device checks: [UI/UX audit](docs/ux/ui-ux-audit.md).

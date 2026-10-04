@@ -20,7 +20,7 @@ Credora separates the authoritative blockchain proof from the metadata and rebui
 
 ## Operating Context
 
-The web app includes public verification, issuer and organization workspaces, a holder wallet, administrative surfaces, and an illustrative proof-path walkthrough. The homepage must distinguish static demo content from live verification.
+The web app includes public verification, issuer and organization workspaces, a holder wallet, administrative surfaces, and an illustrative proof-path walkthrough. The homepage must distinguish static demo content from live verification. The Expo/Tamagui mobile app provides a local public-link library, QR presentation and scanning, service-backed verification, and public JSON export. Its child PRODUCT.md owns native platform context; signing-wallet sessions remain in the web holder flow.
 
 ## Capabilities and Constraints
 

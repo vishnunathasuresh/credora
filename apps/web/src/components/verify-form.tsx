@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-const HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+import { parseCredentialReference } from '@credora/shared';
 
 export function VerifyForm() {
   const router = useRouter();
@@ -14,9 +14,12 @@ export function VerifyForm() {
   const [reference, setReference] = useState('');
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const valid = HASH_PATTERN.test(reference.trim());
+  const parsedReference = parseCredentialReference(reference);
+  const valid = Boolean(parsedReference);
   const error =
-    hasSubmitted && !valid ? 'Enter a 0x-prefixed, 64-character hexadecimal hash.' : null;
+    hasSubmitted && !valid
+      ? 'Paste a public verification link, or a 0x hash with 64 hexadecimal characters.'
+      : null;
 
   return (
     <form
@@ -29,10 +32,10 @@ export function VerifyForm() {
           inputRef.current?.focus();
           return;
         }
-        startTransition(() => router.push(`/verify/${encodeURIComponent(reference.trim())}`));
+        startTransition(() => router.push(`/verify/${encodeURIComponent(parsedReference!)}`));
       }}
     >
-      <Label htmlFor="credential-reference">Credential hash</Label>
+      <Label htmlFor="credential-reference">Credential link or hash</Label>
       <div className="form-row">
         <Input
           id="credential-reference"
@@ -41,12 +44,12 @@ export function VerifyForm() {
           onChange={(event) => {
             setReference(event.target.value);
           }}
-          placeholder="0x… 64 hexadecimal characters"
+          placeholder="Paste a verification link or 0x hash"
           spellCheck={false}
           inputMode="text"
           autoCapitalize="off"
           autoComplete="off"
-          maxLength={66}
+          maxLength={2048}
           required
           aria-invalid={Boolean(error)}
           aria-describedby="credential-reference-help"

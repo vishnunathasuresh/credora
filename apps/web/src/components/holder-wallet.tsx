@@ -32,12 +32,17 @@ export function HolderWallet() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState('');
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async (current: WalletSession) => {
+    setLoaded(false);
+    setSession(current);
+    setError('');
     const me = await credoraApi<WalletSession>('/me', {}, current.token);
     const list = await credoraApi<{ items: CredentialRow[] }>('/credentials', {}, current.token);
     setSession({ ...current, ...me });
     setCredentials(list.items);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -78,6 +83,7 @@ export function HolderWallet() {
     forgetSession();
     setSession(undefined);
     setCredentials([]);
+    setLoaded(false);
   }
 
   return (
@@ -129,7 +135,36 @@ export function HolderWallet() {
               immutable registry and metadata proof.
             </span>
           </div>
-          {credentials.length ? (
+          {!loaded ? (
+            <div className="empty-state" role="status">
+              <strong>{error ? 'Credentials unavailable' : 'Loading your credentials…'}</strong>
+              <span>
+                {error
+                  ? 'The service could not load your library. This does not mean you have no credentials.'
+                  : 'Reading the issuer’s credential list.'}
+              </span>
+              {error ? (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await load(session);
+                    } catch (caught) {
+                      setError(
+                        caught instanceof Error ? caught.message : 'Unable to load credentials.',
+                      );
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Retry loading credentials
+                </Button>
+              ) : null}
+            </div>
+          ) : credentials.length ? (
             <div className="credential-list">
               {credentials.map((credential) => (
                 <article className="credential-row" key={credential.credential_hash}>

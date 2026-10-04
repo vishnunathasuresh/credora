@@ -3283,3 +3283,7 @@ select:focus-visible {
     display: inline-flex;
   }
 }
+
+a[data-slot='button'][data-variant='default'] {
+  color: var(--paper);
+}

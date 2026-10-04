@@ -21,3 +21,15 @@ Workspace screens use the same surfaces as the public verifier: a strong page he
 ## Landing page intent
 
 The first viewport should make three things obvious within seconds: what Credora is, why the proof is durable, and where a visitor can verify a credential. The proof-path interaction remains the explanatory centerpiece and must retain its illustrative-only label.
+
+## Components
+
+Web controls use the checked-in shadcn components in `apps/web/src/components/ui`: Button, Input, Textarea, NativeSelect, Label, Card, Badge, and Dialog. Extend these primitives instead of introducing a second control system. Keep action links as links through Button's `asChild` support. Use the primary button for the main task, outline for secondary actions, ghost for navigation, and destructive styling for destructive actions. Preserve visible focus, disabled, loading, and error states.
+
+Radix-backed Dialog owns web QR sharing and narrow-screen navigation, including a named title, description, close action, and focus management. QR sharing exposes the public verification URL alongside the code; copy/share failures retain an actionable fallback. QR download is an image of the public link, not a credential document or independent proof.
+
+First-time wallet guidance explains account creation, recovery-phrase privacy, sharing the public address with an issuer, and signing the web login message. Keep this help beside the holder journey. Public verification remains available without a wallet. Distinguish wallet connection, signed login, and issuance transactions; signing in does not cost gas.
+
+Verification feedback names the failed dependency or proof condition, then offers a relevant next action. Keep malformed references, absent records, ledger outages, unavailable metadata, inconsistent metadata, and service outages distinct. An unavailable service must not appear as an invalid credential. Loading, empty collections, local storage failures, and sharing failures need explicit copy rather than blank surfaces.
+
+Native screens inherit this identity through Tamagui rather than web primitives. Platform context lives in `apps/mobile/PRODUCT.md` and `apps/mobile/DESIGN.md`: the native app carries locally saved public links and verifies through the configured service; wallet signing stays on the web.
