@@ -3,6 +3,7 @@
 | Document | Owns | Update when |
 | --- | --- | --- |
 | `README.md` | setup, commands, runtime surfaces, deployment basics | onboarding, scripts, env names, or local workflow changes |
+| `docs/setup/` | audience-specific local, mobile, contract, role, and production setup | supported app surfaces, commands, user roles, or deployment requirements change |
 | `docs/architecture/overview.md` | system boundaries and source-of-truth model | an app/package/storage/chain/API boundary changes |
 | `docs/decisions/0001-0007` | accepted protocol and architecture decisions | a decision is introduced, superseded, or migrated |
 | `docs/glossary.md` | canonical terms and definitions | a new protocol term or an ambiguous existing term appears |
