@@ -151,8 +151,9 @@ production builds, Foundry contract tests, and an Anvil-backed API integration
 flow through `.github/workflows/ci.yml`.
 
 Pushes to `main` and version tags publish the API container to GitHub Container
-Registry through `.github/workflows/cd.yml`. The deployment stack in `deploy/`
-can consume that image from a self-hosted environment.
+Registry through `.github/workflows/cd.yml`. The self-hosted web/API deployment
+stack, environment template, and HTTPS proxy configuration live in `deploy/`;
+the workflow publishes an image but does not deploy to a hosting server.
 
 New pull requests request a review from GitHub Copilot through
 `.github/workflows/copilot-review.yml`. Copilot code review must be enabled for

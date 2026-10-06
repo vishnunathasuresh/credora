@@ -9,6 +9,7 @@ out/
 *.tsbuildinfo
 .env
 .env.local
+deploy/.env.production
 contracts/cache/
 contracts/out/
 contracts/broadcast/

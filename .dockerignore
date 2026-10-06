@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+deploy/.env.production
+node_modules
+**/node_modules
+.next
+**/.next
+.expo
+**/.expo
+.data
+**/.data
+contracts/cache
+contracts/out
+contracts/broadcast

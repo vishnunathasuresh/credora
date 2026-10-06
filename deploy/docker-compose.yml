@@ -8,10 +8,43 @@ services:
       API_DATABASE_PATH: /data/credora.sqlite
       API_STORAGE_PATH: /data/metadata
       API_TRUST_PROXY: 'true'
+      API_ALLOWED_ORIGINS: ${API_ALLOWED_ORIGINS:?Set the production web origin in deploy/.env.production}
+      RPC_URL: ${RPC_URL:?Set the production RPC URL in deploy/.env.production}
+      CHAIN_ID: ${CHAIN_ID:?Set the production chain ID in deploy/.env.production}
+      CREDENTIAL_REGISTRY_ADDRESS: ${CREDENTIAL_REGISTRY_ADDRESS:?Set the deployed registry address in deploy/.env.production}
+      IPFS_UPLOAD_URL: ${IPFS_UPLOAD_URL:?Set the IPFS upload URL in deploy/.env.production}
+      IPFS_UPLOAD_AUTH_TOKEN: ${IPFS_UPLOAD_AUTH_TOKEN:?Set the server-only IPFS upload token in deploy/.env.production}
+      IPFS_GATEWAY_URL: ${IPFS_GATEWAY_URL:?Set the IPFS gateway URL in deploy/.env.production}
     expose:
       - '4000'
     volumes:
       - credora-data:/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/readyz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set the public API URL in deploy/.env.production}
+        NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:?Set the browser RPC URL in deploy/.env.production}
+        NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:?Set the browser chain ID in deploy/.env.production}
+        NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser registry address in deploy/.env.production}
+        NEXT_PUBLIC_IPFS_GATEWAY_URL: ${NEXT_PUBLIC_IPFS_GATEWAY_URL:?Set the public IPFS gateway URL in deploy/.env.production}
+    expose:
+      - '3000'
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -29,13 +62,14 @@ services:
     volumes:
       - credora-data:/data
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   https:
     image: caddy:2-alpine
     environment:
-      CREDORA_DOMAIN: ${CREDORA_DOMAIN}
+      CREDORA_DOMAIN: ${CREDORA_DOMAIN:?Set CREDORA_DOMAIN in deploy/.env.production}
     ports:
       - '80:80'
       - '443:443'
@@ -44,7 +78,10 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
