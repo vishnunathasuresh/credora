@@ -2,7 +2,9 @@
 
 Content follows the six sections in `Project Presentation Template.pptx`.
 Replace the cover placeholders with the presenters' names and team number.
-The diagrams use CeTZ 0.5.2 for Typst. Rebuild an SVG with `typst compile presentation/visuals/architecture.typ presentation/visuals/architecture.svg`.
+Architecture diagrams are editable Mermaid blocks in this Markdown file. The
+deeper implementation map and operational diagrams are in
+[`docs/architecture/diagrams.md`](../docs/architecture/diagrams.md).
 
 ## Slide 1 — Project title
 
@@ -74,10 +76,6 @@ Issued v1 credentials are immutable. The current contract has no revocation or c
 - **Replaceable projections:** Chain-derived issuance rows can be reconstructed from registry events; organization applications and access decisions remain API records.
 - **Self-hosting:** Local Anvil and file storage support development; production Compose config provides web, API, HTTPS proxy, SQLite volume, and scheduled backups.
 
-![Verification path and distinct outcomes for malformed input, missing records, infrastructure outages, and proof mismatch](visuals/verification-states.svg)
-
-Source: [verification-states.typ](visuals/verification-states.typ), drawn with CeTZ.
-
 ### Completion check
 
 The core web proof path is implemented. End-to-end organization application/review evidence and native device QA remain open. v2 selective-disclosure helpers have package-level implementation, but normal issuance, API verification, web direct verification, and mobile metadata parsing currently follow the v1 public-manifest format. The repository contains unit and integration suites for hashing, storage, contracts, API routes, roles, outages, and selected shares; release evidence for the open workflows is still needed.
@@ -88,96 +86,148 @@ The core web proof path is implemented. End-to-end organization application/revi
 
 ### Component and trust boundaries
 
-![Credora architecture showing client surfaces, API and shared packages, registry, metadata storage, and SQLite projections](visuals/architecture.svg)
-
-Source: [architecture.typ](visuals/architecture.typ), drawn with CeTZ.
-
-#### Mermaid source version
-
 ```mermaid
-flowchart LR
-  subgraph Clients
-    Issuer[Issuer web app<br/>wallet signs and sends transaction]
-    Holder[Holder web app]
-    Mobile[Expo holder and verifier]
-    Verifier[Public web verifier]
+flowchart TB
+  subgraph Clients[Client surfaces]
+    Web[Next.js web app<br/>issuer, organization, superadmin, verifier, holder]
+    Mobile[Expo mobile app<br/>holder and verifier]
+    Wallet[Browser wallet<br/>signs login and issuance transactions]
   end
 
-  subgraph Shared[Shared packages]
-    Core[credential-core<br/>normalization and Keccak hashes]
-    Chain[blockchain and contract ABI]
-    Storage[storage adapters]
+  subgraph AppPackages[Implemented shared packages]
+    Core[credential-core<br/>v1 normalization and Keccak hash]
+    Chain[blockchain adapter]
+    Abi[contracts ABI]
+    Storage[storage adapter<br/>IPFS or local file]
     Auth[wallet challenge verification]
-    Types[shared domain types]
+    Shared[shared roles and verification states]
   end
 
-  API[Credora API<br/>sessions, roles, issuance workflow, verification, shares]
-  DB[(SQLite<br/>sessions, operations, org access, audit, projections)]
-  Registry[(CredentialRegistry<br/>authoritative v1 proof record)]
-  Metadata[(IPFS metadata<br/>public bytes addressed by CID)]
+  subgraph Runtime[Self-hosted application runtime]
+    API[Node API process<br/>HTTP routes, authorization, issuance, verification, shares, reconciliation]
+    DB[(SQLite<br/>operational records and rebuildable projections)]
+  end
 
-  Issuer -->|HTTPS API| API
-  Issuer -->|wallet transaction| Registry
-  Holder --> API
-  Mobile -->|API verification and sharing| API
-  Verifier -->|verification request| API
-  Verifier -.->|fallback: direct read| Registry
-  Verifier -.->|fallback: gateway fetch| Metadata
+  subgraph ProofSources[Proof and metadata sources]
+    RPC[EVM RPC]
+    Registry[(CredentialRegistry<br/>proof and issuer-role authority)]
+    Metadata[(Public metadata<br/>IPFS URI or API-local file URI)]
+  end
+
+  Web -->|HTTPS| API
+  Mobile -->|HTTPS| API
+  Web --> Wallet
+  Wallet -->|signed issueCredential transaction| RPC
+  API -->|read roles, records, receipts and events| Chain
+  Chain --> Abi
+  Chain --> RPC
+  Web --> Abi
+  RPC --> Registry
+  API --> Storage
+  Storage --> Metadata
   API --> DB
-  API -->|read, role checks, transaction checks, event sync| Registry
-  API -->|upload/fetch via adapter| Metadata
-  Shared -. used by .-> API
-  Shared -. used by .-> Issuer
-  Shared -. used by .-> Verifier
-  Shared -. platform-safe types and protocol code .-> Mobile
+  API -. uses .-> Core
+  API -. uses .-> Auth
+  API -. uses .-> Shared
+  Web -. uses .-> Core
+  Mobile -. uses .-> Core
+  Mobile -. uses .-> Shared
+  Web -. API outage or HTTP 503: direct path .-> RPC
+  Web -. direct fallback for ipfs:// metadata .-> Metadata
 ```
+
+The API is implemented as one Node process and route module. SQLite contains
+sessions, organization access, audit data, shares, issuance operations, and
+chain-derived projections. The registry and metadata bytes remain the public
+proof sources. The API chooses IPFS only when upload and gateway URLs are both
+configured; otherwise it stores local metadata. The mobile verifier is API-only;
+the web verifier has a direct RPC/gateway fallback. See the
+[detailed architecture diagrams](../docs/architecture/diagrams.md) for exact
+fallback conditions, module dependencies, deployment topology, and projection
+recovery behavior.
 
 ### Issuance sequence
 
-![Credential lifecycle with separate issuance and independent verification lanes](visuals/proof-path.svg)
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Issuer
+  participant Web as Next.js issuer workspace
+  participant Wallet as Issuer wallet
+  participant API as Node API and SQLite
+  participant Store as IPFS or local metadata adapter
+  participant RPC as EVM RPC and registry
 
-Source: [proof-path.typ](visuals/proof-path.typ), drawn with CeTZ.
+  Issuer->>Web: Connect wallet
+  Web->>API: Request expiring login challenge
+  API-->>Web: Challenge message
+  Web->>Wallet: personal_sign(challenge)
+  Wallet-->>Web: Signature
+  Web->>API: Verify signature and create session
+  Issuer->>Web: Submit learner and credential fields
+  Web->>API: POST /issuances
+  API->>RPC: Check on-chain issuer authorization
+  API->>API: Save draft
+  Web->>API: POST /issuances/{id}/metadata
+  API->>Store: Store v1 public manifest
+  Store-->>API: metadata URI
+  API->>API: Hash canonical fields plus metadata URI
+  API-->>Web: Draft ID, hash and URI
+  Web->>Wallet: Request issueCredential(hash, learner, URI)
+  Wallet->>RPC: Submit signed transaction
+  RPC-->>Wallet: Transaction hash and receipt
+  Web->>API: POST /issuances/{id}/confirm
+  API->>RPC: Verify receipt, calldata and registry record
+  API->>API: Mark projection confirmed and audit
+  API-->>Web: Confirmed status
+```
 
-#### Mermaid source version
+The API checks authorization and validates the transaction, but the issuer's
+wallet signs and sends it. Organization approval grants API workspace access;
+the registry separately enforces `ISSUER_ROLE`.
+
+### Verification and source of truth
 
 ```mermaid
 sequenceDiagram
-  actor Issuer
-  participant Web as Issuer web app
-  participant API as API and SQLite
-  participant Store as IPFS or local storage
-  participant Wallet as Issuer wallet
-  participant Chain as CredentialRegistry
+  autonumber
+  actor Verifier
+  participant Client as Web or mobile verifier
+  participant API as Credora API
+  participant Browser as Web direct verifier
+  participant RPC as EVM RPC and registry
+  participant Store as Metadata adapter or IPFS gateway
 
-  Issuer->>Web: Connect wallet and sign login challenge
-  Web->>API: Verify signature and create session
-  Web->>API: Create issuance draft
-  API->>Chain: Check issuer role
-  Web->>API: Upload credential metadata
-  API->>Store: Store manifest
-  Store-->>API: Return metadata URI and CID
-  API->>API: Compute canonical v1 Keccak hash
-  API-->>Web: Return hash and metadata URI
-  Web->>Wallet: Request issueCredential transaction
-  Wallet->>Chain: Submit hash, learner, and metadata URI
-  Web->>API: Confirm transaction hash
-  API->>Chain: Check receipt, transaction input, and stored record
-  API->>API: Mark operation confirmed and audit it
+  Verifier->>Client: Submit a 32-byte hash or /verify/{hash} URL
+  Client->>API: GET /credentials/{hash}/verify
+  alt API returns a result
+    API->>RPC: Read registry record
+    API->>Store: Fetch metadata URI
+    API->>API: Recompute v1 hash and compare issuer and learner
+    API-->>Client: valid, not-found, malformed, unavailable or mismatch
+  else Web API request throws or returns HTTP 503
+    Client->>Browser: Start direct fallback
+    Browser->>RPC: Read registry record directly
+    Browser->>Store: Fetch ipfs:// metadata via public gateway
+    Browser->>Browser: Recompute v1 hash and compare bound addresses
+    Browser-->>Client: direct result
+  else Mobile API request fails
+    Note over Client: Show service-unavailable; the credential is not marked invalid
+  end
 ```
 
-### Verification sequence and source of truth
-
-1. A verifier submits a 32-byte credential hash or public verification URL.
-2. The API reads the registry record. The browser can fall back to direct RPC when the API is unavailable.
-3. The verifier fetches metadata using the record's URI. Direct browser verification uses the configured IPFS gateway.
-4. The verifier normalizes the manifest, recomputes Keccak-256, and compares the hash and bound addresses.
-5. The UI reports valid, not found, malformed, ledger unavailable, metadata unavailable, or metadata mismatch. An API outage does not make a proof invalid.
+The direct fallback is a web capability only. The mobile app uses the API and
+reports service unavailability when it cannot reach it. Verification requires
+an existing registry record and metadata whose canonical v1 Keccak hash and
+issuer/learner bindings match. The detailed document also diagrams all
+individual verification states, API projection rebuilding, organization roles,
+share capabilities, and production deployment.
 
 **Authority:** The registry anchors credential existence, issuer, learner, metadata URI, issue time, and issuer authorization. IPFS supplies the bytes for the URI. The API database projects chain events and stores operational records; it cannot replace the chain proof.
 
 **Important boundaries:** The web issuer signs the issuance transaction in the user's wallet; private keys do not enter the API. `ORG_ADMIN` is an API-reviewed access role, separate from the on-chain issuer role. Temporary share codes resolve a fixed list of public hashes and do not prove that the presenter controls a learner wallet. v2 Merkle selective disclosure exists in `credential-core`; the registry interface and production user flows currently issue and verify v1 records.
 
-**Evidence:** `apps/web/src/components/issuer-workspace.tsx`, `apps/api/src/index.ts`, `packages/blockchain/src/index.ts`, `packages/storage/src/index.ts`, `contracts/src/CredentialRegistry.sol`, `apps/web/src/lib/direct-verification.ts`, `apps/web/src/lib/verification-api.ts`.
+**Evidence:** `apps/web/src/components/issuer-workspace.tsx`, `apps/api/src/index.ts`, `apps/api/src/migrations.ts`, `packages/blockchain/src/index.ts`, `packages/storage/src/index.ts`, `contracts/src/CredentialRegistry.sol`, `apps/web/src/lib/direct-verification.ts`, `apps/web/src/lib/verification-api.ts`. Detailed diagram-to-code map: [`docs/architecture/diagrams.md`](../docs/architecture/diagrams.md).
 
 ## Slide 6 — Demonstration
 

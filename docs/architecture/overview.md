@@ -60,3 +60,7 @@ manual enrollment and role boundary, [ADR 0009](../decisions/0009-expiring-selec
 for wallet share capabilities, and the other ADRs and [glossary](../glossary.md)
 for proof invariants, privacy rules, and the future organization-registry
 migration boundary.
+
+For implementation-grounded runtime, issuance, verification, projection,
+organization/share, and deployment diagrams, see
+[software architecture diagrams](diagrams.md).
