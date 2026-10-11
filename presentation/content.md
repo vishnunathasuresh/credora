@@ -2,6 +2,7 @@
 
 Content follows the six sections in `Project Presentation Template.pptx`.
 Replace the cover placeholders with the presenters' names and team number.
+The diagrams use CeTZ 0.5.2 for Typst. Rebuild an SVG with `typst compile presentation/visuals/architecture.typ presentation/visuals/architecture.svg`.
 
 ## Slide 1 — Project title
 
@@ -73,6 +74,10 @@ Issued v1 credentials are immutable. The current contract has no revocation or c
 - **Replaceable projections:** Chain-derived issuance rows can be reconstructed from registry events; organization applications and access decisions remain API records.
 - **Self-hosting:** Local Anvil and file storage support development; production Compose config provides web, API, HTTPS proxy, SQLite volume, and scheduled backups.
 
+![Verification path and distinct outcomes for malformed input, missing records, infrastructure outages, and proof mismatch](visuals/verification-states.svg)
+
+Source: [verification-states.typ](visuals/verification-states.typ), drawn with CeTZ.
+
 ### Completion check
 
 The core web proof path is implemented. End-to-end organization application/review evidence and native device QA remain open. v2 selective-disclosure helpers have package-level implementation, but normal issuance, API verification, web direct verification, and mobile metadata parsing currently follow the v1 public-manifest format. The repository contains unit and integration suites for hashing, storage, contracts, API routes, roles, outages, and selected shares; release evidence for the open workflows is still needed.
@@ -82,6 +87,12 @@ The core web proof path is implemented. End-to-end organization application/revi
 ## Slide 5 — System architecture
 
 ### Component and trust boundaries
+
+![Credora architecture showing client surfaces, API and shared packages, registry, metadata storage, and SQLite projections](visuals/architecture.svg)
+
+Source: [architecture.typ](visuals/architecture.typ), drawn with CeTZ.
+
+#### Mermaid source version
 
 ```mermaid
 flowchart LR
@@ -122,6 +133,12 @@ flowchart LR
 ```
 
 ### Issuance sequence
+
+![Credential lifecycle with separate issuance and independent verification lanes](visuals/proof-path.svg)
+
+Source: [proof-path.typ](visuals/proof-path.typ), drawn with CeTZ.
+
+#### Mermaid source version
 
 ```mermaid
 sequenceDiagram
