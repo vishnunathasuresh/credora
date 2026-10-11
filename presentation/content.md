@@ -5,6 +5,8 @@ Replace the cover placeholders with the presenters' names and team number.
 Architecture diagrams are editable Mermaid blocks in this Markdown file. The
 deeper implementation map and operational diagrams are in
 [`docs/architecture/diagrams.md`](../docs/architecture/diagrams.md).
+For the plain-language system explanation and likely Q&A, see
+[`presentation/project-explained.md`](project-explained.md).
 
 ## Slide 1 — Project title
 
@@ -25,7 +27,7 @@ Credora gives organizations a way to issue digital credentials, holders a way to
 
 - A registry contract anchors each credential hash and its issuer, learner, metadata URI, and issue time.
 - Public metadata carries the credential details. A verifier recomputes the hash to check that those details match the registry.
-- The API supports sessions, issuer workflows, search, audit, organization access, and temporary sharing. Its chain-derived records can be rebuilt.
+- The API supports sessions, issuer workflows, scoped credential and issuance lists, audit, organization access, and temporary sharing. Its chain-derived records can be rebuilt.
 - Web and mobile interfaces support holders and verifiers. Issuance and administration run on the web.
 
 **Implementation status:** Core web issuance and verification have implemented code paths. The full product is not release-complete: native device checks and authenticated organization workflow evidence remain open. Selective disclosure is implemented in the shared protocol package, but is not wired into the end-user issuance and verification flows.
