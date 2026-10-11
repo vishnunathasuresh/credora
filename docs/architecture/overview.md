@@ -1,5 +1,9 @@
 # Architecture overview
 
+Compact flow chart: [preview](credora-system.png) · [Eraser diagram code](credora-system.eraser).
+Paste the code into Eraser's Architecture Diagram editor. The preview is rendered
+locally; Eraser's automatic layout may differ.
+
 For diagram generation, use the [Eraser system architecture specification](eraser-system-architecture.md),
 which maps these boundaries to components, connections, and runtime flows.
 

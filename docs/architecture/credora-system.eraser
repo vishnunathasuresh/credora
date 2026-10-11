@@ -1,0 +1,94 @@
+// Credora system architecture — flow view
+// Paste into an Eraser Architecture Diagram code editor.
+direction right
+typeface clean
+styleMode plain
+colorMode pastel
+
+Authentication [color: blue] {
+  WalletSign [label: "Browser wallet", color: blue]
+  Challenge [label: "Sign API nonce", color: blue]
+  Auth [label: "API: verify signature", color: purple]
+  Session [label: "SQLite: session + roles", color: orange]
+  Access [label: "Web: authenticated access", color: blue]
+}
+
+Organization [color: purple] {
+  Applicant [label: "Organization applicant", color: blue]
+  Review [label: "API: superadmin review", color: purple]
+  OrgRecord [label: "SQLite: ORG_ADMIN", color: orange]
+  RegistryAdmin [label: "Registry admin wallet", color: blue]
+  IssuerRole [label: "Registry: ISSUER_ROLE", color: green]
+}
+
+Issuance [color: green] {
+  IssuerWeb [label: "Issuer: Next.js web", color: blue]
+  Draft [label: "API: auth + SQLite draft", color: purple]
+  Upload [label: "IPFS manifest + CID / API Keccak hash", color: green]
+  SignedTx [label: "Wallet signs / EVM RPC", color: blue]
+  Proof [label: "Registry: immutable proof", color: green]
+}
+
+Verification [color: green] {
+  Reference [label: "Web / Expo Android / external verifier", color: blue]
+  VerifyRoute [label: "API verifier / web direct fallback", color: purple]
+  Sources [label: "RPC registry + IPFS gateway", color: green]
+  Compare [label: "Normalize + Keccak / compare bound fields", color: purple]
+  Result [label: "Valid / absent / malformed / RPC down / metadata down or mismatch", color: blue]
+}
+
+Sharing [color: orange] {
+  Holder [label: "Holder: web / mobile", color: blue]
+  Select [label: "API: 1–25 hashes / 1, 7 or 30 days", color: purple]
+  ShareStore [label: "SQLite: token digests + fixed selection", color: orange]
+  QR [label: "Bearer QR / separate revoke secret", color: blue]
+  Resolve [label: "API: resolve / verify each proof", color: purple]
+}
+
+Projection [color: orange] {
+  Events [label: "Registry: CredentialIssued", color: green]
+  Poll [label: "API timer: RPC log polling", color: purple]
+  Finality [label: "Confirmations + reorg rescan", color: purple]
+  ProjectionDB [label: "SQLite: rebuildable projection", color: orange]
+  Views [label: "Web dashboards / audit views", color: blue]
+}
+
+Deployment [color: gray] {
+  HTTPS [label: "Caddy HTTPS", color: blue]
+  Services [label: "Next.js :3000 / one Node API :4000", color: purple]
+  Volume [label: "Persistent SQLite / rotating backup", color: orange]
+  Dev [label: "Dev: Anvil + local file metadata", color: gray]
+}
+
+Libraries [color: gray] {
+  Packages [label: "Shared: core, types, auth, storage, chain, ABI, UI tokens, config", color: gray]
+  V2 [label: "V2 Merkle disclosure: library only / not ZK", color: gray]
+}
+
+WalletSign > Challenge > Auth > Session > Access
+Applicant > Review > OrgRecord
+OrgRecord --> RegistryAdmin: separate on-chain authorization
+RegistryAdmin > IssuerRole: signed transaction
+IssuerWeb > Draft: create
+Draft > Upload: upload and hash
+Upload > SignedTx: hash + learner + URI
+SignedTx > Proof: issueCredential
+Proof --> Draft: API checks transaction and receipt
+Reference > VerifyRoute: credential reference
+VerifyRoute > Sources: public reads
+Sources > Compare > Result
+Reference --> Sources: independent verifier bypasses API
+Holder > Select > ShareStore > QR > Resolve
+Resolve --> VerifyRoute: each credential
+Events > Poll > Finality > ProjectionDB > Views
+HTTPS > Services > Volume
+Services --> Dev: development adapter
+Libraries --> Services: app-to-package dependencies
+
+// Keys stay in wallets; API and SQLite cannot override proof truth.
+// Organization approval is not issuer authorization.
+// Mobile verification uses the API; direct fallback belongs to web only.
+// Credential hash != IPFS CID; issued v1 records cannot be edited/revoked.
+// Share revocation does not revoke credentials or prove wallet ownership.
+// Operational records need backups; only chain projections are rebuildable.
+// V2 hidden claims and salts stay holder-local; demo fixtures are synthetic.
