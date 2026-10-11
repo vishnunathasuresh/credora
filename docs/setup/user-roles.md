@@ -8,7 +8,8 @@ private key must never be entered into Credora or shared with an issuer.
 ## Verifier
 
 1. Open `/verify` on the web app, or select Verify in the mobile app.
-2. Paste a public verification link or credential hash, or scan its QR code.
+2. Scan the credential QR with the camera or upload a QR image. A public verification link or
+   credential hash is also accepted as a fallback.
 3. Review whether the proof is valid, missing, malformed, or unavailable.
 
 An RPC or metadata outage is reported as unavailable; it is not evidence that

@@ -5,14 +5,15 @@ export default function VerifyPage() {
     <main className="page-width narrow-page">
       <h1>Check the record.</h1>
       <p className="lede">
-        A credential can be verified without a wallet, account, or relationship with the issuer.
+        Scan a credential QR or upload its image. No wallet, account, or issuer relationship is
+        needed.
       </p>
       <VerifyForm />
       <div className="verification-note">
         <strong>What happens next</strong>
         <span>
-          The reference is checked against the configured registry first. Metadata availability is
-          reported separately from credential validity.
+          The QR opens a public verification record. Its proof is checked against the configured
+          registry first; metadata availability is reported separately from credential validity.
         </span>
       </div>
     </main>

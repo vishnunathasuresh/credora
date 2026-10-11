@@ -126,7 +126,7 @@ export default function HomePage() {
       <section className="verify-band page-width">
         <div>
           <h2>Start with the proof.</h2>
-          <p>Paste a credential hash and see what the ledger says.</p>
+          <p>Scan or upload a QR code to check the on-chain proof.</p>
         </div>
         <VerifyForm />
       </section>
