@@ -1,94 +1,110 @@
-// Credora system architecture — flow view
-// Paste into an Eraser Architecture Diagram code editor.
-direction right
+// Credora — connected end-to-end technical workflow
+// Eraser Flow Chart editor. API operations are logical steps in one Node service.
+direction down
 typeface clean
 styleMode plain
 colorMode pastel
 
-Authentication [color: blue] {
-  WalletSign [label: "Browser wallet", color: blue]
-  Challenge [label: "Sign API nonce", color: blue]
-  Auth [label: "API: verify signature", color: purple]
-  Session [label: "SQLite: session + roles", color: orange]
-  Access [label: "Web: authenticated access", color: blue]
+prepare [label: "01 · Access and issuance preparation"] {
+  Issuer [icon: next, color: blue, shape: rectangle, label: "Issuer web workspace / Connect external wallet"]
+  Authenticate [icon: key-round, color: purple, shape: rectangle, label: "Authenticate wallet / /auth/challenge → personal_sign → /auth/verify"]
+  OrgReview [icon: building-2, color: purple, shape: rectangle, label: "Organization enrollment / Superadmin review → operational ORG_ADMIN"]
+  IssuerGate [icon: shield-check, color: purple, shape: diamond, label: "Issuer authorized? / Read registry ISSUER_ROLE"]
+  Grant [icon: wallet, color: blue, shape: rectangle, label: "Registry admin signs grant / setIssuerAuthorization · separate from org approval"]
+  Draft [icon: file-plus, color: purple, shape: rectangle, label: "Create issuance draft / POST /issuances · learner + skill + issue date"]
+  Upload [icon: upload-cloud, color: purple, shape: rectangle, label: "Upload public manifest / POST /issuances/:id/metadata"]
+  Hash [icon: hash, color: purple, shape: rectangle, label: "Compute credential hash / Versioned ABI payload + metadata URI → Keccak-256"]
+  Sign [icon: wallet, color: blue, shape: rectangle, label: "Issuer wallet signs / issueCredential(hash, learner, metadataUri)"]
 }
 
-Organization [color: purple] {
-  Applicant [label: "Organization applicant", color: blue]
-  Review [label: "API: superadmin review", color: purple]
-  OrgRecord [label: "SQLite: ORG_ADMIN", color: orange]
-  RegistryAdmin [label: "Registry admin wallet", color: blue]
-  IssuerRole [label: "Registry: ISSUER_ROLE", color: green]
+commit [label: "02 · Anchoring, discovery and sharing"] {
+  Rpc [icon: ethereum, color: green, shape: rectangle, label: "EVM RPC broadcasts transaction / Issuer key stays in wallet"]
+  Registry [icon: solidity, color: green, shape: rectangle, label: "CredentialRegistry / Immutable record · issuer role check · issuance event"]
+  Confirm [icon: badge-check, color: purple, shape: rectangle, label: "Validate transaction and receipt / POST /issuances/:id/confirm · sender + record bindings"]
+  Sync [icon: refresh-cw, color: purple, shape: rectangle, label: "API event reconciliation / Poll CredentialIssued · confirmations · reorg rescan"]
+  Holder [icon: expo, color: blue, shape: rectangle, label: "Holder web / Android library / Save public credential reference locally"]
+  Share [icon: share-2, color: purple, shape: rectangle, label: "Create fixed credential bundle / POST /wallet/shares · 1–25 hashes · 1/7/30 days"]
+  Qr [icon: qr-code, color: blue, shape: rectangle, label: "Share URL / QR / Bearer link + separate management/revoke secret"]
 }
 
-Issuance [color: green] {
-  IssuerWeb [label: "Issuer: Next.js web", color: blue]
-  Draft [label: "API: auth + SQLite draft", color: purple]
-  Upload [label: "IPFS manifest + CID / API Keccak hash", color: green]
-  SignedTx [label: "Wallet signs / EVM RPC", color: blue]
-  Proof [label: "Registry: immutable proof", color: green]
+verification [label: "03 · Public proof verification"] {
+  Verifier [icon: scan-line, color: blue, shape: rectangle, label: "Verifier opens link or scans QR / No login required"]
+  Resolve [icon: list-checks, color: purple, shape: rectangle, label: "Resolve active share / GET /wallet/shares/:token → selected hashes"]
+  Parse [icon: binary, color: purple, shape: diamond, label: "Valid 32-byte reference? / Validate configured credential reference"]
+  Route [icon: network, color: purple, shape: diamond, label: "API reachable? / Web / Android verification request"]
+  Direct [icon: globe, color: blue, shape: rectangle, label: "Web direct verification / Fallback to configured RPC + public IPFS gateway"]
+  Read [icon: search, color: purple, shape: rectangle, label: "Read immutable chain record / getCredential(hash) via configured EVM RPC"]
+  Exists [icon: file-question-mark, color: purple, shape: diamond, label: "Record exists? / Selected chain + registry"]
+  Fetch [icon: download-cloud, color: purple, shape: rectangle, label: "Fetch manifest by CID / Read ipfs:// URI through HTTP gateway"]
+  Match [icon: fingerprint, color: purple, shape: diamond, label: "Proof matches? / Normalize · recompute Keccak · compare bound fields"]
+  Independent [icon: terminal, color: blue, shape: rectangle, label: "Independent verifier / Direct RPC + gateway · no Credora API"]
 }
 
-Verification [color: green] {
-  Reference [label: "Web / Expo Android / external verifier", color: blue]
-  VerifyRoute [label: "API verifier / web direct fallback", color: purple]
-  Sources [label: "RPC registry + IPFS gateway", color: green]
-  Compare [label: "Normalize + Keccak / compare bound fields", color: purple]
-  Result [label: "Valid / absent / malformed / RPC down / metadata down or mismatch", color: blue]
+results [label: "04 · Verification outcomes"] {
+  Valid [icon: circle-check, color: green, shape: rectangle, label: "Valid credential / Registry + metadata proof match"]
+  Mismatch [icon: shield-x, color: red, shape: rectangle, label: "Metadata / proof mismatch / Does not establish wallet control"]
+  Absent [icon: file-x, color: orange, shape: rectangle, label: "Credential not found / Absent from selected registry"]
+  Malformed [icon: triangle-alert, color: red, shape: rectangle, label: "Malformed reference / Reject before proof lookup"]
+  LedgerDown [icon: unplug, color: orange, shape: rectangle, label: "Ledger unavailable / RPC / registry read failure"]
+  MetadataDown [icon: cloud-off, color: orange, shape: rectangle, label: "Metadata unavailable / Gateway / retrieval failure"]
+  ApiDown [icon: server-off, color: orange, shape: rectangle, label: "Android: service unavailable / API failure is not invalid proof"]
 }
 
-Sharing [color: orange] {
-  Holder [label: "Holder: web / mobile", color: blue]
-  Select [label: "API: 1–25 hashes / 1, 7 or 30 days", color: purple]
-  ShareStore [label: "SQLite: token digests + fixed selection", color: orange]
-  QR [label: "Bearer QR / separate revoke secret", color: blue]
-  Resolve [label: "API: resolve / verify each proof", color: purple]
+resources [label: "Shared persistence and metadata"] {
+  Sqlite [icon: sqlite, color: orange, shape: rectangle, label: "Persistent SQLite / Sessions · org decisions · drafts · shares · chain views"]
+  Ipfs [icon: ipfs, color: green, shape: rectangle, label: "IPFS content-addressed storage / Public manifest bytes · CID ≠ credential hash"]
+  Backup [icon: database-backup, color: gray, shape: rectangle, label: "Rotating SQLite backups / Operational records need durable backups"]
 }
 
-Projection [color: orange] {
-  Events [label: "Registry: CredentialIssued", color: green]
-  Poll [label: "API timer: RPC log polling", color: purple]
-  Finality [label: "Confirmations + reorg rescan", color: purple]
-  ProjectionDB [label: "SQLite: rebuildable projection", color: orange]
-  Views [label: "Web dashboards / audit views", color: blue]
-}
+Issuer > Authenticate: 1 · connect + sign [color: blue]
+Authenticate > IssuerGate: 2 · bearer session [color: blue]
+Authenticate --> OrgReview: optional enrollment [color: gray]
+OrgReview --> Sqlite: review decision [color: orange]
+IssuerGate > Grant: No · admin action [color: orange]
+Grant --> IssuerGate: signed on-chain grant [color: blue]
+IssuerGate --> Registry: isAuthorizedIssuer [color: green]
+IssuerGate > Draft: Yes [color: green]
+Draft > Upload: 3 · manifest [color: purple]
+Upload --> Ipfs: put JSON [color: green]
+Upload > Hash: 4 · returned CID / URI [color: purple]
+Hash > Sign: 5 · hash + learner + URI [color: blue]
+Sign > Rpc: 6 · signed transaction [color: blue]
+Rpc > Registry: issueCredential [color: green]
+Registry > Confirm: 7 · transaction hash / receipt [color: green]
+Registry > Sync: confirmed event logs [color: purple]
+Confirm > Holder: 8 · public proof reference [color: blue]
+Sync --> Sqlite: rebuildable projection [color: orange]
+Sqlite --> Holder: GET /credentials discovery [color: orange]
+Sqlite --> Backup: snapshot [color: orange]
+Authenticate --> Sqlite: session [color: orange]
+Draft --> Sqlite: persist operation [color: orange]
+Share --> Sqlite: token digests + fixed hashes [color: orange]
+Holder > Share: 9 · select + expiry [color: blue]
+Share > Qr: share token [color: blue]
+Qr > Verifier: 10 · present / scan [color: blue]
+Verifier > Resolve: share URL [color: purple]
+Verifier --> Parse: direct credential hash [color: blue]
+Resolve > Parse: each selected hash [color: purple]
+Parse > Malformed: No [color: red]
+Parse > Route: Yes [color: purple]
+Route > Direct: No · web fallback [color: blue]
+Route > ApiDown: No · Android [color: orange]
+Route > Read: Yes · API verifier [color: purple]
+Direct > Read: API-independent read [color: blue]
+Independent --> Read: bypass API [color: blue]
+Read --> Registry: getCredential [color: green]
+Read > LedgerDown: RPC failure [color: orange]
+Read > Exists: chain record [color: purple]
+Exists > Absent: No [color: orange]
+Exists > Fetch: Yes · metadata URI [color: purple]
+Fetch --> Ipfs: gateway GET by CID [color: green]
+Fetch > MetadataDown: fetch failure [color: orange]
+Fetch > Match: manifest + record [color: purple]
+Match > Mismatch: No [color: red]
+Match > Valid: Yes [color: green]
 
-Deployment [color: gray] {
-  HTTPS [label: "Caddy HTTPS", color: blue]
-  Services [label: "Next.js :3000 / one Node API :4000", color: purple]
-  Volume [label: "Persistent SQLite / rotating backup", color: orange]
-  Dev [label: "Dev: Anvil + local file metadata", color: gray]
-}
-
-Libraries [color: gray] {
-  Packages [label: "Shared: core, types, auth, storage, chain, ABI, UI tokens, config", color: gray]
-  V2 [label: "V2 Merkle disclosure: library only / not ZK", color: gray]
-}
-
-WalletSign > Challenge > Auth > Session > Access
-Applicant > Review > OrgRecord
-OrgRecord --> RegistryAdmin: separate on-chain authorization
-RegistryAdmin > IssuerRole: signed transaction
-IssuerWeb > Draft: create
-Draft > Upload: upload and hash
-Upload > SignedTx: hash + learner + URI
-SignedTx > Proof: issueCredential
-Proof --> Draft: API checks transaction and receipt
-Reference > VerifyRoute: credential reference
-VerifyRoute > Sources: public reads
-Sources > Compare > Result
-Reference --> Sources: independent verifier bypasses API
-Holder > Select > ShareStore > QR > Resolve
-Resolve --> VerifyRoute: each credential
-Events > Poll > Finality > ProjectionDB > Views
-HTTPS > Services > Volume
-Services --> Dev: development adapter
-Libraries --> Services: app-to-package dependencies
-
-// Keys stay in wallets; API and SQLite cannot override proof truth.
-// Organization approval is not issuer authorization.
-// Mobile verification uses the API; direct fallback belongs to web only.
-// Credential hash != IPFS CID; issued v1 records cannot be edited/revoked.
-// Share revocation does not revoke credentials or prove wallet ownership.
-// Operational records need backups; only chain projections are rebuildable.
-// V2 hidden claims and salts stay holder-local; demo fixtures are synthetic.
+// Public v1 fields remain public; share expiry/revocation does not revoke credentials.
+// Organization approval does not grant issuer authorization.
+// Registry issuedAt is block time; payload issue date is a separate hash input.
+// Wallet keys never enter the API; verification does not prove presenter wallet control.
+// V2 selective disclosure remains a protocol-library capability, not this v1 app flow.

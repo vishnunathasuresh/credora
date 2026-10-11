@@ -1,8 +1,14 @@
 # Architecture overview
 
-Compact flow chart: [preview](credora-system.png) · [Eraser diagram code](credora-system.eraser).
-Paste the code into Eraser's Architecture Diagram editor. The preview is rendered
-locally; Eraser's automatic layout may differ.
+Connected end-to-end workflow: [transparent PNG](credora-system.png) ·
+[vector SVG](credora-system.svg) · [Eraser Flow Chart code](credora-system.eraser).
+
+Technology stack: [transparent PNG](credora-stack.png) ·
+[vector SVG](credora-stack.svg) · [Eraser Architecture Diagram code](credora-stack.eraser).
+
+Paste each source into its corresponding Eraser code editor. The transparent
+previews are rendered locally with vector technology and workflow icons; Eraser's
+automatic layout may differ. Filled cards remain opaque for legibility.
 
 For diagram generation, use the [Eraser system architecture specification](eraser-system-architecture.md),
 which maps these boundaries to components, connections, and runtime flows.

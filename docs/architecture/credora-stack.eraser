@@ -1,0 +1,56 @@
+// Credora — technology stack overview
+// Eraser Architecture Diagram editor.
+direction down
+typeface clean
+styleMode plain
+colorMode pastel
+
+Web [label: "WEB APPLICATION", icon: next, color: blue] {
+  Web0 [icon: next, label: "Next.js + React / App Router · issuer, admin, holder, verifier"]
+  Web1 [icon: tailwind-css, label: "Tailwind CSS + shadcn / Radix / Web components · Hugeicons · QR generation"]
+  Web2 [icon: wallet, label: "viem + browser wallet / EIP-1193 signing · non-custodial keys"]
+}
+
+Mobile [label: "ANDROID APPLICATION", icon: expo, color: blue] {
+  Mobile0 [icon: expo, label: "Expo + React Native / Native holder library and verifier"]
+  Mobile1 [icon: react, label: "Tamagui + native UI / Camera · SVG / QR · sharing APIs"]
+  Mobile2 [icon: smartphone, label: "AsyncStorage / Device-local saved references + shares"]
+}
+
+Api [label: "API & OPERATIONAL STATE", icon: node, color: purple] {
+  Api0 [icon: node, label: "Node.js + TypeScript / Single HTTP service · JSON routes"]
+  Api1 [icon: key-round, label: "Wallet-signature authentication / Nonce challenges · sessions · live role checks"]
+  Api2 [icon: sqlite, label: "SQLite / node:sqlite / Org decisions · shares · audit · projections"]
+}
+
+Proof [label: "PUBLIC PROOF & METADATA", icon: ethereum, color: green] {
+  Proof0 [icon: solidity, label: "Solidity + OpenZeppelin / CredentialRegistry · AccessControl"]
+  Proof1 [icon: ethereum, label: "EVM JSON-RPC + viem / Registry reads · wallet-signed transactions"]
+  Proof2 [icon: ipfs, label: "IPFS upload + gateway / Content-addressed public manifests"]
+}
+
+Domain [label: "SHARED PROTOCOL PACKAGES", icon: typescript, color: purple] {
+  Domain0 [icon: hash, label: "credential-core / ABI encoding · normalization · Keccak-256"]
+  Domain1 [icon: blocks, label: "shared / auth / contracts / blockchain / Domain + API types · challenges · ABI · adapters"]
+  Domain2 [icon: package, label: "storage / UI tokens / config / File + IPFS adapters · platform-safe shared code"]
+}
+
+Ops [label: "BUILD, DEPLOY & VERIFY", icon: docker, color: gray] {
+  Ops0 [icon: docker, label: "Docker Compose + Caddy / HTTPS · web/API containers · DB + backups"]
+  Ops1 [icon: terminal, label: "pnpm + TypeScript + Foundry / Workspace checks · forge tests · Anvil dev chain"]
+  Ops2 [icon: github-actions, label: "GitHub Actions + GHCR / CI checks · API image publish; no server deploy"]
+}
+
+Web > Api: HTTPS JSON
+Mobile > Api: HTTPS JSON
+Api > Proof: registry reads + IPFS adapter
+Web > Proof: signed transactions / direct verification
+Domain --> Web: shared packages
+Domain --> Mobile: core + domain types
+Domain --> Api: shared packages
+Ops --> Web: build / host
+Ops --> Api: build / host
+Ops --> Proof: forge / local Anvil
+
+// V2 salted Merkle disclosure is implemented in credential-core only, not end-to-end app issuance.
+// UI remains platform-specific. Demo fixtures are synthetic.
