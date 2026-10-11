@@ -1,5 +1,8 @@
 # Architecture overview
 
+For diagram generation, use the [Eraser system architecture specification](eraser-system-architecture.md),
+which maps these boundaries to components, connections, and runtime flows.
+
 ```text
                  ┌── reviewed organization records (API)
 Next.js web ─────┤
