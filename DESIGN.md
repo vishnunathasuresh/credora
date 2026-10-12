@@ -20,7 +20,7 @@ Workspace screens use the same surfaces as the public verifier: a strong page he
 
 ## Landing page intent
 
-The first viewport should make three things obvious within seconds: what Credora is, why the proof is durable, and where a visitor can verify a credential. The proof-path interaction remains the explanatory centerpiece and must retain its illustrative-only label.
+The first viewport is a public verification workbench. Put QR scan, QR-image upload, and link entry first. Keep the result tied to live configured sources; do not seed sample credentials. Holder and issuer workspaces remain one step away through compact task cards.
 
 ## Components
 

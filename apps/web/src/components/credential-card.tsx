@@ -4,6 +4,12 @@ import { ReactQRCode } from '@lglab/react-qr-code';
 import type { CredentialMetadata } from '@credora/credential-core';
 import { useEffect, useState } from 'react';
 import { CheckIcon } from './icons';
+import { apiUrlFor } from '../lib/credora-api';
+
+function credentialImageUrl(uri: string | undefined) {
+  const match = uri?.match(/^(?:ipfs|local):\/\/([A-Za-z0-9_-]{8,128})$/);
+  return match ? apiUrlFor(`/assets/${encodeURIComponent(match[1])}`) : '';
+}
 
 export type IssuerProfile = {
   name: string;
@@ -31,6 +37,7 @@ export function CredentialCard({
   verified?: boolean;
 }) {
   const [verificationUrl, setVerificationUrl] = useState('');
+  const imageUrl = credentialImageUrl(metadata.imageUri);
   useEffect(() => {
     if (qrUrl) setVerificationUrl(qrUrl);
     else if (showQr) setVerificationUrl(`${window.location.origin}/verify/${credentialHash}`);
@@ -66,6 +73,17 @@ export function CredentialCard({
           {verified ? 'Public proof matches' : 'Issuer projection · check record'}
         </span>
       </header>
+      {imageUrl ? (
+        <div className="credential-card-art-wrap">
+          <img
+            className="credential-card-art"
+            src={imageUrl}
+            alt={`${metadata.skillName} attachment`}
+            loading="lazy"
+            onError={(event) => (event.currentTarget.hidden = true)}
+          />
+        </div>
+      ) : null}
       <div className="credential-card-body">
         <p className="panel-label">Credential</p>
         <h2>{metadata.skillName}</h2>

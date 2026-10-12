@@ -3,7 +3,7 @@
 Use these guides to install, run, and operate Credora for each supported
 workflow. Start with [local development](local-development.md) if you are
 contributing code. No blockchain or wallet is needed to browse the site or
-inspect the synthetic demo catalog.
+explore the empty-state and public verification flows without seeded records.
 
 | Guide                                     | For                                                        |
 | ----------------------------------------- | ---------------------------------------------------------- |

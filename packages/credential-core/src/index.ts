@@ -33,6 +33,8 @@ export type CredentialMetadata = {
   learnerAddress: Address;
   description?: string;
   documentName?: string;
+  /** Public image asset reference; the manifest URI binds this reference to the credential hash. */
+  imageUri?: string;
 };
 
 /** Public v2 manifest: claim values may remain with the holder while the root

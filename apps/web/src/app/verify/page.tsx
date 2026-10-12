@@ -9,13 +9,6 @@ export default function VerifyPage() {
         needed.
       </p>
       <VerifyForm />
-      <div className="verification-note">
-        <strong>What happens next</strong>
-        <span>
-          The QR opens a public verification record. Its proof is checked against the configured
-          registry first; metadata availability is reported separately from credential validity.
-        </span>
-      </div>
     </main>
   );
 }

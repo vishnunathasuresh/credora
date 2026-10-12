@@ -28,8 +28,9 @@ credential existence, issuer, learner, metadata URI, and issuance time. An
 organization name and its applicant's `ORG_ADMIN` access are reviewed API
 records in v1; they are not registered on-chain and do not establish legal
 identity. IPFS
-is authoritative for the bytes addressed by the metadata CID; the recomputed
-versioned Keccak-256 hash binds those bytes to the chain record.
+is authoritative for the bytes addressed by the metadata CID; an optional
+credential image is a separate public content-addressed asset referenced by
+that manifest. The manifest URI binds the image reference to the chain record.
 
 The API holds chain-derived projections and operational organization records.
 Chain-derived projections can be rebuilt; organization applications and
@@ -53,6 +54,11 @@ superadmin review. That review does not grant issuer status; the registry still
 checks the signing issuer wallet for each issuance. Learner keys remain
 non-custodial; wallet recovery or rotation is reserved for a future
 append-only protocol extension.
+
+The API proxies credential image bytes by CID for display. Issuer upload tokens
+remain server-side; uploads accept PNG, JPEG, or WebP up to 5 MB. Local file
+storage is for development, while production asset persistence follows the
+configured IPFS storage adapter.
 
 Credential protocol version 2 additionally supports selective disclosure:
 holders can present selected claim values with Merkle proofs while keeping

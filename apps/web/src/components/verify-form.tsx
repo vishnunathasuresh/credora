@@ -166,12 +166,11 @@ export function VerifyForm() {
         </div>
       ) : null}
 
-      <p
-        className={`verify-qr-message${error ? ' form-error' : ''}`}
-        role={error ? 'alert' : 'status'}
-      >
-        {error || 'Scan a credential QR, or upload its image. The QR opens the public proof.'}
-      </p>
+      {error ? (
+        <p className="verify-qr-message form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <details className="verify-reference-fallback">
         <summary>Or enter a verification link or reference</summary>

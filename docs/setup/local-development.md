@@ -23,9 +23,8 @@ Open <http://localhost:3000>. `pnpm dev` starts the Next.js website and API;
 the API listens at <http://localhost:4000>. Check its process health at
 <http://localhost:4000/health>.
 
-The `/demo` route and `GET /demo/catalog` API response are synthetic showcase
-data. They work without Anvil and must not be treated as real issued
-credentials. Without Anvil and a deployed local registry, `/readyz` reports
+The app does not seed credentials or expose a synthetic catalog. Without Anvil
+and a deployed local registry, `/readyz` reports
 `LEDGER_UNAVAILABLE`, and chain-backed verification and issuance cannot run.
 
 Stop both development processes with Ctrl+C. To start one service, use
@@ -42,7 +41,7 @@ Stop both development processes with Ctrl+C. To start one service, use
   does not already exist; keep tokens out of both browser-visible variables
   and Git.
 
-If only browsing the UI or demo, the zero registry address and local RPC
+For browsing the UI, the zero registry address and local RPC
 defaults are sufficient. Follow [blockchain development](blockchain.md) to
 enable real local issuance and verification. Do not use Anvil's public test
 keys on a public chain.

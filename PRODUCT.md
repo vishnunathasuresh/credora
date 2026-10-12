@@ -20,7 +20,7 @@ Credora separates the authoritative blockchain proof from the metadata and rebui
 
 ## Operating Context
 
-The web app includes public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet, administrative surfaces, and an illustrative proof-path walkthrough. The homepage must distinguish static demo content from live verification. The Expo/Tamagui mobile app provides a local public-link library, QR presentation and scanning, service-backed verification, and public JSON export. Its child PRODUCT.md owns native platform context; signing-wallet sessions remain in the web holder flow.
+The web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet with selected-credential share QR codes, and administrative surfaces. Issuers can optionally attach a public image to credential metadata; the credential QR continues to open the verifiable public record. The Expo/Tamagui mobile app provides a local public-link library, QR presentation and scanning, service-backed verification, and public JSON export. Its child PRODUCT.md owns native platform context; signing-wallet sessions remain in the web holder flow.
 
 ## Capabilities and Constraints
 
@@ -29,7 +29,7 @@ The web app includes public verification, issuer and organization workspaces, or
 - Issued credentials are immutable in v1.
 - A verifier should not need a wallet for read-only verification.
 - Infrastructure failures must remain distinct from invalid proofs.
-- Static demo content must be labeled as illustrative and never presented as live chain data.
+- The product UI contains no seeded credential or organization demo catalog.
 
 ## Brand Commitments
 
@@ -37,7 +37,7 @@ The product name is Credora. The existing copy favors direct, durable language a
 
 ## Evidence on Hand
 
-The current repository contains the real verification flow, role routes, protocol documentation, and a static proof-path visualizer. It does not contain live customer stories or production credential data to use as marketing proof.
+The current repository contains the real verification flow, role routes, protocol documentation, and no seeded production credentials. It does not contain live customer stories or production credential data to use as marketing proof.
 
 ## Product Principles
 

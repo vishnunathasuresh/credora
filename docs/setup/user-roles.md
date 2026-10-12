@@ -13,8 +13,7 @@ private key must never be entered into Credora or shared with an issuer.
 3. Review whether the proof is valid, missing, malformed, or unavailable.
 
 An RPC or metadata outage is reported as unavailable; it is not evidence that
-a credential is invalid. `/demo` records are synthetic examples, not verifiable
-issued credentials.
+a credential is invalid.
 
 ## Credential holder
 
@@ -39,10 +38,11 @@ membership or API login alone does not grant on-chain issuance authority.
 2. Switch your wallet to Credora's configured chain and RPC.
 3. Open `/issuer`, connect the authorized wallet, enter the learner address
    and credential details, review them, then confirm the wallet transaction.
-4. Share the resulting public verification link with the learner.
+4. Optionally attach a public certificate image, confirm the issuance, and
+   share its verification QR or link with the learner.
 
-Credential metadata is public when stored on IPFS. Keep unnecessary personal
-information out of its contents. Issued v1 credentials cannot be edited; an
+Credential metadata and attached images are public when stored on IPFS. Keep
+unnecessary personal information out of their contents. Issued v1 credentials cannot be edited; an
 incorrect issuance needs a future append-only status/revocation process.
 
 ## Organization applicant and administrator

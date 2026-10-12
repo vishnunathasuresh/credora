@@ -109,7 +109,6 @@ Show dashed dependency lines from applications to these reusable libraries. Labe
 - `auth`: wallet challenge/signature helpers.
 - `shared`: domain types and API contracts.
 - `ui` and `config`: platform-safe shared UI/tokens and tooling configuration; web and native interaction components stay in their own apps.
-- `demo-data`: synthetic fixtures, visually separated from real proofs.
 
 Applications depend on packages; packages never depend on applications. Do not imply that every application imports every package.
 

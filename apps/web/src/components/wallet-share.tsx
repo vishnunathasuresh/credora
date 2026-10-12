@@ -4,6 +4,7 @@ import { ReactQRCode, type ReactQRCodeRef } from '@lglab/react-qr-code';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
+import { Tooltip } from './ui/tooltip';
 import { Label } from './ui/label';
 import { NativeSelect, NativeSelectOption } from './ui/native-select';
 import { apiUrlFor } from '../lib/credora-api';
@@ -155,13 +156,33 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
           <p className="panel-label">One QR · selected credentials</p>
           <h2 id="wallet-share-title">Choose what to share.</h2>
           <p>
-            Make one QR for this selection. Anyone who scans it can see these public credential
-            records until it expires or you turn it off.
+            Select up to 25 records. One QR opens a page that checks every credential separately.
           </p>
         </div>
-        <span className="wallet-share-count" aria-live="polite">
-          {selected.length} selected
-        </span>
+        <div className="wallet-share-selection-tools">
+          <Tooltip label="About a shared QR">
+            One code opens all selected records. The verifier checks each credential independently;
+            the QR does not prove who is presenting it.
+          </Tooltip>
+          <span className="wallet-share-count" aria-live="polite">
+            {selected.length} / 25 selected
+          </span>
+          {selected.length ? (
+            <Button type="button" variant="ghost" onClick={() => setSelected([])}>
+              Clear
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() =>
+                setSelected(credentials.slice(0, 25).map((item) => item.credential_hash))
+              }
+            >
+              Select up to 25
+            </Button>
+          )}
+        </div>
       </div>
       <div className="wallet-share-options">
         {credentials.map((credential) => {
@@ -192,9 +213,15 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
       ) : null}
       <div className="wallet-share-controls">
         <div className="wallet-share-duration">
-          <Label htmlFor="wallet-share-duration" className="wallet-share-duration-label">
-            QR expires after
-          </Label>
+          <div className="wallet-share-expiry-label">
+            <Label htmlFor="wallet-share-duration" className="wallet-share-duration-label">
+              QR expires after
+            </Label>
+            <Tooltip label="About share expiry">
+              The code stops opening after this period. Credentials and links that were already
+              saved remain public and verifiable.
+            </Tooltip>
+          </div>
           <NativeSelect
             id="wallet-share-duration"
             value={durationDays}

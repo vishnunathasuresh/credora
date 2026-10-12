@@ -33,10 +33,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <nav className="nav desktop-nav" aria-label="Primary navigation">
                 <a href="/verify">Verify</a>
                 <a href="/wallet">My credentials</a>
-                <a href="/demo">Demo data</a>
-                <a href="/#how-it-works">How it works</a>
                 <a className="nav-cta" href="/dashboard">
-                  Open workspace
+                  Workspaces
                 </a>
               </nav>
               <ThemeToggle />
@@ -47,8 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             {children}
           </div>
           <footer className="footer">
-            <span>Credora protocol · open, portable, independently checkable</span>
-            <span>Built for the next keeper of your work</span>
+            <span>Credora · independently verifiable credentials</span>
           </footer>
         </div>
       </body>

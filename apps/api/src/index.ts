@@ -22,7 +22,6 @@ import {
   RegistryBlockchainAdapter,
   type BlockchainAdapter,
 } from '@credora/blockchain';
-import { demoCatalog } from '@credora/demo-data';
 import { CredoraError, isRecord, type OperationState, type Role } from '@credora/shared';
 import { FileStorage, IpfsStorage, type MetadataStorage } from '@credora/storage';
 import { defineChain, isAddress, type Address, type Hex } from 'viem';
@@ -30,6 +29,7 @@ import { defineChain, isAddress, type Address, type Hex } from 'viem';
 const port = Number(process.env.API_PORT ?? 4000);
 const databasePath = process.env.API_DATABASE_PATH ?? './.data/credora.sqlite';
 const maxBodyBytes = Number(process.env.API_MAX_BODY_BYTES ?? 64 * 1024);
+const maxImageBodyBytes = Number(process.env.API_MAX_IMAGE_BODY_BYTES ?? 8 * 1024 * 1024);
 const sessionTtlMs = Number(process.env.API_SESSION_TTL_MS ?? 24 * 60 * 60_000);
 const challengeTtlMs = Number(process.env.API_CHALLENGE_TTL_MS ?? 10 * 60_000);
 const cleanupIntervalMs = Number(process.env.API_CLEANUP_INTERVAL_MS ?? 15 * 60_000);
@@ -179,15 +179,18 @@ function fail(request: IncomingMessage, response: ServerResponse, error: unknown
   });
 }
 
-async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function bodyOf(
+  request: IncomingMessage,
+  maxBytes = maxBodyBytes,
+): Promise<Record<string, unknown>> {
   const contentLength = Number(header(request, 'content-length') ?? 0);
-  if (contentLength > maxBodyBytes)
+  if (contentLength > maxBytes)
     throw new CredoraError('Request body is too large', 'PAYLOAD_TOO_LARGE', 413);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   for (const chunk of chunks) size += chunk.length;
-  if (size > maxBodyBytes)
+  if (size > maxBytes)
     throw new CredoraError('Request body is too large', 'PAYLOAD_TOO_LARGE', 413);
   if (!chunks.length) return {};
   let parsed: unknown;
@@ -199,6 +202,23 @@ async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>
   if (!isRecord(parsed))
     throw new CredoraError('Request body must be an object', 'INVALID_BODY', 400);
   return parsed;
+}
+
+function imageTypeIsValid(bytes: Uint8Array, contentType: string) {
+  if (contentType === 'image/png')
+    return (
+      bytes.length >= 8 &&
+      [137, 80, 78, 71, 13, 10, 26, 10].every((value, index) => bytes[index] === value)
+    );
+  if (contentType === 'image/jpeg')
+    return bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+  if (contentType === 'image/webp')
+    return (
+      bytes.length >= 12 &&
+      Buffer.from(bytes.slice(0, 4)).toString() === 'RIFF' &&
+      Buffer.from(bytes.slice(8, 12)).toString() === 'WEBP'
+    );
+  return false;
 }
 
 function header(request: IncomingMessage, name: string): string | undefined {
@@ -583,13 +603,27 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
-  if (method === 'GET' && path === '/metrics') {
-    send(request, response, 200, Object.fromEntries(metrics));
+  const assetMatch = path.match(/^\/assets\/([A-Za-z0-9_-]{8,128})$/);
+  if (method === 'GET' && assetMatch) {
+    let asset: { bytes: Uint8Array; contentType: string };
+    try {
+      asset = await storage.getAsset(assetMatch[1]);
+    } catch {
+      throw new CredoraError('Credential image is unavailable', 'ASSET_UNAVAILABLE', 404);
+    }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(asset.contentType))
+      throw new CredoraError('Credential image is unavailable', 'ASSET_UNAVAILABLE', 404);
+    response.writeHead(200, {
+      ...originHeaders(request),
+      'content-type': asset.contentType,
+      'cache-control': 'public, max-age=31536000, immutable',
+    });
+    response.end(Buffer.from(asset.bytes));
     return;
   }
 
-  if (method === 'GET' && path === '/demo/catalog') {
-    send(request, response, 200, demoCatalog);
+  if (method === 'GET' && path === '/metrics') {
+    send(request, response, 200, Object.fromEntries(metrics));
     return;
   }
 
@@ -1314,7 +1348,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
-  const issuanceMatch = path.match(/^\/issuances\/([^/]+)(?:\/(metadata|confirm))?$/);
+  const issuanceMatch = path.match(/^\/issuances\/([^/]+)(?:\/(metadata|confirm|image))?$/);
   if (issuanceMatch) {
     const session = requireSession(request);
     const id = issuanceMatch[1];
@@ -1329,10 +1363,47 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       return;
     }
 
+    if (method === 'POST' && issuanceMatch[2] === 'image') {
+      if (row.state === 'confirmed')
+        throw new CredoraError('Issued credentials are immutable', 'IMMUTABLE_CREDENTIAL', 409);
+      const body = await bodyOf(request, maxImageBodyBytes);
+      const dataUrl = typeof body.dataUrl === 'string' ? body.dataUrl : '';
+      const match = dataUrl.match(
+        /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/,
+      );
+      if (!match) throw new CredoraError('Upload a PNG, JPG, or WebP image', 'INVALID_IMAGE', 400);
+      const bytes = Buffer.from(match[2], 'base64');
+      if (
+        bytes.length > 5 * 1024 * 1024 ||
+        bytes.toString('base64') !== match[2] ||
+        !imageTypeIsValid(bytes, match[1])
+      )
+        throw new CredoraError(
+          'The image is invalid or exceeds the 5 MB limit',
+          'INVALID_IMAGE',
+          400,
+        );
+      let stored: { uri: string; cid: string };
+      try {
+        stored = await storage.putAsset(bytes, match[1]);
+      } catch {
+        throw new CredoraError('Image storage is unavailable', 'ASSET_STORAGE_UNAVAILABLE', 503);
+      }
+      audit(session.address, 'issuance_image_uploaded', { id, cid: stored.cid });
+      send(request, response, 201, stored);
+      return;
+    }
+
     if (method === 'POST' && issuanceMatch[2] === 'metadata') {
       const body = await bodyOf(request);
       if (row.state === 'confirmed')
         throw new CredoraError('Issued credentials are immutable', 'IMMUTABLE_CREDENTIAL', 409);
+      if (
+        body.imageUri !== undefined &&
+        (typeof body.imageUri !== 'string' ||
+          !/^(?:ipfs|local):\/\/[A-Za-z0-9_-]{8,128}$/.test(body.imageUri))
+      )
+        throw new CredoraError('The credential image reference is invalid', 'INVALID_IMAGE', 400);
       const metadata: CredentialMetadata = {
         schemaVersion: 1 as const,
         skillName: String(row.skill_name),
@@ -1341,6 +1412,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         issuerAddress: session.address as `0x${string}`,
         learnerAddress: String(row.learner) as `0x${string}`,
         description: typeof body.description === 'string' ? body.description : undefined,
+        imageUri: typeof body.imageUri === 'string' ? body.imageUri : undefined,
       };
       let stored: { uri: string; cid: string };
       try {

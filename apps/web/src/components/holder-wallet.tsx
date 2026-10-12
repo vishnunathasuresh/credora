@@ -94,9 +94,7 @@ export function HolderWallet() {
       <div className="workspace-heading">
         <div>
           <h1>Your credential wallet.</h1>
-          <p className="lede">
-            Keep public proof links in one place. Verification remains open to anyone.
-          </p>
+          <p className="lede">Your public records, in one place.</p>
         </div>
         {session ? (
           <Button className="text-button" type="button" onClick={disconnect}>
@@ -107,10 +105,7 @@ export function HolderWallet() {
       {!session ? (
         <section className="workspace-panel workspace-connect">
           <h2>Connect your wallet.</h2>
-          <p>
-            Credora uses a signed session to show credentials bound to this learner address. It
-            never asks for your private key.
-          </p>
+          <p>Sign in with your wallet. Your keys stay in your wallet.</p>
           <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect learner wallet'}
           </Button>
@@ -129,6 +124,18 @@ export function HolderWallet() {
             </div>
             <span className="status-badge status-success">
               <CheckIcon /> Session active
+            </span>
+          </div>
+          <div className="wallet-profile-card">
+            <span className="wallet-profile-avatar" aria-hidden="true">
+              {session.address.slice(2, 4).toUpperCase()}
+            </span>
+            <span className="wallet-profile-copy">
+              <strong>Credential holder</strong>
+              <code>{session.address}</code>
+            </span>
+            <span className="wallet-profile-state">
+              <CheckIcon /> Connected
             </span>
           </div>
           <div className="wallet-note">
@@ -192,6 +199,7 @@ export function HolderWallet() {
                             }
                           : null
                       }
+                      showQr
                       verified={false}
                     />
                     <div className="credential-actions">

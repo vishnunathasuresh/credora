@@ -1,135 +1,68 @@
 import { Button } from '../components/ui/button';
 import { VerifyForm } from '../components/verify-form';
-import { ArrowDownIcon, ArrowUpRightIcon } from '../components/icons';
-import { ProofStorageVisualizer } from '../components/proof-storage-visualizer';
+import { ArrowUpRightIcon, CheckIcon } from '../components/icons';
 
-const principles = [
-  [
-    'Issue with proof',
-    'Organizations sign once. The registry keeps the record visible and unchanged.',
-  ],
-  [
-    'Carry your work',
-    'Credential holders get a portable wallet instead of a file that can disappear.',
-  ],
-  [
-    'Check independently',
-    'Recruiters verify from a public link without creating an account or connecting a wallet.',
-  ],
+const paths = [
+  {
+    href: '/wallet',
+    title: 'Your credentials',
+    detail: 'Carry your records and make one share QR for a selected set.',
+    action: 'Open wallet',
+  },
+  {
+    href: '/issuer',
+    title: 'Issue a credential',
+    detail: 'Create a public record, attach an image, and share its verification QR.',
+    action: 'Open issuer',
+  },
 ];
 
 export default function HomePage() {
   return (
-    <main>
-      <section className="hero page-width">
-        <div className="hero-copy">
-          <h1>Proof that travels with the person who earned it.</h1>
-          <p className="lede">
-            Issue skills and certifications with a durable public record. Holders carry the result,
-            and anyone can verify it without an account or a wallet.
-          </p>
-          <div className="hero-actions">
-            <Button asChild>
-              <a href="/verify">
-                Verify a credential <ArrowUpRightIcon />
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href="#how-it-works">
-                See how it works <ArrowDownIcon />
-              </a>
-            </Button>
-          </div>
-          <div className="hero-note">
-            <span className="hero-note-mark" aria-hidden="true">
-              <span />
+    <main className="home-page">
+      <section className="home-workbench page-width">
+        <div className="home-intro">
+          <span className="home-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <h1>Credentials that travel.</h1>
+          <p>Scan once. Check the public record. No account or wallet needed.</p>
+        </div>
+        <section className="home-verify-card" aria-labelledby="home-verify-title">
+          <div className="home-verify-heading">
+            <div>
+              <h2 id="home-verify-title">Verify a credential</h2>
+              <p>Use a QR code, screenshot, or public link.</p>
+            </div>
+            <span className="verify-private-note">
+              <CheckIcon /> Wallet free
             </span>
-            No wallet required for read-only verification
           </div>
-        </div>
-        <div className="hero-record-wrap">
-          <div className="hero-proof" aria-label="Illustrative credential flow">
-            <div className="record-header">
-              <div>
-                <span className="record-kicker">Illustrative credential flow</span>
-                <span className="record-caption">Static fixture · not live data</span>
-              </div>
-              <span className="record-state">
-                <span className="record-state-dot" />
-                Public record
-              </span>
-            </div>
-            <div className="record-rule" />
-            <div className="record-seal">C</div>
-            <p className="proof-kicker">Credential record</p>
-            <h2>Systems thinking</h2>
-            <p className="proof-subtitle">Advanced · example credential</p>
-            <div className="proof-meta">
-              <span>Issued by</span>
-              <strong>Northstar Institute</strong>
-              <span>Credential hash</span>
-              <code>0x8f…91ac</code>
-              <span>Metadata</span>
-              <code>ipfs://bafy…8p4m</code>
-            </div>
-            <div className="proof-footer">
-              <span>Illustrative only</span>
-              <span className="record-check">
-                <span /> Chain + metadata
-              </span>
-            </div>
-          </div>
-        </div>
+          <VerifyForm />
+        </section>
       </section>
 
-      <section className="protocol-strip page-width" aria-label="Protocol properties">
-        <div className="protocol-strip-item">
-          <span className="protocol-strip-icon">01</span>
-          <span>
-            <strong>Public by design</strong>
-            <small>Proof lives beyond one database</small>
-          </span>
-        </div>
-        <div className="protocol-strip-item">
-          <span className="protocol-strip-icon">02</span>
-          <span>
-            <strong>Portable by default</strong>
-            <small>Credentials move with their holder</small>
-          </span>
-        </div>
-        <div className="protocol-strip-item">
-          <span className="protocol-strip-icon">03</span>
-          <span>
-            <strong>Simple to verify</strong>
-            <small>No account or wallet required</small>
-          </span>
-        </div>
+      <section className="home-paths page-width" aria-label="Credora workspaces">
+        {paths.map((path) => (
+          <a className="home-path-card" href={path.href} key={path.href}>
+            <span>{path.title}</span>
+            <p>{path.detail}</p>
+            <strong>
+              {path.action}
+              <ArrowUpRightIcon />
+            </strong>
+          </a>
+        ))}
       </section>
-
-      <ProofStorageVisualizer />
-
-      <section className="principles page-width">
-        <div className="section-intro">
-          <h2>Trust, without the ceremony.</h2>
-          <p>Good infrastructure should make the important parts easier to inspect.</p>
-        </div>
-        <div className="principle-grid">
-          {principles.map(([title, body]) => (
-            <article className="principle" key={title}>
-              <h3>{title}</h3>
-              <p>{body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="verify-band page-width">
-        <div>
-          <h2>Start with the proof.</h2>
-          <p>Scan or upload a QR code to check the on-chain proof.</p>
-        </div>
-        <VerifyForm />
-      </section>
+      <div className="home-quiet-link">
+        <Button asChild variant="ghost">
+          <a href="/dashboard">
+            All workspaces <ArrowUpRightIcon />
+          </a>
+        </Button>
+      </div>
     </main>
   );
 }

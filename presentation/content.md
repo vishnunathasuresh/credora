@@ -235,7 +235,7 @@ share capabilities, and production deployment.
 
 ### Suggested live walkthrough
 
-1. **Show the product surface.** Open `/` and explain the proof path. The visualizer is explicitly illustrative, not a live chain read. `/demo` contains synthetic catalog examples, not issued credentials.
+1. **Show the product surface.** Open `/` and verify a public credential QR or link against the configured registry and metadata source.
 2. **Issue a real local credential.** Start Anvil, deploy `CredentialRegistry`, authorize a test issuer, and configure the API and web app for that registry. Connect the issuer wallet at `/issuer`, enter a learner address and credential fields, upload metadata, then approve the wallet transaction.
 3. **Verify independently.** Open the resulting `/verify/<credential-hash>` link. Show the registry-bound result and public metadata. If configured, use direct RPC plus the IPFS gateway to demonstrate verification outside the API.
 4. **Show holder sharing.** Open `/wallet`, copy a public credential link or create a selected, expiring share QR. Scan it with the mobile app or show the `/share/<token>` receiver. Explain that every hash is verified separately and that a QR does not authenticate its presenter.
@@ -243,9 +243,8 @@ share capabilities, and production deployment.
 
 ### Setup and evidence notes
 
-- A real issuance demo needs Anvil, a deployed registry, a funded local test wallet, and working metadata storage. Local file storage supports an API-backed demo; configure IPFS upload and gateway settings to demonstrate direct verification outside the API.
-- Do not present `/demo` or the static proof visualizer as a live blockchain transaction.
+- A real issuance walkthrough needs Anvil, a deployed registry, a funded local test wallet, and working metadata storage. Local file storage supports an API-backed walkthrough; configure IPFS upload and gateway settings to demonstrate direct verification outside the API.
 - Native camera scanning, file sharing, accessibility, and safe-area behavior need Android/iOS device or emulator checks before claiming mobile release readiness.
 - The organization applicant QR and superadmin approval flow is implemented in source, but should be presented as a workflow preview until the authenticated application, review, suspension, and registry-backed issuance paths receive end-to-end validation.
 
-**Evidence:** `docs/setup/blockchain.md`, `apps/web/src/app/demo/page.tsx`, `apps/web/src/components/proof-storage-visualizer.tsx`, `apps/web/src/components/issuer-workspace.tsx`, `apps/mobile/App.tsx`, `tests/e2e/`.
+**Evidence:** `docs/setup/blockchain.md`, `apps/web/src/components/verify-form.tsx`, `apps/web/src/components/issuer-workspace.tsx`, `apps/mobile/App.tsx`, `tests/e2e/`.

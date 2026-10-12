@@ -35,9 +35,6 @@ importers:
       '@credora/credential-core':
         specifier: workspace:*
         version: link:../../packages/credential-core
-      '@credora/demo-data':
-        specifier: workspace:*
-        version: link:../../packages/demo-data
       '@credora/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -135,9 +132,6 @@ importers:
       '@credora/credential-core':
         specifier: workspace:*
         version: link:../../packages/credential-core
-      '@credora/demo-data':
-        specifier: workspace:*
-        version: link:../../packages/demo-data
       '@credora/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -249,7 +243,6 @@ importers:
         specifier: ^2.31.3
         version: 2.55.13(typescript@5.9.3)
 
-  packages/demo-data: {}
 
   packages/shared: {}
 

@@ -18,9 +18,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>. The API listens on port 4000. The `/demo` catalog
-contains clearly labelled synthetic records; it does not represent real
-issuances. Without a reachable registry, public-chain verification and
+Open <http://localhost:3000>. The API listens on port 4000. The app has no
+seeded credential catalog. Without a reachable registry, public-chain verification and
 issuance remain unavailable. See [local development setup](docs/setup/local-development.md)
 for environment details and [all setup guides](docs/setup/README.md) for other
 workflows and user roles.
@@ -47,14 +46,13 @@ workflows and user roles.
 | Host Credora yourself                                  | [Production setup](docs/setup/production.md)         |
 | Diagnose common local failures                         | [Troubleshooting](docs/setup/troubleshooting.md)     |
 
-## Trust and demo data
+## Trust and data
 
 Credential hashes use versioned Keccak-256 and are distinct from IPFS CIDs.
 The registry proves credential existence, issuer, learner, and metadata URI;
 IPFS serves the metadata bytes. API and SQLite records are projections that
-can be rebuilt. Issued v1 credentials are immutable. Demo fixtures are
-synthetic and must not be presented as issued or independently verified
-credentials.
+can be rebuilt. Issued v1 credentials are immutable. Credential images are
+public metadata assets; issuers should not upload unnecessary personal data.
 
 Read the [architecture overview](docs/architecture/overview.md) and
 [protocol decisions](docs/decisions/) for the full model. The

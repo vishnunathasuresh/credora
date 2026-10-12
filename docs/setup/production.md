@@ -16,4 +16,5 @@ distribution is a separate Expo release process; see [mobile setup](mobile.md).
 Before opening the service to users, confirm `/readyz` succeeds against the
 production registry, web and API domains use HTTPS, the storage volume and
 backups are persistent, and the configured registry is the intended network.
-The `/demo` catalog remains synthetic in production too.
+The app does not expose seeded credential records. Images attached during
+issuance are public assets addressed from the credential metadata manifest.

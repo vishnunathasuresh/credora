@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
+import { Tooltip } from './ui/tooltip';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ReactQRCode, type ReactQRCodeRef } from '@lglab/react-qr-code';
@@ -12,6 +13,7 @@ import { credentialRegistryAbi } from '@credora/contracts';
 import { createWalletClient, custom, defineChain, getAddress, isAddress, type Hex } from 'viem';
 import { AlertIcon, ArrowUpRightIcon, CheckIcon } from './icons';
 import { CredentialShare } from './credential-share';
+import { CredentialCard } from './credential-card';
 import { credoraApi, type ApiError } from '../lib/credora-api';
 import {
   browserWalletProvider,
@@ -42,6 +44,7 @@ type IssuanceResponse = {
   uri?: string;
   transactionHash?: string;
   blockNumber?: string;
+  imageUri?: string;
 };
 
 type OrganizationOverview = {
@@ -72,6 +75,18 @@ const initialForm = {
   issueDate: new Date().toISOString().slice(0, 10),
   description: '',
 };
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('The selected image could not be read.'));
+    reader.onload = () =>
+      typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('Image read failed.'));
+    reader.readAsDataURL(file);
+  });
+}
 
 function shortAddress(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
@@ -125,6 +140,8 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
   const [applicationReviewUrl, setApplicationReviewUrl] = useState('');
   const applicationQrRef = useRef<ReactQRCodeRef>(null);
   const [form, setForm] = useState(initialForm);
+  const [credentialImage, setCredentialImage] = useState<File | null>(null);
+  const [credentialImagePreview, setCredentialImagePreview] = useState('');
   const [phase, setPhase] = useState<IssuancePhase>('idle');
   const [error, setError] = useState('');
   const [result, setResult] = useState<IssuanceResponse>();
@@ -143,6 +160,12 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
   const isOrgAdmin = session?.roles.includes('ORG_ADMIN') ?? false;
   const hasWorkspaceAccess = audience === 'organization' ? isOrgAdmin : true;
   const busy = !['idle', 'confirmed', 'error'].includes(phase);
+
+  useEffect(() => {
+    return () => {
+      if (credentialImagePreview.startsWith('blob:')) URL.revokeObjectURL(credentialImagePreview);
+    };
+  }, [credentialImagePreview]);
 
   useEffect(() => {
     if (organizationApplication?.status === 'pending')
@@ -259,17 +282,29 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
         session.token,
       );
       setPhase('uploading');
+      let imageUri: string | undefined;
+      if (credentialImage) {
+        const image = await credoraApi<{ uri: string }>(
+          `/issuances/${draft.id}/image`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ dataUrl: await readFileAsDataUrl(credentialImage) }),
+          },
+          session.token,
+        );
+        imageUri = image.uri;
+      }
       const metadata = await credoraApi<IssuanceResponse>(
         `/issuances/${draft.id}/metadata`,
         {
           method: 'POST',
-          body: JSON.stringify({ description: form.description || undefined }),
+          body: JSON.stringify({ description: form.description || undefined, imageUri }),
         },
         session.token,
       );
       if (!metadata.credentialHash || !metadata.uri)
         throw new Error('The metadata upload did not return a proof reference.');
-      setResult(metadata);
+      setResult({ ...metadata, imageUri });
       setPhase('awaiting-wallet');
       const transactionHash = await issueOnChain(
         session,
@@ -286,7 +321,7 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
         },
         session.token,
       );
-      setResult({ ...metadata, ...confirmed, transactionHash });
+      setResult({ ...metadata, ...confirmed, imageUri, transactionHash });
       setPhase('confirmed');
       await loadWorkspace(session);
     } catch (caught) {
@@ -653,6 +688,59 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                       rows={4}
                     />
                   </Label>
+                  <div className="credential-image-field">
+                    <div className="credential-image-label">
+                      <Label htmlFor="credential-image">
+                        Credential image <span className="field-optional">Optional</span>
+                      </Label>
+                      <Tooltip label="About credential images">
+                        This image is public and can be viewed by anyone who opens the credential
+                        record.
+                      </Tooltip>
+                    </div>
+                    <p className="form-help">
+                      Attach a certificate scan or project image. PNG, JPG, or WebP up to 5 MB.
+                    </p>
+                    <Input
+                      id="credential-image"
+                      type="file"
+                      disabled={busy}
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0] ?? null;
+                        event.currentTarget.value = '';
+                        if (!file) return;
+                        if (file.size > 5 * 1024 * 1024) {
+                          setError('Choose an image smaller than 5 MB.');
+                          return;
+                        }
+                        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+                          setError('Choose a PNG, JPG, or WebP image.');
+                          return;
+                        }
+                        setError('');
+                        setCredentialImage(file);
+                        setCredentialImagePreview(URL.createObjectURL(file));
+                      }}
+                    />
+                    {credentialImagePreview ? (
+                      <div className="credential-image-preview">
+                        <img src={credentialImagePreview} alt="Credential attachment preview" />
+                        <span>{credentialImage?.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setCredentialImage(null);
+                            setCredentialImagePreview('');
+                          }}
+                        >
+                          Remove image
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="form-actions">
                     <Button className="button button-dark" type="submit" disabled={busy}>
                       {busy ? 'Working…' : 'Prepare and issue'}
@@ -680,6 +768,22 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                     <CredentialShare
                       credentialHash={result.credentialHash}
                       credentialName={form.skillName}
+                    />
+                    <CredentialCard
+                      metadata={{
+                        schemaVersion: 1,
+                        skillName: form.skillName,
+                        skillLevel: form.skillLevel,
+                        issueDate: new Date(`${form.issueDate}T00:00:00.000Z`).toISOString(),
+                        issuerAddress: session!.address,
+                        learnerAddress: getAddress(form.learnerAddress),
+                        description: form.description || undefined,
+                        imageUri: result.imageUri,
+                      }}
+                      credentialHash={result.credentialHash}
+                      issuerProfile={null}
+                      showQr
+                      verified
                     />
                   </div>
                 </div>

@@ -136,13 +136,11 @@ flowchart TB
     Chain[packages/blockchain<br/>RegistryBlockchainAdapter and viem clients]
     Storage[packages/storage<br/>MetadataStorage, FileStorage, IpfsStorage]
     Auth[packages/auth<br/>challenge construction and signature verification]
-    Demo[packages/demo-data<br/>synthetic catalog]
   end
 
   Web --> Shared
   Web --> Core
   Web --> Abi
-  Web --> Demo
   Api --> Shared
   Api --> Core
   Api --> Chain

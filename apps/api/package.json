@@ -13,7 +13,6 @@
     "@credora/auth": "workspace:*",
     "@credora/blockchain": "workspace:*",
     "@credora/credential-core": "workspace:*",
-    "@credora/demo-data": "workspace:*",
     "@credora/shared": "workspace:*",
     "@credora/storage": "workspace:*",
     "viem": "^2.31.3",

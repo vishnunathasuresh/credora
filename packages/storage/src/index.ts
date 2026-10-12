@@ -6,11 +6,14 @@ import type { CredentialMetadata } from '@credora/credential-core';
 export interface MetadataStorage {
   put(metadata: CredentialMetadata): Promise<{ uri: string; cid: string }>;
   get(uri: string): Promise<CredentialMetadata>;
+  putAsset(bytes: Uint8Array, contentType: string): Promise<{ uri: string; cid: string }>;
+  getAsset(cid: string): Promise<{ bytes: Uint8Array; contentType: string }>;
 }
 
 export class MockStorage implements MetadataStorage {
   private readonly values = new Map<string, CredentialMetadata>();
   private sequence = 0;
+  private readonly assets = new Map<string, { bytes: Uint8Array; contentType: string }>();
 
   async put(metadata: CredentialMetadata) {
     const cid = `mock-${++this.sequence}`;
@@ -23,6 +26,18 @@ export class MockStorage implements MetadataStorage {
     const metadata = this.values.get(cid);
     if (!metadata) throw new Error('metadata not found');
     return metadata;
+  }
+
+  async putAsset(bytes: Uint8Array, contentType: string) {
+    const cid = `mock-asset-${++this.sequence}`;
+    this.assets.set(cid, { bytes: new Uint8Array(bytes), contentType });
+    return { cid, uri: `ipfs://${cid}` };
+  }
+
+  async getAsset(cid: string) {
+    const asset = this.assets.get(cid);
+    if (!asset) throw new Error('asset not found');
+    return { bytes: new Uint8Array(asset.bytes), contentType: asset.contentType };
   }
 }
 
@@ -46,6 +61,21 @@ export class FileStorage implements MetadataStorage {
     return JSON.parse(
       readFileSync(join(this.rootDir, `${cid}.json`), 'utf8'),
     ) as CredentialMetadata;
+  }
+
+  async putAsset(bytes: Uint8Array, contentType: string) {
+    const cid = `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
+    writeFileSync(join(this.rootDir, `${cid}.asset`), bytes);
+    writeFileSync(join(this.rootDir, `${cid}.type`), contentType, 'utf8');
+    return { cid, uri: `local://${cid}` };
+  }
+
+  async getAsset(cid: string) {
+    if (!/^sha256-[a-f0-9]{64}$/.test(cid)) throw new Error('invalid local asset reference');
+    return {
+      bytes: new Uint8Array(readFileSync(join(this.rootDir, `${cid}.asset`))),
+      contentType: readFileSync(join(this.rootDir, `${cid}.type`), 'utf8'),
+    };
   }
 }
 
@@ -122,6 +152,49 @@ export class IpfsStorage implements MetadataStorage {
     );
     if (!response.ok) throw new Error(`IPFS retrieval failed with ${response.status}`);
     return (await response.json()) as CredentialMetadata;
+  }
+
+  async putAsset(bytes: Uint8Array, contentType: string) {
+    const formData = new FormData();
+    formData.append(
+      'file',
+      new Blob([Uint8Array.from(bytes).buffer], { type: contentType }),
+      'credential-image',
+    );
+    const response = await this.request(this.options.uploadUrl, {
+      method: 'POST',
+      headers: this.options.uploadAuthToken
+        ? { authorization: `Bearer ${this.options.uploadAuthToken}` }
+        : undefined,
+      body: formData,
+    });
+    if (!response.ok) throw new Error(`IPFS asset upload failed with ${response.status}`);
+    const records = (await response.text())
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((record) => JSON.parse(record) as UploadResponse);
+    const body = records.at(-1);
+    const cid = body?.cid ?? body?.Hash ?? body?.data?.cid;
+    if (!cid) throw new Error('IPFS asset upload did not return a CID');
+    return { cid, uri: `ipfs://${cid}` };
+  }
+
+  async getAsset(cid: string) {
+    const response = await this.request(
+      `${this.options.gatewayBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(cid)}`,
+      {
+        headers: this.options.gatewayAuthToken
+          ? { authorization: `Bearer ${this.options.gatewayAuthToken}` }
+          : undefined,
+      },
+    );
+    if (!response.ok) throw new Error(`IPFS asset retrieval failed with ${response.status}`);
+    return {
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      contentType:
+        response.headers.get('content-type')?.split(';')[0] ?? 'application/octet-stream',
+    };
   }
 }
 

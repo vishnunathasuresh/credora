@@ -33,8 +33,6 @@ export function MobileNavigation() {
             ['/org', 'Organization workspace'],
             ['/issuer', 'Issue a credential'],
             ['/superadmin', 'Superadmin control'],
-            ['/demo', 'Explore demo data'],
-            ['/#how-it-works', 'How it works'],
           ].map(([href, label]) => (
             <Button asChild variant="ghost" key={href}>
               <a href={href} onClick={() => setOpen(false)}>
