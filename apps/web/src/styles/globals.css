@@ -3404,6 +3404,21 @@ a[data-slot='button'][data-variant='default'] {
   overflow-wrap: anywhere;
 }
 
+.organization-evidence-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.organization-evidence-link:hover {
+  text-decoration-thickness: 2px;
+}
+
 .organization-review-actions,
 .organization-issuer-actions {
   display: flex;

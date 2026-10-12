@@ -492,8 +492,14 @@ export function AdminWorkspace() {
                     <span>Official website</span>
                     <code>{item.websiteUrl}</code>
                     <span>Verification evidence</span>
-                    <a href={item.evidenceUrl} target="_blank" rel="noreferrer">
-                      Open submitted evidence
+                    <a
+                      className="organization-evidence-link"
+                      href={item.evidenceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open verification evidence for ${item.organizationName} in a new tab`}
+                    >
+                      Open verification evidence in a new tab ↗
                     </a>
                     <span>Self-reported logo</span>
                     <code>{item.logoUrl ?? 'No logo submitted'}</code>
