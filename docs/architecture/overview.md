@@ -24,10 +24,13 @@ Direct verifier ─┘                              └── IPFS metadata mani
 
 Credora is a decentralized proof system with a convenience API, not a hosted
 credential database. The v1 chain is authoritative for issuer authorization,
-credential existence, issuer, learner, metadata URI, and issuance time. An
-organization name and its applicant's `ORG_ADMIN` access are reviewed API
-records in v1; they are not registered on-chain and do not establish legal
-identity. IPFS
+credential existence, issuer, learner, metadata URI, and issuance time. In the
+current application, an organization name and its applicant's `ORG_ADMIN`
+access are reviewed API records; they are not registered on-chain and do not
+establish issuer authority. The accepted organization-controlled model is
+defined by [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md)
+and remains a migration target until its registry, API projections, and
+versioned verifier are implemented. IPFS
 is authoritative for the bytes addressed by the metadata CID; an optional
 credential image is a separate public content-addressed asset referenced by
 that manifest. The manifest URI binds the image reference to the chain record.
@@ -48,12 +51,13 @@ verifier remain public. Opening a share does not prove that the presenter
 controls any learner wallet; each credential must still be verified through
 the normal chain and IPFS path.
 
-Production organizations should use a multisig or equivalent admin policy for
-issuer-key authorization. Organization applications require explicit
-superadmin review. That review does not grant issuer status; the registry still
-checks the signing issuer wallet for each issuance. Learner keys remain
-non-custodial; wallet recovery or rotation is reserved for a future
-append-only protocol extension.
+Current v1 issuance still requires a globally authorized issuer wallet.
+Under ADR 0010, one superadmin activation transaction will register the
+approved organization and its first owner/issuer. Organization admins will
+then manage issuer wallets without per-credential Credora approval. Production
+organizations should use a multisig or equivalent governance policy for
+on-chain administration. Learner keys remain non-custodial; wallet recovery or
+rotation is reserved for a future append-only protocol extension.
 
 The API proxies credential image bytes by CID for display. Issuer upload tokens
 remain server-side; uploads accept PNG, JPEG, or WebP up to 5 MB. Local file
@@ -63,7 +67,8 @@ configured IPFS storage adapter.
 Credential protocol version 2 additionally supports selective disclosure:
 holders can present selected claim values with Merkle proofs while keeping
 unrevealed values and salts local. Version 1 credentials continue to use the
-existing full public manifest path.
+existing full public manifest path. Organization binding is assigned to
+credential protocol version 3; v1 and v2 payloads remain unchanged.
 
 ## Domain model
 
@@ -75,10 +80,10 @@ Credential ── projects to ─ 0..* API rows
 ```
 
 See [ADR 0008](../decisions/0008-reviewed-organization-enrollment.md) for the
-manual enrollment and role boundary, [ADR 0009](../decisions/0009-expiring-selected-wallet-shares.md)
-for wallet share capabilities, and the other ADRs and [glossary](../glossary.md)
-for proof invariants, privacy rules, and the future organization-registry
-migration boundary.
+current manual enrollment flow, [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md)
+for the accepted organization authority migration, and [ADR 0009](../decisions/0009-expiring-selected-wallet-shares.md)
+for wallet share capabilities. The [glossary](../glossary.md) and remaining
+ADRs own proof invariants and privacy rules.
 
 For implementation-grounded runtime, issuance, verification, projection,
 organization/share, and deployment diagrams, see

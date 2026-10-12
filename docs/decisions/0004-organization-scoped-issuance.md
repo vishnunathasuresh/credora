@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted for the next protocol revision; the current v1 contract remains
-compatible until the migration is implemented.
+Superseded by [ADR 0010](0010-organization-controlled-issuer-authority.md).
+The v1 contract and its current issuance behavior remain in place until the
+versioned migration is implemented.
 
 ## Context
 

@@ -4,7 +4,7 @@ This plan keeps the public proof boundary authoritative: the web experience may
 make verification easier to understand, but it must never imply that API or
 database state is the source of truth.
 
-## Website role model
+## Current deployed v1 role model
 
 - `SUPERADMIN` — protocol-level administrator. Can authorize issuer wallets,
   inspect projections, and request reconciliation. Authority is still checked
@@ -15,6 +15,23 @@ database state is the source of truth.
 - `ISSUER` — wallet authorized by the registry to sign credential issuance.
 - `LEARNER` / `VERIFIER` — users can hold/share public proof links and verify
   credentials without administrative access.
+
+## Accepted organization authority migration
+
+The target model is recorded in [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md).
+It is a planned migration; the current v1 role model above remains in force
+until the v3 registry and verifier are deployed.
+
+- [ ] Add organization registration and owner activation to a versioned
+      organization-aware registry; the initial owner is an issuer at activation.
+- [ ] Let organization admins grant and revoke their own issuer wallets
+      on-chain; block issue calls for inactive or suspended organizations.
+- [ ] Keep superadmin review and suspension, but remove superadmin
+      authorization from routine single and bulk issuance.
+- [ ] Add org-scoped members, optional internal approval policies, and
+      per-item bulk issuance recovery in the API and web workspace.
+- [ ] Add organization-bound credential hash v3 while preserving v1 and v2
+      selective-disclosure verification without reinterpretation.
 
 ## Sprint 01 — Public verification confidence (complete)
 
