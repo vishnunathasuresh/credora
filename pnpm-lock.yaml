@@ -32,6 +32,9 @@ importers:
       '@credora/blockchain':
         specifier: workspace:*
         version: link:../../packages/blockchain
+      '@credora/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@credora/credential-core':
         specifier: workspace:*
         version: link:../../packages/credential-core

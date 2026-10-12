@@ -23,17 +23,15 @@ Direct verifier ─┘                              └── IPFS metadata mani
 ```
 
 Credora is a decentralized proof system with a convenience API, not a hosted
-credential database. The v1 chain is authoritative for issuer authorization,
-credential existence, issuer, learner, metadata URI, and issuance time. In the
-current application, an organization name and its applicant's `ORG_ADMIN`
-access are reviewed API records; they are not registered on-chain and do not
-establish issuer authority. The accepted organization-controlled model is
-defined by [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md)
-and remains a migration target until its registry, API projections, and
-versioned verifier are implemented. IPFS
-is authoritative for the bytes addressed by the metadata CID; an optional
-credential image is a separate public content-addressed asset referenced by
-that manifest. The manifest URI binds the image reference to the chain record.
+credential database. The v1 chain is authoritative for v1 issuer authorization,
+credential existence, issuer, learner, metadata URI, and issuance time. For
+organization credentials, the separate v3 organization registry is
+authoritative for activation, admin and issuer authorization, suspension, and
+credential records. API organization and issuance rows are projections and
+operational workflow state. IPFS is authoritative for the bytes addressed by
+the metadata CID; an optional credential image is a separate public
+content-addressed asset referenced by that manifest. The manifest URI binds
+the image reference to the chain record.
 
 The API holds chain-derived projections and operational organization records.
 Chain-derived projections can be rebuilt; organization applications and
@@ -51,10 +49,10 @@ verifier remain public. Opening a share does not prove that the presenter
 controls any learner wallet; each credential must still be verified through
 the normal chain and IPFS path.
 
-Current v1 issuance still requires a globally authorized issuer wallet.
-Under ADR 0010, one superadmin activation transaction will register the
-approved organization and its first owner/issuer. Organization admins will
-then manage issuer wallets without per-credential Credora approval. Production
+Legacy v1 issuance still requires a globally authorized issuer wallet. Under
+ADR 0010, one superadmin activation transaction registers the approved
+organization and its first owner/issuer. Organization admins then manage
+issuer wallets without per-credential Credora approval. Production
 organizations should use a multisig or equivalent governance policy for
 on-chain administration. Learner keys remain non-custodial; wallet recovery or
 rotation is reserved for a future append-only protocol extension.
@@ -73,15 +71,15 @@ credential protocol version 3; v1 and v2 payloads remain unchanged.
 ## Domain model
 
 ```text
-Organization (reviewed API record) ── groups ── * Issuance projection
-IssuerWallet (registry-authorized) ── issues ───── * Credential ── references ── 1 MetadataManifest (IPFS)
+Organization (activated v3 registry record) ── groups ── * Issuance projection
+OrganizationIssuer (registry-authorized) ── issues ── * Credential ── references ── 1 MetadataManifest (IPFS)
 LearnerWallet ── owns/binds ─ * Credential
 Credential ── projects to ─ 0..* API rows
 ```
 
-See [ADR 0008](../decisions/0008-reviewed-organization-enrollment.md) for the
-current manual enrollment flow, [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md)
-for the accepted organization authority migration, and [ADR 0009](../decisions/0009-expiring-selected-wallet-shares.md)
+See [ADR 0008](../decisions/0008-reviewed-organization-enrollment.md) for
+organization intake and evidence review, [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md)
+for organization authority, and [ADR 0009](../decisions/0009-expiring-selected-wallet-shares.md)
 for wallet share capabilities. The [glossary](../glossary.md) and remaining
 ADRs own proof invariants and privacy rules.
 

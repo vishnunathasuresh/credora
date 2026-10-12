@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted and implemented for the API-backed web application.
+Accepted; its original API-only activation behavior is superseded by
+[ADR 0010](0010-organization-controlled-issuer-authority.md). Application
+intake and evidence review remain in effect; approval now requires a confirmed
+organization-registry activation transaction.
 
 ## Context
 
@@ -19,9 +22,9 @@ turn a self-reported organization name into account authority.
   website ownership, or issuer authority.
 - A superadmin reviews every request, checks the organization and applicant
   wallet through an independent trusted source, and explicitly approves or
-  rejects it. Only approval creates an active organization record and grants
-  `ORG_ADMIN` to the applicant address. The API enforces this role gate and
-  records review actions in its audit projection.
+  rejects it. Approval requires on-chain activation; the initial admin and
+  issuer roles are granted in that transaction. The API records the confirmed
+  decision as an operational projection.
 - The request QR encodes only a random request reference in a protected
   superadmin URL and can be downloaded as PNG for sharing. The review API
   requires a superadmin session. Scanning,
@@ -30,14 +33,11 @@ turn a self-reported organization name into account authority.
   Intake is rate-limited per network and stops accepting requests at the
   configured pending-queue ceiling (defaults: five requests per IP per day,
   100 pending requests).
-- Superadmins can suspend or reactivate an organization. Active organization
-  roles are resolved against the current database status on each API request,
-  so an old session cannot retain organization operations after suspension.
-  This does not revoke a separate on-chain issuer authorization.
-- Organization membership and issuance grouping are API records, not chain
-  records. The connected organization wallet must separately be authorized as
-  an issuer by the credential registry before it can issue. Organization
-  approval never bypasses the contract's issuer check.
+- Superadmins can suspend or reactivate an organization on-chain. API state is
+  updated only after the registry confirms the corresponding status.
+- Organization admins manage team and issuer permissions through the
+  organization registry. Organization approval makes the initial owner able
+  to issue immediately; it never requires a second platform-admin action.
 - `API_ORG_ADMIN_ADDRESSES` remains a trusted operator bootstrap override for
   existing deployments; ordinary applicants do not control this setting.
 
@@ -45,10 +45,8 @@ turn a self-reported organization name into account authority.
 
 The enrollment queue and organization profile require a persistent SQLite
 volume and backups. Review decisions are centralized operational access
-decisions, not public proof or legal-entity verification. The current UI binds
-one approved organization to its applicant admin wallet; it does not invite
-additional team members. Future organization registry work may migrate these
-relationships on-chain without changing v1 credential hashes or records.
+decisions, not public proof or legal-entity verification. The registry records
+organization authority without changing v1 credential hashes or records.
 
 ## Evidence
 

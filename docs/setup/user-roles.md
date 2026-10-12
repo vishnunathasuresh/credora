@@ -30,16 +30,21 @@ a credential is invalid.
 
 ## Issuer
 
-An issuer needs a wallet authorized by the registry's superadmin. Organization
-membership or API login alone does not grant on-chain issuance authority.
+Organization issuers are authorized by their own organization's administrators
+on the organization registry. Platform approval is required once for the
+organization; it is not required for individual credentials.
 
-1. Ask the superadmin to authorize your public address on the configured
-   registry.
+1. Ask an organization administrator to add your public wallet in `/org`.
 2. Switch your wallet to Credora's configured chain and RPC.
-3. Open `/issuer`, connect the authorized wallet, enter the learner address
-   and credential details, review them, then confirm the wallet transaction.
-4. Optionally attach a public certificate image, confirm the issuance, and
-   share its verification QR or link with the learner.
+3. Open the organization's `/org` workspace, connect the authorized wallet,
+   enter the learner address and credential details, then confirm the wallet
+   transaction.
+4. Optionally attach a public certificate image and share its verification QR
+   or link with the learner.
+
+Legacy v1 issuer access is global to the v1 registry and remains managed by its
+registry administrator from `/superadmin`. It does not grant issuer authority
+for any organization-bound v3 credential.
 
 Credential metadata and attached images are public when stored on IPFS. Keep
 unnecessary personal information out of their contents. Issued v1 credentials cannot be edited; an
@@ -47,26 +52,32 @@ incorrect issuance needs a future append-only status/revocation process.
 
 ## Organization applicant and administrator
 
-1. Open `/org`, connect a wallet, and submit the organization name and its
-   HTTPS website.
-2. A superadmin independently reviews the organization and applicant wallet
-   from `/superadmin`, then approves or rejects the request.
-3. After approval, use `/org` to manage the organization workflow.
-4. If the same wallet must issue credentials, ask a superadmin to authorize it
-   separately as an on-chain issuer.
+1. Open `/org`, connect the wallet that will own the organization, and submit
+   its legal name, registration reference, HTTPS evidence, and official site.
+2. A Credora superadmin reviews the evidence in `/superadmin`. Approval is
+   completed by an on-chain activation transaction.
+3. The applicant wallet becomes the initial organization admin and issuer in
+   that transaction. It can issue immediately after activation is confirmed.
+4. In `/org`, administrators can add or remove issuer and admin wallets,
+   publish versioned templates, and configure optional internal review.
+5. Authorized organization wallets issue singly or in batches. If internal
+   review is enabled, a separate designated reviewer must approve a prepared
+   issuance before it can be signed on-chain.
 
-Credora v1 grants organization administration to one wallet per organization;
-it does not yet invite a team. Suspending organization access blocks subsequent
-API operations but does not revoke an existing on-chain issuer authorization.
+Credora superadmins can suspend or restore an organization on-chain. Suspension
+blocks new issuance by all organization wallets; already-issued proofs remain
+verifiable. Organization state shown by the API is a projection of registry
+state.
 
 ## Superadmin
 
-A superadmin reviews organization requests and manages issuer authorization.
+A superadmin reviews organization applications and manages exceptional
+organization suspension.
 The connected address must have the required superadmin access. The registry
 is authoritative for chain-level roles and issuer authorization; any
 `API_SUPERADMIN_ADDRESSES` or legacy `API_ADMIN_ADDRESSES` setting is a
 server-side bootstrap override and must only contain trusted addresses.
 
-Open `/superadmin` with the configured wallet, check each organization and
-wallet independently, and authorize issuer addresses only after review. Never
-put an administrator private key in an API or browser environment variable.
+Open `/superadmin` with the configured wallet and independently verify each
+organization and applicant before on-chain activation. Never put an
+administrator private key in an API or browser environment variable.

@@ -215,11 +215,11 @@ sequenceDiagram
 ```
 
 The API checks issuer authorization before draft creation and the contract
-checks it again when the wallet submits the transaction. Organization approval
-only creates an API-side `ORG_ADMIN` access record; it does not grant
-`ISSUER_ROLE`. The issuer's wallet is the transaction signer. The API verifies
-that confirmed transaction data matches the draft before marking its
-operational row confirmed.
+checks it again when the wallet submits the transaction. Organization
+activation grants the applicant initial admin and issuer authority in one
+confirmed registry transaction. Organization admins manage later issuer keys;
+the issuer's wallet signs issuance. The API verifies transaction data against
+the prepared draft before marking its operational row confirmed.
 
 The v1 manifest is uploaded before the transaction, because its metadata URI
 is part of the v1 hash. A failed transaction can therefore leave unreferenced
@@ -346,13 +346,13 @@ projections; `/credentials/{hash}/verify` reads the registry and metadata.
 ```mermaid
 flowchart LR
   Applicant[Wallet-authenticated applicant] -->|POST /org/applications| Pending[(organization_applications<br/>pending review)]
-  Pending -->|superadmin approves| Org[(organizations<br/>active or suspended)]
-  Org -->|active organization linked at draft creation| Issuance[(issuances.organization_id)]
-  Org -->|active admin address| OrgRole[API ORG_ADMIN role]
-  OrgRole -. does not grant .-> IssuerRole
-  RegistryAdmin[Wallet with registry DEFAULT_ADMIN_ROLE] -->|signed setIssuerAuthorization tx| Registry[(CredentialRegistry)]
-  Registry -->|ISSUER_ROLE state| IssuerRole[On-chain issuer authorization]
-  IssuerRole -->|required at draft and transaction time| Issue[Credential issuance]
+  Pending -->|superadmin activation transaction| Registry[(OrganizationCredentialRegistry)]
+  Registry -->|active state projected| Org[(organizations<br/>active or suspended)]
+  Registry -->|initial owner admin and issuer| Owner[Organization owner]
+  Owner -->|organization admin transactions| Keys[Issuer and admin wallets]
+  Keys -->|on-chain authorization| Issue[Credential issuance]
+  Issue -->|operational projection| Issuance[(issuances.organization_id)]
+  Registry -->|superadmin suspension| Suspended[Future issuance blocked]
 
   Holder[Holder or share creator] -->|1..25 credential hashes; 1, 7 or 30 days| Create[POST /wallet/shares]
   Create -->|random public token and management token| ShareDb[(SQLite stores SHA-256 token digests<br/>plus fixed selected hashes)]
@@ -418,20 +418,20 @@ contains local metadata when file storage is selected.
 
 ## Code map used for these diagrams
 
-| Concern | Implementation |
-| --- | --- |
-| API initialization, routes, roles, SQLite operations, verification, projection sync | [`apps/api/src/index.ts`](../../apps/api/src/index.ts) |
-| SQLite schema and migrations | [`apps/api/src/migrations.ts`](../../apps/api/src/migrations.ts) |
-| Web issuer workflow and browser wallet submission | [`apps/web/src/components/issuer-workspace.tsx`](../../apps/web/src/components/issuer-workspace.tsx) |
-| Web wallet session | [`apps/web/src/lib/wallet-session.ts`](../../apps/web/src/lib/wallet-session.ts) |
-| API-first web verification and fallback selection | [`apps/web/src/lib/verification-api.ts`](../../apps/web/src/lib/verification-api.ts) |
-| Web direct registry and IPFS-gateway verification | [`apps/web/src/lib/direct-verification.ts`](../../apps/web/src/lib/direct-verification.ts) |
-| Mobile API-only verification and share helpers | [`apps/mobile/src/credentials.ts`](../../apps/mobile/src/credentials.ts) |
-| Canonical credential hash and selective-disclosure helpers | [`packages/credential-core/src/index.ts`](../../packages/credential-core/src/index.ts) |
-| EVM registry adapter and ABI | [`packages/blockchain/src/index.ts`](../../packages/blockchain/src/index.ts), [`packages/contracts/src/index.ts`](../../packages/contracts/src/index.ts) |
-| Metadata storage adapters | [`packages/storage/src/index.ts`](../../packages/storage/src/index.ts) |
-| Immutable record and issuer roles | [`contracts/src/CredentialRegistry.sol`](../../contracts/src/CredentialRegistry.sol) |
-| Deployment, proxy, persistence, and backup topology | [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml), [`deploy/Caddyfile`](../../deploy/Caddyfile), [`scripts/backup-sqlite.mjs`](../../scripts/backup-sqlite.mjs) |
+| Concern                                                                             | Implementation                                                                                                                                                               |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API initialization, routes, roles, SQLite operations, verification, projection sync | [`apps/api/src/index.ts`](../../apps/api/src/index.ts)                                                                                                                       |
+| SQLite schema and migrations                                                        | [`apps/api/src/migrations.ts`](../../apps/api/src/migrations.ts)                                                                                                             |
+| Web issuer workflow and browser wallet submission                                   | [`apps/web/src/components/issuer-workspace.tsx`](../../apps/web/src/components/issuer-workspace.tsx)                                                                         |
+| Web wallet session                                                                  | [`apps/web/src/lib/wallet-session.ts`](../../apps/web/src/lib/wallet-session.ts)                                                                                             |
+| API-first web verification and fallback selection                                   | [`apps/web/src/lib/verification-api.ts`](../../apps/web/src/lib/verification-api.ts)                                                                                         |
+| Web direct registry and IPFS-gateway verification                                   | [`apps/web/src/lib/direct-verification.ts`](../../apps/web/src/lib/direct-verification.ts)                                                                                   |
+| Mobile API-only verification and share helpers                                      | [`apps/mobile/src/credentials.ts`](../../apps/mobile/src/credentials.ts)                                                                                                     |
+| Canonical credential hash and selective-disclosure helpers                          | [`packages/credential-core/src/index.ts`](../../packages/credential-core/src/index.ts)                                                                                       |
+| EVM registry adapter and ABI                                                        | [`packages/blockchain/src/index.ts`](../../packages/blockchain/src/index.ts), [`packages/contracts/src/index.ts`](../../packages/contracts/src/index.ts)                     |
+| Metadata storage adapters                                                           | [`packages/storage/src/index.ts`](../../packages/storage/src/index.ts)                                                                                                       |
+| Immutable record and issuer roles                                                   | [`contracts/src/CredentialRegistry.sol`](../../contracts/src/CredentialRegistry.sol)                                                                                         |
+| Deployment, proxy, persistence, and backup topology                                 | [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml), [`deploy/Caddyfile`](../../deploy/Caddyfile), [`scripts/backup-sqlite.mjs`](../../scripts/backup-sqlite.mjs) |
 
 ## Implementation scope visible in the diagrams
 

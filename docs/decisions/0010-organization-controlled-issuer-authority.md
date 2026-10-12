@@ -2,10 +2,10 @@
 
 ## Status
 
-Accepted. This decision supersedes ADR 0004's requirement for an organization
-admin to authorize issuer keys separately from organization activation. It is a
-target architecture; implementation and production activation are still
-required before the product can claim this behavior.
+Accepted and implemented in the repository. This decision supersedes ADR 0004's
+requirement for an organization admin to authorize issuer keys separately from
+organization activation. Each deployment must still deploy and configure the
+organization registry before it can claim this behavior.
 
 ## Context
 
@@ -79,14 +79,13 @@ credential payload version.
   with organization-scoped server authorization. They never substitute for
   on-chain signer authorization.
 - Internal per-credential or batch approvals are optional organization
-  policy. Any policy advertised as cryptographically enforced must be enforced
-  by the organization's signing authority, such as an organization multisig
-  or threshold signer; a web-only approval step cannot constrain a wallet
-  that can call the registry directly.
-- Single and bulk issuance use the same organization and signer checks. Bulk
-  processing reports status per credential and is retry-safe; unless a future
-  batch contract explicitly guarantees atomicity, partial success must be
-  shown as partial success.
+  workflow policy. The API freezes the approved payload hash and prevents
+  issuance from confirming a different payload. This is an operational review
+  gate, not a cryptographic threshold: an issuer wallet that can call the
+  registry directly can bypass the web review policy.
+- Single and bulk issuance use the same organization and signer checks. The
+  organization registry's batch method is atomic and bounded to 100
+  credentials; the web client currently submits at most 25 per transaction.
 - Credential correction, revocation, expiry, and supersession are append-only
   status events under a separately versioned protocol. This ADR does not make
   issued credentials mutable.
@@ -129,20 +128,11 @@ credential payload version.
 
 ## Migration and implementation gates
 
-1. Specify and deploy the organization-aware registry and v3 canonical hash;
-   publish its address and chain configuration separately from v1.
-2. Add activation, issuer membership, suspension, and metadata event
-   projections with reorg-safe reconciliation.
-3. Change superadmin review so “approved” is not “active”; show activation
-   pending until the chain event is confirmed.
-4. Add organization member/role and issuer-wallet management, backed by
-   current on-chain authorization checks on every sensitive API operation.
-5. Update issuance, bulk issuance, and verification to handle v1, v2, and v3
-   explicitly, preserving distinct proof, organization-status, and
-   infrastructure states.
-6. Gate production rollout on cross-language hash fixtures, contract
-   authorization and suspension tests, API projection/reorg tests, and
-   end-to-end issuance and independent verification against a fresh registry.
+1. Deploy the organization-aware registry and v3 canonical hash; publish its
+   address and chain configuration separately from v1.
+2. Run contract authorization and suspension tests, API projection/reorg
+   tests, and end-to-end issuance and independent verification against the
+   deployed registry before production rollout.
 
 ## Acceptance criteria
 

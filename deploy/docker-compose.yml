@@ -12,6 +12,7 @@ services:
       RPC_URL: ${RPC_URL:?Set the production RPC URL in deploy/.env.production}
       CHAIN_ID: ${CHAIN_ID:?Set the production chain ID in deploy/.env.production}
       CREDENTIAL_REGISTRY_ADDRESS: ${CREDENTIAL_REGISTRY_ADDRESS:?Set the deployed registry address in deploy/.env.production}
+      ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS: ${ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS:?Set the deployed organization registry address in deploy/.env.production}
       IPFS_UPLOAD_URL: ${IPFS_UPLOAD_URL:?Set the IPFS upload URL in deploy/.env.production}
       IPFS_UPLOAD_AUTH_TOKEN: ${IPFS_UPLOAD_AUTH_TOKEN:?Set the server-only IPFS upload token in deploy/.env.production}
       IPFS_GATEWAY_URL: ${IPFS_GATEWAY_URL:?Set the IPFS gateway URL in deploy/.env.production}
@@ -42,6 +43,7 @@ services:
         NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:?Set the browser RPC URL in deploy/.env.production}
         NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:?Set the browser chain ID in deploy/.env.production}
         NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser registry address in deploy/.env.production}
+        NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser organization registry address in deploy/.env.production}
         NEXT_PUBLIC_IPFS_GATEWAY_URL: ${NEXT_PUBLIC_IPFS_GATEWAY_URL:?Set the public IPFS gateway URL in deploy/.env.production}
     expose:
       - '3000'

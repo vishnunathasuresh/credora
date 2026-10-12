@@ -1,21 +1,28 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CredentialMetadata } from '@credora/credential-core';
+import type {
+  CredentialMetadata,
+  OrganizationCredentialMetadata,
+  SelectiveCredentialMetadata,
+} from '@credora/credential-core';
+
+export type StoredCredentialMetadata =
+  CredentialMetadata | SelectiveCredentialMetadata | OrganizationCredentialMetadata;
 
 export interface MetadataStorage {
-  put(metadata: CredentialMetadata): Promise<{ uri: string; cid: string }>;
-  get(uri: string): Promise<CredentialMetadata>;
+  put(metadata: StoredCredentialMetadata): Promise<{ uri: string; cid: string }>;
+  get(uri: string): Promise<StoredCredentialMetadata>;
   putAsset(bytes: Uint8Array, contentType: string): Promise<{ uri: string; cid: string }>;
   getAsset(cid: string): Promise<{ bytes: Uint8Array; contentType: string }>;
 }
 
 export class MockStorage implements MetadataStorage {
-  private readonly values = new Map<string, CredentialMetadata>();
+  private readonly values = new Map<string, StoredCredentialMetadata>();
   private sequence = 0;
   private readonly assets = new Map<string, { bytes: Uint8Array; contentType: string }>();
 
-  async put(metadata: CredentialMetadata) {
+  async put(metadata: StoredCredentialMetadata) {
     const cid = `mock-${++this.sequence}`;
     this.values.set(cid, metadata);
     return { cid, uri: `ipfs://${cid}` };
@@ -48,7 +55,7 @@ export class FileStorage implements MetadataStorage {
     mkdirSync(rootDir, { recursive: true });
   }
 
-  async put(metadata: CredentialMetadata) {
+  async put(metadata: StoredCredentialMetadata) {
     const serialized = JSON.stringify(metadata);
     const cid = `sha256-${createHash('sha256').update(serialized).digest('hex')}`;
     writeFileSync(join(this.rootDir, `${cid}.json`), serialized, 'utf8');
@@ -60,7 +67,7 @@ export class FileStorage implements MetadataStorage {
     if (!/^sha256-[a-f0-9]{64}$/.test(cid)) throw new Error('invalid local metadata URI');
     return JSON.parse(
       readFileSync(join(this.rootDir, `${cid}.json`), 'utf8'),
-    ) as CredentialMetadata;
+    ) as StoredCredentialMetadata;
   }
 
   async putAsset(bytes: Uint8Array, contentType: string) {
@@ -113,7 +120,7 @@ export class IpfsStorage implements MetadataStorage {
     }
   }
 
-  async put(metadata: CredentialMetadata) {
+  async put(metadata: StoredCredentialMetadata) {
     const formData = new FormData();
     formData.append(
       'file',
@@ -151,7 +158,7 @@ export class IpfsStorage implements MetadataStorage {
       },
     );
     if (!response.ok) throw new Error(`IPFS retrieval failed with ${response.status}`);
-    return (await response.json()) as CredentialMetadata;
+    return (await response.json()) as StoredCredentialMetadata;
   }
 
   async putAsset(bytes: Uint8Array, contentType: string) {

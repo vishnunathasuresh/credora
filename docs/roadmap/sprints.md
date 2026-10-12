@@ -4,37 +4,39 @@ This plan keeps the public proof boundary authoritative: the web experience may
 make verification easier to understand, but it must never imply that API or
 database state is the source of truth.
 
-## Current deployed v1 role model
+## Current role model
 
-- `SUPERADMIN` — protocol-level administrator. Can authorize issuer wallets,
-  inspect projections, and request reconciliation. Authority is still checked
-  against the registry.
-- `ORG_ADMIN` — organization operator. Can access organization operations and
-  issuance history. It cannot issue unless its wallet is also authorized as an
-  on-chain issuer.
-- `ISSUER` — wallet authorized by the registry to sign credential issuance.
+- `SUPERADMIN` — protocol-level administrator. Can inspect projections,
+  request reconciliation, approve organizations through one-time v3
+  activation, and suspend organizations.
+- `ORG_ADMIN` — organization admin. Its admin authority is enforced by the v3
+  organization registry; the initial owner can issue immediately and manage
+  the organization's issuer wallets.
+- `ISSUER` — wallet authorized by the v1 registry or by an organization admin
+  for that organization in the v3 registry.
 - `LEARNER` / `VERIFIER` — users can hold/share public proof links and verify
   credentials without administrative access.
 
-## Accepted organization authority migration
+## Organization authority model
 
 The target model is recorded in [ADR 0010](../decisions/0010-organization-controlled-issuer-authority.md).
-It is a planned migration; the current v1 role model above remains in force
-until the v3 registry and verifier are deployed.
+The repository now contains the v3 registry, API, verifier, and organization
+workspace paths. Deployments must configure the separate v3 registry before
+organization issuance is available.
 
-- [x] Draft `OrganizationCredentialRegistry` with one-time activation,
+- [x] Implement `OrganizationCredentialRegistry` with one-time activation,
       initial owner issuance, organization-admin delegation, and suspension.
 - [ ] Add contract security tests and independently review the v3 registry
       before deployment.
-- [ ] Make organization activation contingent on a confirmed registry event
+- [x] Make organization activation contingent on a confirmed registry event
       and project chain authority into the API.
-- [ ] Let organization admins grant and revoke their own issuer wallets
+- [x] Let organization admins grant and revoke their own issuer wallets
       on-chain; block issue calls for inactive or suspended organizations.
-- [ ] Keep superadmin review and suspension, but remove superadmin
+- [x] Keep superadmin review and suspension, but remove superadmin
       authorization from routine single and bulk issuance.
-- [ ] Add org-scoped members, optional internal approval policies, and
+- [x] Add org-scoped members, optional internal approval policies, and
       per-item bulk issuance recovery in the API and web workspace.
-- [ ] Add organization-bound credential hash v3 while preserving v1 and v2
+- [x] Add organization-bound credential hash v3 while preserving v1 and v2
       selective-disclosure verification without reinterpretation.
 
 ## Sprint 01 — Public verification confidence (complete)
@@ -107,20 +109,21 @@ Goal: validate the system when convenience infrastructure is unhealthy.
 Exit signal: API outage, stale projection, gateway outage, and invalid metadata
 are visibly distinct and independently diagnosable.
 
-## Organization enrollment — implementation in progress
+## Organization enrollment and authority — implemented; deployment QA pending
 
-- Applicants authenticate with their own wallet and submit one pending
-  organization name and HTTPS website.
-- A QR points to the protected superadmin review queue; it carries no role or
-  approval credential.
-- A superadmin independently reviews and explicitly approves or rejects.
-  Organization access can later be suspended or restored.
-- Issuer authority remains a separate on-chain check. The v1 organization
-  record currently has one admin wallet and does not support team membership.
+- Applicants submit legal name, registration reference, official website, and
+  HTTPS evidence for one-time superadmin review.
+- Approval is recorded only after a confirmed v3 registry activation. The
+  applicant wallet becomes the initial admin and issuer in that transaction.
+- Organization admins manage team roles, issuer keys, versioned templates, and
+  optional internal review. Single and atomic batch issuance require no
+  platform-admin approval.
+- Superadmins suspend or restore organizations on-chain; API status remains a
+  projection of registry state.
 
-Exit evidence still needed: API role and concurrent-review integration checks,
-plus a browser pass of the applicant QR, superadmin decision, suspended access,
-and the separate issuer-authorization flow.
+Deployment exit evidence still needed: Foundry contract tests, independent
+contract review, fresh-registry browser issuance, and verification against the
+deployed v3 address.
 
 The web and native UI implementation is complete for this phase. The native
 bundle is build-checked, while release readiness still requires device QA.

@@ -3404,6 +3404,30 @@ a[data-slot='button'][data-variant='default'] {
   overflow-wrap: anywhere;
 }
 
+.organization-review-actions,
+.organization-issuer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.organization-policy-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 680px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.organization-policy-toggle input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
 @media (max-width: 600px) {
   .organization-review-item {
     align-items: stretch;
@@ -3412,6 +3436,16 @@ a[data-slot='button'][data-variant='default'] {
 
   .organization-review-item > [data-slot='button'] {
     width: 100%;
+  }
+
+  .organization-review-actions,
+  .organization-issuer-actions {
+    justify-content: stretch;
+  }
+
+  .organization-review-actions > [data-slot='button'],
+  .organization-issuer-actions > [data-slot='button'] {
+    flex: 1 1 140px;
   }
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactQRCode } from '@lglab/react-qr-code';
-import type { CredentialMetadata } from '@credora/credential-core';
+import type { CredentialMetadata, OrganizationCredentialMetadata } from '@credora/credential-core';
 import { useEffect, useState } from 'react';
 import { CheckIcon } from './icons';
 import { apiUrlFor } from '../lib/credora-api';
@@ -29,7 +29,7 @@ export function CredentialCard({
   showQr = false,
   verified = true,
 }: {
-  metadata: CredentialMetadata;
+  metadata: CredentialMetadata | OrganizationCredentialMetadata;
   credentialHash: string;
   issuerProfile: IssuerProfile;
   qrUrl?: string;

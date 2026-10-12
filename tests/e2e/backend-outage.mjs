@@ -78,7 +78,7 @@ try {
   const organization = await fetch(`http://127.0.0.1:${port}/org/overview`, {
     headers: projectionHeaders,
   });
-  assert.equal(organization.status, 403);
+  assert.equal(organization.status, 404);
   console.log(JSON.stringify({ ok: true, case: 'ledger outage' }, null, 2));
 } finally {
   child.kill();

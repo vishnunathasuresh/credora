@@ -138,6 +138,113 @@ const migrations: Migration[] = [
       CREATE INDEX wallet_shares_active_expiry ON wallet_shares(expires_at) WHERE revoked_at IS NULL;
     `,
   },
+  {
+    version: 8,
+    name: 'organization-verification-evidence-and-issuer-projection',
+    sql: `
+      ALTER TABLE organization_applications ADD COLUMN legal_name TEXT;
+      ALTER TABLE organization_applications ADD COLUMN evidence_url TEXT;
+      ALTER TABLE organization_applications ADD COLUMN registration_reference TEXT;
+      CREATE TABLE organization_issuer_keys (
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        wallet_address TEXT NOT NULL,
+        active INTEGER NOT NULL CHECK (active IN (0, 1)),
+        updated_at TEXT NOT NULL,
+        transaction_hash TEXT NOT NULL,
+        PRIMARY KEY (organization_id, wallet_address)
+      );
+      CREATE TABLE organization_memberships (
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        wallet_address TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'issuer', 'auditor')),
+        status TEXT NOT NULL CHECK (status IN ('active', 'removed')),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (organization_id, wallet_address)
+      );
+      CREATE TABLE credential_templates (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        skill_name TEXT NOT NULL,
+        skill_level TEXT NOT NULL,
+        description TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
+        active INTEGER NOT NULL CHECK (active IN (0, 1)),
+        created_at TEXT NOT NULL,
+        UNIQUE (organization_id, name, version)
+      );
+    `,
+  },
+  {
+    version: 9,
+    name: 'organization-credential-chain-projection',
+    sql: `
+      CREATE TABLE organization_chain_events (
+        credential_hash TEXT NOT NULL UNIQUE,
+        organization_id TEXT,
+        issuer TEXT NOT NULL,
+        learner TEXT NOT NULL,
+        metadata_uri TEXT NOT NULL,
+        issued_at INTEGER NOT NULL,
+        block_number INTEGER NOT NULL,
+        block_hash TEXT NOT NULL,
+        transaction_hash TEXT NOT NULL,
+        log_index INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (transaction_hash, log_index)
+      );
+      CREATE TABLE organization_chain_sync (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        next_block INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `,
+  },
+  {
+    version: 10,
+    name: 'organization-issuance-batches',
+    sql: `
+      CREATE TABLE issuance_batches (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES organizations(id),
+        issuer TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL,
+        state TEXT NOT NULL,
+        transaction_hash TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE (organization_id, issuer, idempotency_key)
+      );
+      ALTER TABLE issuances ADD COLUMN batch_id TEXT REFERENCES issuance_batches(id);
+      CREATE INDEX issuances_by_batch ON issuances(batch_id, created_at);
+    `,
+  },
+  {
+    version: 11,
+    name: 'issuance-batch-item-order',
+    sql: 'ALTER TABLE issuances ADD COLUMN batch_position INTEGER',
+  },
+  {
+    version: 12,
+    name: 'organization-optional-issuance-review',
+    sql: `
+      ALTER TABLE organizations ADD COLUMN approval_required INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE issuances ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved';
+      ALTER TABLE issuance_batches ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved';
+      CREATE TABLE organization_reviewers (
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        wallet_address TEXT NOT NULL,
+        active INTEGER NOT NULL CHECK (active IN (0, 1)),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (organization_id, wallet_address)
+      );
+    `,
+  },
+  {
+    version: 13,
+    name: 'freeze-approved-issuance-payloads',
+    sql: `ALTER TABLE issuances ADD COLUMN reviewed_credential_hash TEXT;
+      CREATE INDEX issuances_awaiting_review ON issuances(organization_id, review_status, created_at);`,
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {

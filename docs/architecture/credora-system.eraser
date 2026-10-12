@@ -8,9 +8,9 @@ colorMode pastel
 prepare [label: "01 · Access and issuance preparation"] {
   Issuer [icon: next, color: blue, shape: rectangle, label: "Issuer web workspace / Connect external wallet"]
   Authenticate [icon: key-round, color: purple, shape: rectangle, label: "Authenticate wallet / /auth/challenge → personal_sign → /auth/verify"]
-  OrgReview [icon: building-2, color: purple, shape: rectangle, label: "Organization enrollment / Superadmin review → operational ORG_ADMIN"]
-  IssuerGate [icon: shield-check, color: purple, shape: diamond, label: "Issuer authorized? / Read registry ISSUER_ROLE"]
-  Grant [icon: wallet, color: blue, shape: rectangle, label: "Registry admin signs grant / setIssuerAuthorization · separate from org approval"]
+  OrgReview [icon: building-2, color: purple, shape: rectangle, label: "Organization enrollment / Superadmin review + v3 activation → initial owner is admin and issuer"]
+  IssuerGate [icon: shield-check, color: purple, shape: diamond, label: "Issuer authorized? / v1 global role or organization-scoped v3 authority"]
+  Grant [icon: wallet, color: blue, shape: rectangle, label: "Organization admin delegates issuer / v3 setIssuerAuthorization"]
   Draft [icon: file-plus, color: purple, shape: rectangle, label: "Create issuance draft / POST /issuances · learner + skill + issue date"]
   Upload [icon: upload-cloud, color: purple, shape: rectangle, label: "Upload public manifest / POST /issuances/:id/metadata"]
   Hash [icon: hash, color: purple, shape: rectangle, label: "Compute credential hash / Versioned ABI payload + metadata URI → Keccak-256"]
@@ -19,7 +19,7 @@ prepare [label: "01 · Access and issuance preparation"] {
 
 commit [label: "02 · Anchoring, discovery and sharing"] {
   Rpc [icon: ethereum, color: green, shape: rectangle, label: "EVM RPC broadcasts transaction / Issuer key stays in wallet"]
-  Registry [icon: solidity, color: green, shape: rectangle, label: "CredentialRegistry / Immutable record · issuer role check · issuance event"]
+  Registry [icon: solidity, color: green, shape: rectangle, label: "Credential registries v1 + v3 / Immutable record · issuer check · issuance event"]
   Confirm [icon: badge-check, color: purple, shape: rectangle, label: "Validate transaction and receipt / POST /issuances/:id/confirm · sender + record bindings"]
   Sync [icon: refresh-cw, color: purple, shape: rectangle, label: "API event reconciliation / Poll CredentialIssued · confirmations · reorg rescan"]
   Holder [icon: expo, color: blue, shape: rectangle, label: "Holder web / Android library / Save public credential reference locally"]
@@ -104,7 +104,8 @@ Match > Mismatch: No [color: red]
 Match > Valid: Yes [color: green]
 
 // Public v1 fields remain public; share expiry/revocation does not revoke credentials.
-// Organization approval does not grant issuer authorization.
+// One-time v3 activation grants the initial owner admin and issuer authority.
+// Organization issuers are delegated by their own admins; routine issuance needs no superadmin approval.
 // Registry issuedAt is block time; payload issue date is a separate hash input.
 // Wallet keys never enter the API; verification does not prove presenter wallet control.
 // V2 selective disclosure remains a protocol-library capability, not this v1 app flow.

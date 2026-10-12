@@ -1,12 +1,11 @@
 'use client';
 import { WalletGuide } from './wallet-guide';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { credentialRegistryAbi } from '@credora/contracts';
-import { createWalletClient, custom, defineChain, getAddress, isAddress } from 'viem';
+import { useEffect, useState } from 'react';
+import { organizationCredentialRegistryAbi } from '@credora/contracts';
+import { organizationIdFromApplicationId } from '@credora/credential-core';
+import { createWalletClient, custom, defineChain, getAddress } from 'viem';
 import { AlertIcon, CheckIcon } from './icons';
 import { credoraApi } from '../lib/credora-api';
 import {
@@ -23,13 +22,16 @@ import {
   type WalletSession,
 } from '../lib/wallet-session';
 
-const contractAddress = process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS;
+const contractAddress = process.env.NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS;
 const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
 
 type OrganizationApplication = {
   id: string;
   organizationName: string;
+  legalName: string;
   websiteUrl: string;
+  evidenceUrl: string;
+  registrationReference: string;
   logoUrl: string | null;
   applicantAddress: string;
   status: string;
@@ -52,13 +54,17 @@ function shortAddress(value: string) {
 
 export function AdminWorkspace() {
   const [session, setSession] = useState<WalletSession>();
-  const [issuer, setIssuer] = useState('');
-  const [authorized, setAuthorized] = useState<boolean>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [overview, setOverview] = useState<{
-    ledger: { configured: boolean; chainId: number; registryAddress: string | null };
+    ledger: {
+      configured: boolean;
+      chainId: number;
+      registryAddress: string | null;
+      organizationRegistryConfigured: boolean;
+      organizationRegistryAddress: string | null;
+    };
     projections: { issuances: number; confirmed: number; auditEvents: number };
   }>();
   const [applications, setApplications] = useState<OrganizationApplication[]>([]);
@@ -111,21 +117,77 @@ export function AdminWorkspace() {
     setMessage('');
     try {
       const isApplication = action === 'approve' || action === 'reject';
+      let transactionHash: `0x${string}` | undefined;
+      if (action === 'approve' || action === 'suspend' || action === 'reactivate') {
+        if (!contractAddress)
+          throw new Error(
+            'Set NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS to manage organization authority.',
+          );
+        const provider = browserWalletProvider();
+        const accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
+        if (!accounts[0] || getAddress(accounts[0]) !== session.address)
+          throw new Error('Switch the browser wallet back to the connected superadmin account.');
+        const chain = defineChain({
+          id: chainId,
+          name: `Credora chain ${chainId}`,
+          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+          rpcUrls: { default: { http: ['http://127.0.0.1:8545'] } },
+        });
+        const walletClient = createWalletClient({
+          account: session.address,
+          chain,
+          transport: custom(provider),
+        });
+        if (action === 'approve') {
+          const application = applications.find((item) => item.id === reviewTarget);
+          if (!application) throw new Error('Organization application is no longer available.');
+          const recoveryKey = `credora:organization-activation:${application.id}`;
+          const existingTransaction = window.sessionStorage.getItem(recoveryKey);
+          transactionHash = existingTransaction
+            ? (existingTransaction as `0x${string}`)
+            : undefined;
+          if (!transactionHash) {
+            transactionHash = await walletClient.writeContract({
+              address: getAddress(contractAddress),
+              abi: organizationCredentialRegistryAbi,
+              functionName: 'activateOrganization',
+              args: [
+                organizationIdFromApplicationId(application.id),
+                getAddress(application.applicantAddress),
+                `${application.websiteUrl.replace(/\/$/, '')}/.well-known/credora-organization.json`,
+              ],
+            });
+            window.sessionStorage.setItem(recoveryKey, transactionHash);
+          }
+        } else {
+          transactionHash = await walletClient.writeContract({
+            address: getAddress(contractAddress),
+            abi: organizationCredentialRegistryAbi,
+            functionName: 'setOrganizationSuspended',
+            args: [organizationIdFromApplicationId(reviewTarget), action === 'suspend'],
+          });
+        }
+      }
       await credoraApi(
         isApplication
           ? `/superadmin/organization-applications/${reviewTarget}/${action}`
           : `/superadmin/organizations/${reviewTarget}/${action}`,
-        { method: 'POST', body: '{}' },
+        {
+          method: 'POST',
+          body: JSON.stringify(transactionHash ? { transactionHash } : {}),
+        },
         session.token,
       );
+      if (action === 'approve')
+        window.sessionStorage.removeItem(`credora:organization-activation:${reviewTarget}`);
       setMessage(
         action === 'approve'
-          ? 'Organization approved. Its applicant now has organization access; issuer authorization remains separate.'
+          ? 'Organization activated on-chain. Its owner can issue immediately and manage issuer wallets.'
           : action === 'reject'
             ? 'Organization request rejected. No organization access was granted.'
             : action === 'suspend'
-              ? 'Organization suspended. Its organization-admin access is now disabled.'
-              : 'Organization reactivated.',
+              ? 'Organization suspended on-chain. Its issuer wallets can no longer issue.'
+              : 'Organization reactivated on-chain.',
       );
       setReviewAction(undefined);
       setReviewTarget('');
@@ -149,29 +211,6 @@ export function AdminWorkspace() {
         await loadOverview(next);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Wallet connection failed.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function checkStatus() {
-    setError('');
-    setMessage('');
-    if (!isAddress(issuer)) {
-      setError('Enter a valid issuer wallet address.');
-      return;
-    }
-    if (!session) return;
-    setBusy(true);
-    try {
-      const response = await credoraApi<{ issuers: { address: string; authorized: boolean }[] }>(
-        `/admin/issuers?address=${encodeURIComponent(getAddress(issuer))}`,
-        {},
-        session.token,
-      );
-      setAuthorized(response.issuers[0]?.authorized ?? false);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Authorization status unavailable.');
     } finally {
       setBusy(false);
     }
@@ -201,71 +240,14 @@ export function AdminWorkspace() {
     }
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-    setMessage('');
-    if (!session || !isSuperadmin) return;
-    if (!contractAddress) {
-      setError('Set NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS before authorizing issuers.');
-      return;
-    }
-    if (!isAddress(issuer)) {
-      setError('Enter a valid issuer wallet address.');
-      return;
-    }
-    setBusy(true);
-    try {
-      const provider = browserWalletProvider();
-      const accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
-      if (!accounts[0] || getAddress(accounts[0]) !== session.address)
-        throw new Error('Switch the browser wallet back to the connected admin account.');
-      const chain = defineChain({
-        id: chainId,
-        name: `Credora chain ${chainId}`,
-        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-        rpcUrls: { default: { http: ['http://127.0.0.1:8545'] } },
-      });
-      const walletClient = createWalletClient({
-        account: session.address,
-        chain,
-        transport: custom(provider),
-      });
-      const transactionHash = await walletClient.writeContract({
-        address: getAddress(contractAddress),
-        abi: credentialRegistryAbi,
-        functionName: 'setIssuerAuthorization',
-        args: [getAddress(issuer), true],
-      });
-      await credoraApi(
-        '/admin/issuer-authorizations/confirm',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            issuer: getAddress(issuer),
-            authorized: true,
-            transactionHash,
-          }),
-        },
-        session.token,
-      );
-      setAuthorized(true);
-      setMessage(`Issuer ${shortAddress(getAddress(issuer))} is now authorized on the registry.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Issuer authorization failed.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <main className="page-width workspace-page">
       <div className="workspace-heading">
         <div>
           <h1>Superadmin control.</h1>
           <p className="lede">
-            Authorize issuer wallets on the registry, review organization requests, and inspect
-            operational projections. Organization approval does not grant issuer authority.
+            Verify and activate organizations once. Organization admins manage issuer wallets and
+            credential issuance after activation.
           </p>
         </div>
       </div>
@@ -306,7 +288,7 @@ export function AdminWorkspace() {
           <div className="panel-header">
             <div>
               <p className="panel-label">Protocol authority</p>
-              <h2>Authorize an issuer.</h2>
+              <h2>Organization authority.</h2>
             </div>
             <span className="status-badge status-success">
               <CheckIcon /> Superadmin connected
@@ -327,43 +309,20 @@ export function AdminWorkspace() {
                 <span>audit events</span>
               </div>
               <div>
-                <strong>{overview.ledger.configured ? 'Ready' : 'Offline'}</strong>
+                <strong>
+                  {overview.ledger.configured && overview.ledger.organizationRegistryConfigured
+                    ? 'Ready'
+                    : 'Setup required'}
+                </strong>
                 <span>registry status</span>
               </div>
             </div>
           ) : null}
-          <form className="workspace-form" onSubmit={submit} aria-busy={busy}>
-            <Label>
-              Issuer wallet address
-              <Input
-                value={issuer}
-                onChange={(event) => {
-                  setIssuer(event.target.value);
-                  setAuthorized(undefined);
-                }}
-                placeholder="0x…"
-                required
-                spellCheck={false}
-              />
-            </Label>
-            <div className="form-actions">
-              <Button className="button button-dark" type="submit" disabled={busy}>
-                Authorize issuer
-              </Button>
-              <Button className="text-button" type="button" onClick={checkStatus} disabled={busy}>
-                Check current status
-              </Button>
-              <Button className="text-button" type="button" onClick={reconcile} disabled={busy}>
-                Reconcile projection
-              </Button>
-            </div>
-          </form>
-          {authorized !== undefined ? (
-            <p className="form-help" role="status">
-              Current registry status:{' '}
-              <strong>{authorized ? 'authorized' : 'not authorized'}</strong>.
-            </p>
-          ) : null}
+          <div className="form-actions">
+            <Button className="text-button" type="button" onClick={reconcile} disabled={busy}>
+              Reconcile credential projection
+            </Button>
+          </div>
           {message ? (
             <p className="form-help" role="status">
               {message}
@@ -385,8 +344,8 @@ export function AdminWorkspace() {
               </span>
             </div>
             <p className="form-help">
-              Review each request before granting organization access. The QR only opens this
-              protected review; approval does not authorize the wallet to issue on-chain.
+              Verify the submitted organization evidence, then activate its authority with one
+              registry transaction.
             </p>
             {selectedApplicationId &&
             queueLoaded &&
@@ -452,7 +411,7 @@ export function AdminWorkspace() {
                 <p className="panel-label">Approved access</p>
                 <h2 id="organizations-title">Organizations</h2>
               </div>
-              <span className="panel-note">Operational records · not on-chain entities</span>
+              <span className="panel-note">API projection checked against on-chain authority</span>
             </div>
             {!queueLoaded ? (
               <p className="organization-review-empty">
@@ -505,10 +464,10 @@ export function AdminWorkspace() {
             </DialogTitle>
             <DialogDescription>
               {reviewAction === 'review'
-                ? 'Check the organization name and the wallet that requested access. Approval creates an organization record and grants ORG_ADMIN to this wallet only. Issuer authorization remains separate.'
+                ? 'Verify the organization and applicant. Approval activates its on-chain authority; the applicant wallet becomes the first organization admin and can issue immediately.'
                 : reviewAction === 'suspend'
-                  ? 'The organization-admin wallet will lose access to organization operations. This does not revoke any on-chain issuer permission; use issuer controls separately if that wallet must stop issuing.'
-                  : 'This restores the organization-admin wallet access. Registry issuer authorization is still checked independently.'}
+                  ? 'This suspends the organization on-chain and blocks every issuer wallet from future issuance. Existing credentials remain verifiable.'
+                  : 'This restores the organization on-chain and permits its authorized issuer wallets to issue again.'}
             </DialogDescription>
           </DialogHeader>
           {applications.find((item) => item.id === reviewTarget)
@@ -526,8 +485,16 @@ export function AdminWorkspace() {
                       />
                     ) : null}
                     <strong>{item.organizationName}</strong>
-                    <span>Self-reported website</span>
+                    <span>Registered legal name</span>
+                    <code>{item.legalName}</code>
+                    <span>Registration reference</span>
+                    <code>{item.registrationReference}</code>
+                    <span>Official website</span>
                     <code>{item.websiteUrl}</code>
+                    <span>Verification evidence</span>
+                    <a href={item.evidenceUrl} target="_blank" rel="noreferrer">
+                      Open submitted evidence
+                    </a>
                     <span>Self-reported logo</span>
                     <code>{item.logoUrl ?? 'No logo submitted'}</code>
                     <span>Applicant wallet</span>

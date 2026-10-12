@@ -34,6 +34,7 @@ default key below is public and only safe for this throwaway local chain.
 
 ```sh
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 pnpm contracts:deploy
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 pnpm contracts:deploy:organizations
 ```
 
 PowerShell equivalent:
@@ -41,17 +42,21 @@ PowerShell equivalent:
 ```powershell
 $env:PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 pnpm contracts:deploy
+pnpm contracts:deploy:organizations
 Remove-Item Env:PRIVATE_KEY
 ```
 
-The deployment address is written to
-`contracts/broadcast/Deploy.s.sol/31337/run-latest.json`. Update the existing
-values in root `.env.local`:
+The v1 deployment address is written to
+`contracts/broadcast/Deploy.s.sol/31337/run-latest.json`; the organization
+registry address is written to
+`contracts/broadcast/DeployOrganizationCredentialRegistry.s.sol/31337/run-latest.json`.
+Update both registry values in root `.env.local`:
 
 ```dotenv
 RPC_URL=http://127.0.0.1:8545
 CHAIN_ID=31337
 CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedRegistry
+ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedOrganizationRegistry
 ```
 
 Set the same chain and registry address in `apps/web/.env.local`:
@@ -60,6 +65,7 @@ Set the same chain and registry address in `apps/web/.env.local`:
 NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
 NEXT_PUBLIC_CHAIN_ID=31337
 NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedRegistry
+NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedOrganizationRegistry
 ```
 
 Restart the API and Next.js dev server after changing environment values.
@@ -68,12 +74,11 @@ authoritative.
 
 ## Authorize a development issuer
 
-Connect the deploying Anvil account as superadmin at `/superadmin`, then
-authorize a separate development wallet as an issuer. Switch the wallet to
-chain `31337` and confirm that its RPC is `http://127.0.0.1:8545`. Open
-`/issuer` with the authorized wallet to draft and issue a credential. Issuance
-is an on-chain transaction; a successful API login alone does not authorize a
-wallet to issue.
+Connect the organization-registry deployer at `/superadmin` and approve an
+organization application. Approval requires one activation transaction that
+grants its applicant wallet organization-admin and issuer authority. Organization
+admins add or revoke additional issuer wallets from `/org`; platform admins do
+not authorize individual organization issuers or credentials.
 
 For production, use a deployed registry and production keys. See
 [production setup](production.md).

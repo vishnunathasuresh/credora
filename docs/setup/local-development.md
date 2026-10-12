@@ -35,7 +35,8 @@ Stop both development processes with Ctrl+C. To start one service, use
 - Root `.env.local` configures the API. `pnpm dev:api` loads it.
 - `apps/web/.env.local` configures the browser build. Set
   `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_RPC_URL`, `NEXT_PUBLIC_CHAIN_ID`,
-  `NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS`, and, when used,
+  `NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS`,
+  `NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS`, and, when used,
   `NEXT_PUBLIC_IPFS_GATEWAY_URL` there.
 - `.env.example` provides local defaults. Copy it only when the target file
   does not already exist; keep tokens out of both browser-visible variables

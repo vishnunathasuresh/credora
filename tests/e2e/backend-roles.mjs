@@ -82,12 +82,12 @@ try {
   assert.ok(learnerAuth.roles.includes('LEARNER'));
 
   assert.equal((await get('/superadmin/overview', superadminAuth.token)).status, 200);
-  assert.equal((await get('/org/overview', superadminAuth.token)).status, 403);
-  assert.equal((await get('/org/overview', orgAdminAuth.token)).status, 200);
+  assert.equal((await get('/org/overview', superadminAuth.token)).status, 404);
+  assert.equal((await get('/org/overview', orgAdminAuth.token)).status, 404);
   assert.equal((await get('/superadmin/overview', orgAdminAuth.token)).status, 403);
   assert.equal((await get('/credentials', learnerAuth.token)).status, 200);
   assert.equal((await get('/issuances', learnerAuth.token)).status, 403);
-  assert.equal((await get('/org/overview', learnerAuth.token)).status, 403);
+  assert.equal((await get('/org/overview', learnerAuth.token)).status, 404);
   assert.equal((await get('/superadmin/overview', learnerAuth.token)).status, 403);
 
   console.log(JSON.stringify({ ok: true, case: 'role matrix' }, null, 2));

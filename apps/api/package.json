@@ -12,6 +12,7 @@
   "dependencies": {
     "@credora/auth": "workspace:*",
     "@credora/blockchain": "workspace:*",
+    "@credora/contracts": "workspace:*",
     "@credora/credential-core": "workspace:*",
     "@credora/shared": "workspace:*",
     "@credora/storage": "workspace:*",

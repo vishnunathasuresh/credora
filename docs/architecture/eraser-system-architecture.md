@@ -12,10 +12,10 @@ Represent logical API modules inside one Node.js service; they are not separatel
 
 ### 1. Users and client-controlled devices
 
-- **Issuer / organization administrator:** prepares credentials and approves issuance transactions with an authorized wallet. Organization administration and on-chain issuer authorization are separate permissions.
+- **Issuer / organization administrator:** prepares credentials and approves issuance transactions with an authorized wallet. Organization admins can manage organization-scoped admin and issuer permissions through the v3 organization registry.
 - **Learner / holder:** receives credential references, saves them in a local library, and shares selected public credentials through QR links.
 - **Verifier:** opens a credential reference or scans a share QR; public credential verification requires no Credora login.
-- **Superadmin / registry administrator:** reviews organization applications through the API; a registry administrator separately signs issuer-authorization transactions. These responsibilities can belong to different wallets.
+- **Superadmin / registry administrator:** reviews organization applications and signs one activation transaction per approved organization; the same registry administrator can suspend organizations exceptionally.
 - **Browser wallet:** external signing boundary connected to the web app. Holds signing keys and signs authentication messages and blockchain transactions. Keys never enter Credora's API, database, or contracts.
 - **Next.js web application (`apps/web`):** public verification, learner library and sharing, issuer workspace, organization enrollment, and admin review. Include an internal **direct verification fallback** module that reads RPC and the IPFS gateway without the Credora API. This module executes within the web application, not a separate verifier service.
 - **Expo / React Native Android application (`apps/mobile`):** credential library, QR scanning, public verification through the API, and selected-credential sharing. Include **device-local storage** for saved references and share management capabilities. Do not draw a mobile direct-RPC fallback or mobile issuance wallet integration as currently implemented.
@@ -43,7 +43,7 @@ Represent logical API modules inside one Node.js service; they are not separatel
 - **Configured EVM JSON-RPC endpoint:** receives read calls and wallet-signed transactions; connects to the selected blockchain network. No specific hosted provider is required. Local development uses Anvil.
 - **Solidity `CredentialRegistry` contract:** OpenZeppelin AccessControl; `DEFAULT_ADMIN_ROLE` manages `ISSUER_ROLE`. Stores immutable records keyed by a 32-byte credential hash: issuer address, learner address, metadata URI, block issuance timestamp, and existence flag.
 - Show the contract operations `setIssuerAuthorization`, `issueCredential`, and `getCredential`, plus the `CredentialIssued` event.
-- Label the registry **Authoritative credential records and issuer authorization**. It stores hashes and references, not complete manifests, organization profiles, private keys, or learner identity documents.
+- Label the v1 registry **Authoritative v1 credential records and global issuer authorization**. Label the v3 organization registry **Authoritative organization activation, team issuer authority, suspension, and v3 credential records**. Both store hashes and references, not complete manifests, private keys, or learner identity documents.
 
 ### 4. Content-addressed metadata boundary
 
@@ -64,7 +64,7 @@ Draw these connections with clear arrowheads and labels. Request/response connec
 6. API operational modules ↔ SQLite operational compartment: **persistent operational state and audit**.
 7. Issuance coordinator → IPFS upload endpoint → IPFS storage: **public manifest upload**; label the response **CID → metadata URI**.
 8. API blockchain adapter ↔ RPC ↔ registry: **issuer/admin reads, credential lookup, receipt validation**.
-9. Browser wallet → RPC → registry: **signed issuance / issuer authorization transaction**. Do not route signing through the API.
+9. Browser wallet → RPC → registry: **signed issuance / organization issuer authorization transaction**. Superadmin browser wallet → RPC → v3 registry: **activation / suspension transaction**. Do not route signing through the API.
 10. Registry events → RPC log retrieval → API synchronizer → SQLite projection compartment: **confirmed logs → rebuildable projections**. This is polling, not a message queue.
 11. API verifier ↔ IPFS gateway ↔ IPFS storage: **retrieve manifest by CID**.
 12. Web direct verification fallback and independent verifier ↔ RPC and IPFS gateway: **API-independent proof reads**. These paths bypass the API and SQLite; the web fallback remains part of the web service.
@@ -95,7 +95,7 @@ Use compact numbered callouts instead of duplicating the architecture nodes.
 
 **C. Organization approval and sharing**
 
-- Organization approval creates an operational organization record and `ORG_ADMIN` access. Registry issuer authorization remains a separate signed administrative transaction. Suspending an organization does not revoke that on-chain authorization.
+- Organization approval requires one organization-registry activation transaction that grants the applicant initial admin and issuer authority. Organization admins manage later team and issuer changes on-chain. Superadmin suspension is enforced by the organization registry and blocks future issuance; existing proofs remain verifiable.
 - A holder selects 1–25 public credential references and an expiry of 1, 7, or 30 days. The API returns a bearer share token and a separate revocation capability. The QR resolves a fixed list of references; each credential is verified independently. Expiry/revocation stops future bundle lookup but cannot remove public proofs or existing copies.
 
 ## Shared-library inset
@@ -122,7 +122,7 @@ Applications depend on packages; packages never depend on applications. Do not i
 - The v1 payload's declared issue date participates in hashing; the registry's `issuedAt` is the transaction block timestamp. Do not merge these into one timestamp or imply the contract recomputes the manifest hash.
 - V2 selective disclosure is implemented in `credential-core`: a credential hash commits to a salted Merkle claims root; presentations reveal selected values and proofs. Draw this only as a protocol-library note, not a shipped end-to-end issuance/verification service. Hidden values and salts stay holder-local. This is not a zero-knowledge proof and does not prove presenter wallet control.
 - Local development may use Anvil and file-backed `local://` metadata. Label that adapter **Development only; not IPFS**. Production uses configured external RPC, deployed registry, and IPFS upload/gateway endpoints.
-- Do not add NFTs, tokens, an organization smart contract, custodial signing, Kafka, Redis, PostgreSQL, Kubernetes, or a separate indexing service. None is required by the current architecture. Synthetic demo fixtures are not live verification evidence.
+- Do not add NFTs, tokens, custodial signing, Kafka, Redis, PostgreSQL, Kubernetes, or a separate indexing service. None is required by the current architecture. The v3 organization registry is part of the current design. Synthetic demo fixtures are not live verification evidence.
 
 ## Repository basis
 
