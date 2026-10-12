@@ -29,14 +29,16 @@ pnpm contracts:deploy
 
 The deployment address is written to
 `contracts/broadcast/Deploy.s.sol/31337/run-latest.json`. Authorize an Anvil
-issuer account through the deployed registry before creating issuance drafts.
+issuer account through the deployed registry before creating legacy issuance drafts.
 
 The organization-aware credential protocol uses a separate v3 registry so the
 v1 deployment and existing proofs remain unchanged. Its deployment entrypoint
-is `script/DeployOrganizationCredentialRegistry.s.sol`. Do not point the
-current v1 web/API configuration at that registry; organization activation,
-issuer projections, and v3 verification remain separate migration work
-tracked by [ADR 0010](../docs/decisions/0010-organization-controlled-issuer-authority.md).
+is `script/DeployOrganizationCredentialRegistry.s.sol`. Configure its address
+separately as `ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS` in the API and
+`NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS` in the web app. The
+organization registry activates organizations, delegates issuer wallets, and
+stores v3 organization-bound credential proofs. Existing v1 credentials remain
+on the original registry.
 
 For a local Anvil deployment, use a fresh local key and run:
 
@@ -45,6 +47,7 @@ forge script script/DeployOrganizationCredentialRegistry.s.sol:DeployOrganizatio
   --rpc-url http://127.0.0.1:8545 --broadcast
 ```
 
-The deployment grants protocol-admin authority to the deployer. Never deploy
-this registry to a public chain until activation, projection, and v3
-verification are integrated and reviewed.
+The deployment grants protocol-admin authority to the deployer. Organization
+activation and suspension require the registry-admin wallet; issuer
+authorization is organization-admin controlled after activation. Verify the
+deployed address and chain before configuring production.

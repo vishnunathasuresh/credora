@@ -71,6 +71,9 @@ contract OrganizationCredentialRegistry is AccessControl {
     error InvalidCredentialHash();
     error InvalidLearner();
     error EmptyMetadataUri();
+    error InvalidBatchSize(uint256 count);
+
+    uint256 public constant MAX_BATCH_SIZE = 100;
 
     constructor(address initialAdmin) {
         if (initialAdmin == address(0)) revert InvalidOrganizationAdmin();
@@ -133,6 +136,21 @@ contract OrganizationCredentialRegistry is AccessControl {
         emit OrganizationIssuerAuthorizationChanged(organizationId, issuer, authorized);
     }
 
+    /// @notice Replace an organization signing wallet in one organization-admin transaction.
+    function rotateIssuerAuthorization(bytes32 organizationId, address oldIssuer, address newIssuer)
+        external
+        onlyOrganizationAdmin(organizationId)
+    {
+        if (oldIssuer == address(0) || newIssuer == address(0) || oldIssuer == newIssuer)
+            revert InvalidIssuer();
+        if (!issuerAuthorizations[organizationId][oldIssuer])
+            revert IssuerNotAuthorized(organizationId, oldIssuer);
+        issuerAuthorizations[organizationId][oldIssuer] = false;
+        issuerAuthorizations[organizationId][newIssuer] = true;
+        emit OrganizationIssuerAuthorizationChanged(organizationId, oldIssuer, false);
+        emit OrganizationIssuerAuthorizationChanged(organizationId, newIssuer, true);
+    }
+
     /// @notice Only Credora's protocol administrator can suspend or restore an organization.
     function setOrganizationSuspended(bytes32 organizationId, bool suspended)
         external
@@ -190,11 +208,36 @@ contract OrganizationCredentialRegistry is AccessControl {
         address learner,
         string calldata metadataUri
     ) external {
+        _issueCredential(organizationId, credentialHash, learner, metadataUri, msg.sender);
+    }
+
+    /// @notice Issue multiple organization-bound credentials atomically in one issuer transaction.
+    function issueCredentials(
+        bytes32 organizationId,
+        bytes32[] calldata credentialHashes,
+        address[] calldata learners,
+        string[] calldata metadataUris
+    ) external {
+        uint256 count = credentialHashes.length;
+        if (count == 0 || count > MAX_BATCH_SIZE || count != learners.length || count != metadataUris.length)
+            revert InvalidBatchSize(count);
+        for (uint256 i; i < count; ++i) {
+            _issueCredential(organizationId, credentialHashes[i], learners[i], metadataUris[i], msg.sender);
+        }
+    }
+
+    function _issueCredential(
+        bytes32 organizationId,
+        bytes32 credentialHash,
+        address learner,
+        string calldata metadataUri,
+        address issuer
+    ) internal {
         Organization storage organization = organizations[organizationId];
         if (!organization.exists) revert OrganizationNotFound(organizationId);
         if (organization.suspended) revert OrganizationSuspended(organizationId);
-        if (!issuerAuthorizations[organizationId][msg.sender])
-            revert IssuerNotAuthorized(organizationId, msg.sender);
+        if (!issuerAuthorizations[organizationId][issuer])
+            revert IssuerNotAuthorized(organizationId, issuer);
         if (credentialHash == bytes32(0)) revert InvalidCredentialHash();
         if (learner == address(0)) revert InvalidLearner();
         if (bytes(metadataUri).length == 0) revert EmptyMetadataUri();
@@ -203,14 +246,14 @@ contract OrganizationCredentialRegistry is AccessControl {
         uint64 issuedAt = uint64(block.timestamp);
         credentials[credentialHash] = Credential({
             organizationId: organizationId,
-            issuer: msg.sender,
+            issuer: issuer,
             learner: learner,
             metadataUri: metadataUri,
             issuedAt: issuedAt,
             exists: true
         });
         emit OrganizationCredentialIssued(
-            credentialHash, organizationId, msg.sender, learner, metadataUri, issuedAt
+            credentialHash, organizationId, issuer, learner, metadataUri, issuedAt
         );
     }
 

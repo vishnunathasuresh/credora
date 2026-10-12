@@ -93,6 +93,16 @@ export type CredentialRegistryAbi = typeof credentialRegistryAbi;
 export const organizationCredentialRegistryAbi = [
   {
     type: 'function',
+    name: 'hasRole',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'role', type: 'bytes32' },
+      { name: 'account', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
     name: 'DEFAULT_ADMIN_ROLE',
     stateMutability: 'view',
     inputs: [],
@@ -128,6 +138,17 @@ export const organizationCredentialRegistryAbi = [
       { name: 'organizationId', type: 'bytes32' },
       { name: 'issuer', type: 'address' },
       { name: 'authorized', type: 'bool' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'rotateIssuerAuthorization',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'organizationId', type: 'bytes32' },
+      { name: 'oldIssuer', type: 'address' },
+      { name: 'newIssuer', type: 'address' },
     ],
     outputs: [],
   },
@@ -193,6 +214,18 @@ export const organizationCredentialRegistryAbi = [
       { name: 'credentialHash', type: 'bytes32' },
       { name: 'learner', type: 'address' },
       { name: 'metadataUri', type: 'string' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'issueCredentials',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'organizationId', type: 'bytes32' },
+      { name: 'credentialHashes', type: 'bytes32[]' },
+      { name: 'learners', type: 'address[]' },
+      { name: 'metadataUris', type: 'string[]' },
     ],
     outputs: [],
   },

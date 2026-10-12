@@ -5,6 +5,7 @@ import {
   keccak256,
   parseAbiParameters,
   concatHex,
+  stringToBytes,
   type Address,
   type Hex,
 } from 'viem';
@@ -111,6 +112,11 @@ export type OrganizationCredentialMetadata = {
   description?: string;
   imageUri?: string;
 };
+
+/** Stable chain identifier derived from the API's immutable organization UUID. */
+export function organizationIdFromApplicationId(id: string): Hex {
+  return keccak256(stringToBytes(`credora:organization:${id.toLowerCase()}`));
+}
 
 const hashParameters = parseAbiParameters(
   'uint8, address, address, string, string, uint64, string',
