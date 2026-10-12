@@ -1,5 +1,8 @@
 # Architecture overview
 
+Web application workflow with technology labels: [transparent PNG](credora-web-workflow.png) ·
+[vector SVG](credora-web-workflow.svg) · [explanation](credora-web-workflow.md).
+
 Connected end-to-end workflow: [transparent PNG](credora-system.png) ·
 [vector SVG](credora-system.svg) · [Eraser Flow Chart code](credora-system.eraser).
 

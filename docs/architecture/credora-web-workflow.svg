@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2160" height="1640" viewBox="0 0 2160 1640" role="img" aria-labelledby="title desc">
+<title id="title">Credora web application system design and workflow</title>
+<desc id="desc">Next.js web application, wallet, Node.js API, SQLite projection, EVM registries and IPFS storage, with issuance and public verification workflows. Transparent canvas.</desc>
+<defs>
+<marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#64748b" stroke-width="1.6"/></marker>
+</defs>
+<style>
+text { font-family: 'Liberation Sans', Arial, sans-serif; fill: #172334; }
+.title { font-size: 30px; font-weight: 700; }
+.tech { font-size: 23px; font-weight: 700; }
+.body { font-size: 23px; }
+.small { font-size: 21px; }
+.label { font-size: 22px; fill: #475569; paint-order: stroke fill; stroke: #ffffff; stroke-width: 4px; stroke-linejoin: round; }
+.flow { font-size: 25px; font-weight: 700; }
+.note { font-size: 21px; paint-order: stroke fill; stroke: #ffffff; stroke-width: 4px; stroke-linejoin: round; }
+</style>
+<rect x="60" y="40" width="570" height="64" rx="32" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="84" y="81" class="tech">Issuer / organization admin / superadmin</text>
+<rect x="670" y="40" width="410" height="64" rx="32" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="694" y="81" class="tech">Learner / credential holder</text>
+<rect x="1120" y="40" width="380" height="64" rx="32" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="1144" y="81" class="tech">Public verifier / recruiter</text>
+<text x="1545" y="80" class="note">Browser access · wallet required for writes</text>
+<path d="M 330 104 L 330 190" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 875 104 L 875 145 L 480 145 L 480 190" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 1310 104 L 1310 164 L 550 164 L 550 190" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="60" y="190" width="540" height="270" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<rect x="60" y="210" width="5" height="230" rx="2" fill="#2563eb"/>
+<text x="88" y="236" class="title">Web application</text>
+<text x="88" y="274" class="tech" style="fill:#2563eb">Next.js 16 · React 19 · TypeScript</text>
+<text x="88" y="316" class="body">Tailwind CSS 4 · shadcn / Radix UI</text>
+<text x="88" y="348" class="body">Issuer, organization and holder workspaces</text>
+<text x="88" y="380" class="body">Public /verify and expiring /share pages</text>
+<text x="88" y="412" class="body">QR generation + camera scanning</text>
+<text x="88" y="444" class="body">Legacy v1 direct RPC verification fallback</text>
+<rect x="800" y="190" width="540" height="270" rx="18" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+<rect x="800" y="210" width="5" height="230" rx="2" fill="#7c3aed"/>
+<text x="828" y="236" class="title">Operational API</text>
+<text x="828" y="274" class="tech" style="fill:#7c3aed">Node.js · TypeScript · native HTTP</text>
+<text x="828" y="316" class="body">Wallet challenges, sessions and role checks</text>
+<text x="828" y="348" class="body">Drafts, org workflows and receipt checks</text>
+<text x="828" y="380" class="body">Chain + metadata verification</text>
+<text x="828" y="412" class="body">Expiring shares and audit records</text>
+<text x="828" y="444" class="body">Timed registry-event reconciliation</text>
+<rect x="1560" y="190" width="540" height="270" rx="18" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+<rect x="1560" y="210" width="5" height="230" rx="2" fill="#047857"/>
+<text x="1588" y="236" class="title">Blockchain proof authority</text>
+<text x="1588" y="274" class="tech" style="fill:#047857">Solidity · OpenZeppelin · EVM RPC</text>
+<text x="1588" y="316" class="body">OrganizationCredentialRegistry → v3</text>
+<text x="1588" y="348" class="body">CredentialRegistry → legacy v1</text>
+<text x="1588" y="380" class="body">Issuer permissions checked on-chain</text>
+<text x="1588" y="412" class="body">Immutable hash, issuer, learner + URI</text>
+<text x="1588" y="444" class="body">Receipt + issuance events</text>
+<rect x="60" y="620" width="540" height="220" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<rect x="60" y="640" width="5" height="180" rx="2" fill="#2563eb"/>
+<text x="88" y="666" class="title">Browser wallet</text>
+<text x="88" y="704" class="tech" style="fill:#2563eb">Injected Ethereum provider · viem</text>
+<text x="88" y="746" class="body">Signs login challenge + transactions</text>
+<text x="88" y="778" class="body">Private keys stay in the wallet</text>
+<text x="88" y="810" class="body">Organization admins authorize issuers</text>
+<rect x="800" y="620" width="540" height="220" rx="18" fill="#fffbeb" stroke="#b45309" stroke-width="2"/>
+<rect x="800" y="640" width="5" height="180" rx="2" fill="#b45309"/>
+<text x="828" y="666" class="title">Operational data / projection</text>
+<text x="828" y="704" class="tech" style="fill:#b45309">SQLite · node:sqlite</text>
+<text x="828" y="746" class="body">Sessions, org access, drafts, shares, audit</text>
+<text x="828" y="778" class="body">Chain-derived rows can be rebuilt</text>
+<text x="828" y="810" class="body">Back up off-chain operational records</text>
+<rect x="1560" y="620" width="540" height="220" rx="18" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+<rect x="1560" y="640" width="5" height="180" rx="2" fill="#047857"/>
+<text x="1588" y="666" class="title">Public metadata + assets</text>
+<text x="1588" y="704" class="tech" style="fill:#047857">IPFS · upload endpoint + HTTP gateway</text>
+<text x="1588" y="746" class="body">JSON manifest + optional credential image</text>
+<text x="1588" y="778" class="body">CID addresses bytes; it is not the proof hash</text>
+<text x="1588" y="810" class="body">Local file adapter for development</text>
+<path d="M 600 320 L 800 320" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="617" y="293" class="label">HTTPS / JSON</text>
+<path d="M 1340 320 L 1560 320" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="1358" y="293" class="label">viem · JSON-RPC</text>
+<path d="M 330 460 L 330 620" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="70" y="588" class="label">Sign challenge / approve transaction</text>
+<path d="M 1070 460 L 1070 620" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="1090" y="590" class="label">Read / write</text>
+<path d="M 1340 410 L 1435 410 L 1435 730 L 1560 730" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="1455" y="604" class="label">Upload / fetch</text>
+<path d="M 600 730 L 700 730 L 700 530 L 1840 530 L 1840 460" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="720" y="510" class="label">Signed transaction → registry checks → immutable proof</text>
+<text x="60" y="881" class="note">API outage: direct legacy v1 reads use RPC + a public IPFS gateway. The web fallback does not cover v3.</text>
+<rect x="60" y="920" width="980" height="135" rx="18" fill="#f8fafc" stroke="#475569" stroke-width="2"/>
+<rect x="60" y="940" width="5" height="95" rx="2" fill="#475569"/>
+<text x="88" y="966" class="title">Shared protocol logic</text>
+<text x="88" y="1004" class="tech" style="fill:#475569">Workspace packages · TypeScript · viem</text>
+<text x="88" y="1046" class="body">credential-core: versioned ABI encoding + Keccak-256; shared: types + states</text>
+<rect x="1090" y="920" width="1010" height="135" rx="18" fill="#f8fafc" stroke="#475569" stroke-width="2"/>
+<rect x="1090" y="940" width="5" height="95" rx="2" fill="#475569"/>
+<text x="1118" y="966" class="title">Self-hosted deployment</text>
+<text x="1118" y="1004" class="tech" style="fill:#475569">Docker Compose · Caddy HTTPS reverse proxy</text>
+<text x="1118" y="1046" class="body">Web :3000 + API :4000; SQLite volume + scheduled backups; external RPC / IPFS</text>
+<text x="60" y="1121" class="flow" style="fill:#2563eb">Issue a credential</text>
+<rect x="60" y="1145" width="310" height="155" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+<text x="80" y="1180" class="tech">01  Connect + sign in</text>
+<text x="80" y="1214" class="small" style="fill:#2563eb">Web ↔ wallet ↔ API</text>
+<text x="80" y="1249" class="small">Nonce + personal_sign</text>
+<text x="80" y="1277" class="small">API returns session token</text>
+<path d="M 370 1223 L 406 1223" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="406" y="1145" width="310" height="155" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+<text x="426" y="1180" class="tech">02  Prepare draft</text>
+<text x="426" y="1214" class="small" style="fill:#2563eb">API + SQLite</text>
+<text x="426" y="1249" class="small">Check organization / issuer</text>
+<text x="426" y="1277" class="small">Apply optional org review</text>
+<path d="M 716 1223 L 752 1223" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="752" y="1145" width="310" height="155" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+<text x="772" y="1180" class="tech">03  Publish metadata</text>
+<text x="772" y="1214" class="small" style="fill:#2563eb">API → IPFS</text>
+<text x="772" y="1249" class="small">Get manifest URI / CID</text>
+<text x="772" y="1277" class="small">Keccak-256 canonical hash</text>
+<path d="M 1062 1223 L 1098 1223" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1098" y="1145" width="310" height="155" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+<text x="1118" y="1180" class="tech">04  Sign transaction</text>
+<text x="1118" y="1214" class="small" style="fill:#2563eb">Wallet → EVM registry</text>
+<text x="1118" y="1249" class="small">Issuer approves issuance</text>
+<text x="1118" y="1277" class="small">Contract enforces authority</text>
+<path d="M 1408 1223 L 1444 1223" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1444" y="1145" width="310" height="155" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+<text x="1464" y="1180" class="tech">05  Confirm proof</text>
+<text x="1464" y="1214" class="small" style="fill:#2563eb">API → RPC + SQLite</text>
+<text x="1464" y="1249" class="small">Validate receipt + payload</text>
+<text x="1464" y="1277" class="small">Save confirmed projection</text>
+<path d="M 1754 1223 L 1790 1223" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1790" y="1145" width="310" height="155" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6"/>
+<text x="1810" y="1180" class="tech">06  View + share</text>
+<text x="1810" y="1214" class="small" style="fill:#2563eb">Next.js holder wallet</text>
+<text x="1810" y="1249" class="small">Credential hash / link / QR</text>
+<text x="1810" y="1277" class="small">Selected, expiring bundles</text>
+<text x="60" y="1356" class="flow" style="fill:#047857">Verify a public credential</text>
+<rect x="60" y="1380" width="310" height="155" rx="14" fill="#ecfdf5" stroke="#047857" stroke-width="1.6"/>
+<text x="80" y="1415" class="tech">01  Open reference</text>
+<text x="80" y="1449" class="small" style="fill:#047857">Web · QR tools</text>
+<text x="80" y="1484" class="small">Read credential hash / URL</text>
+<text x="80" y="1512" class="small">Share → selected hashes</text>
+<path d="M 370 1458 L 406 1458" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="406" y="1380" width="310" height="155" rx="14" fill="#ecfdf5" stroke="#047857" stroke-width="1.6"/>
+<text x="426" y="1415" class="tech">02  Read registry</text>
+<text x="426" y="1449" class="small" style="fill:#047857">API → RPC · viem</text>
+<text x="426" y="1484" class="small">Fetch immutable proof</text>
+<text x="426" y="1512" class="small">v3 registry, then legacy v1</text>
+<path d="M 716 1458 L 752 1458" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="752" y="1380" width="310" height="155" rx="14" fill="#ecfdf5" stroke="#047857" stroke-width="1.6"/>
+<text x="772" y="1415" class="tech">03  Fetch manifest</text>
+<text x="772" y="1449" class="small" style="fill:#047857">API → IPFS gateway</text>
+<text x="772" y="1484" class="small">Read URI from chain record</text>
+<text x="772" y="1512" class="small">Read public JSON bytes</text>
+<path d="M 1062 1458 L 1098 1458" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1098" y="1380" width="310" height="155" rx="14" fill="#ecfdf5" stroke="#047857" stroke-width="1.6"/>
+<text x="1118" y="1415" class="tech">04  Recompute hash</text>
+<text x="1118" y="1449" class="small" style="fill:#047857">credential-core</text>
+<text x="1118" y="1484" class="small">Versioned Keccak-256</text>
+<text x="1118" y="1512" class="small">Compare hash + bound fields</text>
+<path d="M 1408 1458 L 1444 1458" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1444" y="1380" width="310" height="155" rx="14" fill="#ecfdf5" stroke="#047857" stroke-width="1.6"/>
+<text x="1464" y="1415" class="tech">05  Return verdict</text>
+<text x="1464" y="1449" class="small" style="fill:#047857">API → Next.js</text>
+<text x="1464" y="1484" class="small">Valid / absent / mismatch</text>
+<text x="1464" y="1512" class="small">Distinct RPC / storage errors</text>
+<path d="M 1754 1458 L 1790 1458" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="1790" y="1380" width="310" height="155" rx="14" fill="#ecfdf5" stroke="#047857" stroke-width="1.6"/>
+<text x="1810" y="1415" class="tech">06  Display result</text>
+<text x="1810" y="1449" class="small" style="fill:#047857">React verification UI</text>
+<text x="1810" y="1484" class="small">Proof + issuer / learner</text>
+<text x="1810" y="1512" class="small">No verifier login required</text>
+<text x="60" y="1596" class="note">Chain = proof and issuer authority. IPFS = addressed metadata bytes. SQLite = operations and projections.</text>
+</svg>
