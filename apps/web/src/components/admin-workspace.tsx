@@ -534,6 +534,20 @@ export function AdminWorkspace() {
                 );
               })()
             : null}
+          {reviewAction === 'review' && !contractAddress ? (
+            <p className="form-help form-error" role="alert">
+              Approval is unavailable because the organization registry is not configured. Deploy
+              the v3 registry, set its address as{' '}
+              <code>ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS</code> for the API and{' '}
+              <code>NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS</code> for the web app,
+              then restart the API and rebuild the web app.
+            </p>
+          ) : null}
+          {error ? (
+            <p className="form-help form-error" role="alert" aria-live="assertive">
+              {error}
+            </p>
+          ) : null}
           <DialogFooter>
             {reviewAction === 'review' ? (
               <>
@@ -549,7 +563,7 @@ export function AdminWorkspace() {
                   type="button"
                   variant="default"
                   onClick={() => void decideOrganization('approve')}
-                  disabled={busy}
+                  disabled={busy || !contractAddress}
                 >
                   {busy ? 'Saving…' : 'Approve organization'}
                 </Button>
