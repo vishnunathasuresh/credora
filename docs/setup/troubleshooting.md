@@ -27,17 +27,10 @@ do not.
 
 The API only returns browser CORS headers for origins listed in
 `API_ALLOWED_ORIGINS`. Add the exact website origin (including scheme and
-port), then restart the API. Native requests from the Expo app do not use
-browser CORS.
+port), then restart the API.
 
 ## Metadata is unavailable
 
 Local FileStorage metadata is accessible through the API only. Independent
 verification from another client requires IPFS-backed metadata and a reachable
 gateway. An unavailable gateway is a service failure, not an invalid proof.
-
-## Physical phone cannot reach local services
-
-Use the computer's LAN IP in `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_WEB_URL`.
-The phone and computer must share a reachable network, and the firewall must
-allow the API and web ports. `localhost` on the phone refers to the phone.

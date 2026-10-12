@@ -10,7 +10,7 @@
 | Selective disclosure                       | `packages/credential-core` v2 Merkle commitments and presentations                                                                       |
 | Metadata storage                           | `packages/storage` (IPFS CID manifests; local adapters for development)                                                                  |
 | Independent verification                   | `packages/blockchain`, `/verify`, direct RPC/gateway mode                                                                                |
-| Skill Wallet                               | `apps/web`, `apps/mobile`                                                                                                                |
+| Skill Wallet                               | `apps/web`                                                                                                                              |
 | Audit projection                           | `apps/api`, contract events                                                                                                              |
 | Low-cost MVP                               | Anvil, local storage, SQLite                                                                                                             |
 

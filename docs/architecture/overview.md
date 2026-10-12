@@ -15,8 +15,7 @@ which maps these boundaries to components, connections, and runtime flows.
 
 ```text
                  ┌── reviewed organization records (API)
-Next.js web ─────┤
-Expo Android ────┼── shared protocol packages ──┬── credential registry (chain)
+Next.js web ─────┼── shared protocol packages ──┬── credential registry (chain)
 Direct verifier ─┘                              └── IPFS metadata manifest
        │
        └── optional API projection (sessions, search, audit, UX)

@@ -13,7 +13,6 @@ flowchart LR
     Holder[Credential holder]
     Verifier[Public verifier]
     Browser[Browser wallet extension]
-    Mobile[Expo mobile app]
   end
 
   subgraph Web[Web runtime: Next.js]
@@ -54,7 +53,6 @@ flowchart LR
   Holder --> PublicUI
   Verifier --> PublicUI
   Browser -->|personal_sign and transaction approval| IssuerUI
-  Mobile -->|HTTPS API requests| Routes
   IssuerUI -->|HTTPS API requests| Routes
   AdminUI -->|HTTPS API requests| Routes
   PublicUI -->|API-first verification| Routes
@@ -88,15 +86,13 @@ flowchart LR
   Verify -. hash and normalize .-> Core
   Blockchain -. address and ABI types .-> Shared
   StorageAdapter -. implements .-> StoragePkg
-  Mobile -. uses .-> Shared
-  Mobile -. uses .-> Core
 
   classDef authoritative fill:#e8f5e9,stroke:#2e7d32,color:#102a13;
   classDef projection fill:#fff3e0,stroke:#ef6c00,color:#3e2600;
   classDef client fill:#e3f2fd,stroke:#1565c0,color:#10233a;
   class Registry,Ipfs authoritative;
   class Sql projection;
-  class IssuerUI,AdminUI,PublicUI,Mobile,Browser client;
+  class IssuerUI,AdminUI,PublicUI,Browser client;
 ```
 
 ### Boundary notes
@@ -113,9 +109,6 @@ flowchart LR
   verification when the API request throws or returns HTTP 503. Direct browser
   verification supports `ipfs://` metadata via its configured public gateway;
   it does not read the API's `local://` filesystem.
-- The mobile verifier calls the API and reports an API service-unavailable
-  state if that request fails. It does not contain the web app's direct RPC
-  fallback.
 - Apps depend on workspace packages. Shared packages do not depend on either
   app.
 
@@ -126,7 +119,6 @@ flowchart TB
   subgraph Apps[Product applications]
     Web[apps/web<br/>Next.js routes and React workspaces]
     Api[apps/api<br/>single route and service module]
-    Mobile[apps/mobile<br/>Expo wallet and verifier]
   end
 
   subgraph Packages[Reusable workspace packages]
@@ -147,8 +139,6 @@ flowchart TB
   Api --> Storage
   Api --> Auth
   Api --> Demo
-  Mobile --> Shared
-  Mobile --> Core
   Chain --> Abi
   Storage --> Core
 ```
@@ -158,7 +148,7 @@ SQLite operations, issuance orchestration, metadata retrieval, verification,
 and chain synchronization in one process/module. The diagram deliberately
 shows the implemented module boundary rather than implying separate
 controllers, services, workers, or microservices. `@credora/ui` exists as a
-package, but it is not a dependency of the web, API, or mobile package manifests;
+package, but it is not a dependency of the web or API package manifests;
 the inspected web surfaces compose app-local UI components. Browser-side web
 verification uses viem directly with the shared contracts ABI rather than the
 API's `RegistryBlockchainAdapter`.
@@ -232,7 +222,7 @@ and correction are not implemented in the current contract.
 sequenceDiagram
   autonumber
   actor Verifier
-  participant Client as Web verifier or mobile verifier
+  participant Client as Web verifier
   participant API as API verification route
   participant Browser as Web direct verifier
   participant RPC as EVM RPC
@@ -241,8 +231,7 @@ sequenceDiagram
   participant Gateway as Public IPFS gateway
 
   Verifier->>Client: Enter 32-byte hash or supported /verify/{hash} URL
-  alt Web verification path
-    Client->>API: GET /credentials/{hash}/verify
+  Client->>API: GET /credentials/{hash}/verify
     alt API request throws or returns HTTP 503
       Client->>Browser: Run direct verification fallback
       Browser->>RPC: getCredential(hash)
@@ -263,11 +252,6 @@ sequenceDiagram
       end
       API-->>Client: valid, not-found, malformed, unavailable, or mismatch
       Note over APIStore: API adapter can read ipfs:// or local:// depending on configuration
-    end
-  else Mobile verification path
-    Client->>API: GET /credentials/{hash}/verify
-    API->>RPC: Read registry and verify through API storage adapter
-    API-->>Client: Verification result or service-unavailable
   end
 ```
 
@@ -356,7 +340,7 @@ flowchart LR
 
   Holder[Holder or share creator] -->|1..25 credential hashes; 1, 7 or 30 days| Create[POST /wallet/shares]
   Create -->|random public token and management token| ShareDb[(SQLite stores SHA-256 token digests<br/>plus fixed selected hashes)]
-  ShareDb -->|GET with public token| Receiver[Web or mobile share receiver]
+  ShareDb -->|GET with public token| Receiver[Web share receiver]
   Receiver -->|each selected hash goes through normal verify route| Verify[Ordinary chain and metadata verification]
   Holder -->|DELETE with management token| Revoke[Revoke future bundle lookup]
   Revoke --> ShareDb
@@ -376,7 +360,6 @@ already retrieved. A share does not prove control of the learner wallet.
 flowchart TB
   Internet[Internet clients]
   Browser[Browser: web app and optional wallet]
-  Phone[Expo app, distributed separately]
 
   subgraph Host[Self-hosted Docker Compose host]
     Caddy[Caddy HTTPS reverse proxy<br/>domain to web:3000<br/>api.domain to api:4000]
@@ -396,7 +379,6 @@ flowchart TB
   Internet --> Caddy
   Browser -->|HTTPS web origin| Caddy
   Browser -->|HTTPS API origin| Caddy
-  Phone -->|HTTPS API and web links| Caddy
   Caddy --> Web
   Caddy --> Api
   Caddy --- CaddyVol
@@ -410,7 +392,7 @@ flowchart TB
 ```
 
 Compose includes the web server, API, Caddy, and backup worker. It does not
-deploy an EVM node, registry contract, IPFS node, or mobile binary. The API's
+deploy an EVM node, registry contract, or IPFS node. The API's
 upload token is server-side; `NEXT_PUBLIC_*` RPC, registry, API, and gateway
 settings are browser-visible. Caddy routes the API on the separate `api.`
 hostname. `/readyz` is used for the API health check. The API volume also
@@ -426,7 +408,6 @@ contains local metadata when file storage is selected.
 | Web wallet session                                                                  | [`apps/web/src/lib/wallet-session.ts`](../../apps/web/src/lib/wallet-session.ts)                                                                                             |
 | API-first web verification and fallback selection                                   | [`apps/web/src/lib/verification-api.ts`](../../apps/web/src/lib/verification-api.ts)                                                                                         |
 | Web direct registry and IPFS-gateway verification                                   | [`apps/web/src/lib/direct-verification.ts`](../../apps/web/src/lib/direct-verification.ts)                                                                                   |
-| Mobile API-only verification and share helpers                                      | [`apps/mobile/src/credentials.ts`](../../apps/mobile/src/credentials.ts)                                                                                                     |
 | Canonical credential hash and selective-disclosure helpers                          | [`packages/credential-core/src/index.ts`](../../packages/credential-core/src/index.ts)                                                                                       |
 | EVM registry adapter and ABI                                                        | [`packages/blockchain/src/index.ts`](../../packages/blockchain/src/index.ts), [`packages/contracts/src/index.ts`](../../packages/contracts/src/index.ts)                     |
 | Metadata storage adapters                                                           | [`packages/storage/src/index.ts`](../../packages/storage/src/index.ts)                                                                                                       |
@@ -438,5 +419,5 @@ contains local metadata when file storage is selected.
 The Solidity registry and ordinary product verification flow implement v1
 public-manifest credentials. `credential-core` contains v2 selective-disclosure
 hash and Merkle proof helpers, but the normal issuance path, API verification,
-web direct verification, and mobile metadata parser shown above are v1 flows.
+and web direct verification shown above are v1 flows.
 Do not interpret the v2 package helpers as an integrated end-user protocol.

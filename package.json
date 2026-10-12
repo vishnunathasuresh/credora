@@ -7,7 +7,6 @@
     "dev": "pnpm --parallel --filter @credora/web --filter @credora/api dev",
     "dev:web": "pnpm --filter @credora/web dev",
     "dev:api": "pnpm --filter @credora/api dev",
-    "dev:mobile": "pnpm --filter @credora/mobile start",
     "anvil": "anvil --host 127.0.0.1 --port 8545 --chain-id 31337 --accounts 10 --balance 10000",
     "contracts:deps": "git submodule update --init --recursive",
     "build": "pnpm -r --if-present build",

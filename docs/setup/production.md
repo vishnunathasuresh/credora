@@ -10,8 +10,7 @@ registry, restricted browser origin, IPFS credentials, configuration checks,
 startup, health, and backup restoration.
 
 The repository's CD workflow publishes the API image to GitHub Container
-Registry. It does not log into or deploy to a hosting server. Mobile app store
-distribution is a separate Expo release process; see [mobile setup](mobile.md).
+Registry. It does not log into or deploy to a hosting server.
 
 Before opening the service to users, confirm `/readyz` succeeds against the
 production registry, web and API domains use HTTPS, the storage volume and

@@ -52,8 +52,4 @@ keys on a public chain.
 ```sh
 pnpm dev:web
 pnpm dev:api
-pnpm --filter @credora/mobile web
 ```
-
-The third command runs the mobile UI in a browser. For Expo Go or native app
-setup, use [mobile setup](mobile.md).

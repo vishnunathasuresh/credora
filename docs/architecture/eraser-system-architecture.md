@@ -18,7 +18,6 @@ Represent logical API modules inside one Node.js service; they are not separatel
 - **Superadmin / registry administrator:** reviews organization applications and signs one activation transaction per approved organization; the same registry administrator can suspend organizations exceptionally.
 - **Browser wallet:** external signing boundary connected to the web app. Holds signing keys and signs authentication messages and blockchain transactions. Keys never enter Credora's API, database, or contracts.
 - **Next.js web application (`apps/web`):** public verification, learner library and sharing, issuer workspace, organization enrollment, and admin review. Include an internal **direct verification fallback** module that reads RPC and the IPFS gateway without the Credora API. This module executes within the web application, not a separate verifier service.
-- **Expo / React Native Android application (`apps/mobile`):** credential library, QR scanning, public verification through the API, and selected-credential sharing. Include **device-local storage** for saved references and share management capabilities. Do not draw a mobile direct-RPC fallback or mobile issuance wallet integration as currently implemented.
 - **Independent verifier:** an external tool that reads the configured registry and IPFS gateway directly; it does not depend on Credora sessions or its database.
 
 ### 2. Self-hosted Credora application boundary
@@ -56,10 +55,9 @@ Represent logical API modules inside one Node.js service; they are not separatel
 
 Draw these connections with clear arrowheads and labels. Request/response connections may be bidirectional; transaction submission and event ingestion must retain their actual direction.
 
-1. Users → web or mobile: **credential workflows / QR scan**. Issuers and admins operate through the web app; holders and verifiers may use either app.
 2. Web app ↔ browser wallet: **connect / sign challenge / approve transaction**.
 3. Web users ↔ Caddy ↔ Next.js web service: **HTTPS pages and application requests**.
-4. Web app and mobile app ↔ Caddy ↔ API: **HTTPS JSON — sessions, drafts, review, library discovery, shares, verification**.
+4. Web app ↔ Caddy ↔ API: **HTTPS JSON — sessions, drafts, review, shares, verification**.
 5. Authentication module ↔ SQLite: **nonce challenges and bearer sessions**. Browser wallet → web app → authentication module: **signed challenge; no private key**.
 6. API operational modules ↔ SQLite operational compartment: **persistent operational state and audit**.
 7. Issuance coordinator → IPFS upload endpoint → IPFS storage: **public manifest upload**; label the response **CID → metadata URI**.
@@ -68,9 +66,8 @@ Draw these connections with clear arrowheads and labels. Request/response connec
 10. Registry events → RPC log retrieval → API synchronizer → SQLite projection compartment: **confirmed logs → rebuildable projections**. This is polling, not a message queue.
 11. API verifier ↔ IPFS gateway ↔ IPFS storage: **retrieve manifest by CID**.
 12. Web direct verification fallback and independent verifier ↔ RPC and IPFS gateway: **API-independent proof reads**. These paths bypass the API and SQLite; the web fallback remains part of the web service.
-13. Mobile application ↔ device-local storage: **saved references / share management capability**.
-14. Share module ↔ SQLite operational compartment: **token digests, fixed ordered hash selection, expiry/revocation**. Verifier → share resolution → ordinary credential verification: **resolve references, then verify each proof**.
-15. SQLite backup job → database → backup directory: **snapshot persistent operational data**.
+13. Share module ↔ SQLite operational compartment: **token digests, fixed ordered hash selection, expiry/revocation**. Verifier → share resolution → ordinary credential verification: **resolve references, then verify each proof**.
+14. SQLite backup job → database → backup directory: **snapshot persistent operational data**.
 
 ## Numbered flow overlays
 
@@ -91,7 +88,7 @@ Use compact numbered callouts instead of duplicating the architecture nodes.
 2. Read `getCredential(hash)` from the registry through RPC.
 3. Retrieve the manifest using the record's metadata URI.
 4. Normalize canonical fields, recompute the versioned hash, and compare the hash and bound issuer/learner fields against the record.
-5. Return a verification result. An API row, organization logo, or QR lookup alone cannot establish validity. The web fallback and independent verifier can perform this path without the API; the current mobile client uses the API.
+5. Return a verification result. An API row, organization logo, or QR lookup alone cannot establish validity. The web fallback and independent verifier can perform this path without the API.
 
 **C. Organization approval and sharing**
 
@@ -135,5 +132,5 @@ This is a diagram-generation brief, not a new architecture decision or proof of 
 - [ADR 0007: Selective disclosure](../decisions/0007-selective-disclosure-v2.md)
 - [ADR 0008: Organization enrollment](../decisions/0008-reviewed-organization-enrollment.md)
 - [ADR 0009: Wallet shares](../decisions/0009-expiring-selected-wallet-shares.md)
-- Implementation: `apps/api/src/index.ts`, `apps/api/src/migrations.ts`, `apps/web/src/components/issuer-workspace.tsx`, `apps/web/src/lib/verification-api.ts`, `apps/web/src/lib/direct-verification.ts`, `apps/mobile/src/credentials.ts`, `packages/credential-core/src/index.ts`, `packages/blockchain/src/index.ts`, `packages/storage/src/index.ts`, and `contracts/src/CredentialRegistry.sol`.
+- Implementation: `apps/api/src/index.ts`, `apps/api/src/migrations.ts`, `apps/web/src/components/issuer-workspace.tsx`, `apps/web/src/lib/verification-api.ts`, `apps/web/src/lib/direct-verification.ts`, `packages/credential-core/src/index.ts`, `packages/blockchain/src/index.ts`, `packages/storage/src/index.ts`, and `contracts/src/CredentialRegistry.sol`.
 - Deployment: `deploy/docker-compose.yml` and `deploy/Caddyfile`.

@@ -28,13 +28,13 @@ Credora gives organizations a way to issue digital credentials, holders a way to
 - A registry contract anchors each credential hash and its issuer, learner, metadata URI, and issue time.
 - Public metadata carries the credential details. A verifier recomputes the hash to check that those details match the registry.
 - The API supports sessions, issuer workflows, scoped credential and issuance lists, audit, organization access, and temporary sharing. Its chain-derived records can be rebuilt.
-- Web and mobile interfaces support holders and verifiers. Issuance and administration run on the web.
+- The web app supports holders, verifiers, issuers, and administrators.
 
-**Implementation status:** Core web issuance and verification have implemented code paths. The full product is not release-complete: native device checks and authenticated organization workflow evidence remain open. Selective disclosure is implemented in the shared protocol package, but is not wired into the end-user issuance and verification flows.
+**Implementation status:** Core web issuance and verification have implemented code paths. Authenticated organization workflow evidence remains open. Selective disclosure is implemented in the shared protocol package, but is not wired into the end-user issuance and verification flows.
 
 **Presenter cue:** Credora separates proof from product conveniences. A verifier can check public proof without trusting a Credora account or database.
 
-**Evidence:** `apps/web/src/components/issuer-workspace.tsx`, `apps/api/src/index.ts`, `contracts/src/CredentialRegistry.sol`, `apps/mobile/App.tsx`, `packages/credential-core/src/index.ts`.
+**Evidence:** `apps/web/src/components/issuer-workspace.tsx`, `apps/api/src/index.ts`, `contracts/src/CredentialRegistry.sol`, `packages/credential-core/src/index.ts`.
 
 ## Slide 3 — Problem statement and objectives
 
@@ -66,9 +66,8 @@ Issued v1 credentials are immutable. The current contract has no revocation or c
 | Issuer authorization | The registry admin grants the on-chain issuer role. The API checks that role before it creates an issuance draft. |
 | Credential issuance | Web flow creates a draft, stores metadata, computes the hash, asks the wallet to submit the registry transaction, then checks its receipt and stored record. |
 | Public verification | Verifier reads the registry, loads metadata, recomputes the versioned hash, and checks issuer and learner bindings. |
-| Holder sharing | Web and mobile can share public links; a selected set can be shared through a fixed, expiring QR bundle. Each credential still receives an ordinary proof check. |
+| Holder sharing | The web app shares public links and fixed, expiring QR bundles. Each credential still receives an ordinary proof check. |
 | Operations and roles | API supports organization applications and review, role-gated dashboards, audit records, chain-event projection and reconciliation. |
-| Mobile holder/verifier | Expo app stores public references locally, scans credential or share QR codes, calls the verification service, and exports public JSON. |
 
 ### Non-functional requirements
 
@@ -80,9 +79,9 @@ Issued v1 credentials are immutable. The current contract has no revocation or c
 
 ### Completion check
 
-The core web proof path is implemented. End-to-end organization application/review evidence and native device QA remain open. v2 selective-disclosure helpers have package-level implementation, but normal issuance, API verification, web direct verification, and mobile metadata parsing currently follow the v1 public-manifest format. The repository contains unit and integration suites for hashing, storage, contracts, API routes, roles, outages, and selected shares; release evidence for the open workflows is still needed.
+The core web proof path is implemented. End-to-end organization application/review evidence remain open. v2 selective-disclosure helpers have package-level implementation, but normal issuance, API verification, web direct verification currently follow the v1 public-manifest format. The repository contains unit and integration suites for hashing, storage, contracts, API routes, roles, outages, and selected shares; release evidence for the open workflows is still needed.
 
-**Evidence:** `packages/credential-core/src/index.ts`, `apps/api/src/index.ts`, `apps/mobile/src/credentials.ts`, `tests/e2e/`, `docs/ux/finish-review.md`.
+**Evidence:** `packages/credential-core/src/index.ts`, `apps/api/src/index.ts`, `tests/e2e/`, `docs/ux/finish-review.md`.
 
 ## Slide 5 — System architecture
 
@@ -92,7 +91,6 @@ The core web proof path is implemented. End-to-end organization application/revi
 flowchart TB
   subgraph Clients[Client surfaces]
     Web[Next.js web app<br/>issuer, organization, superadmin, verifier, holder]
-    Mobile[Expo mobile app<br/>holder and verifier]
     Wallet[Browser wallet<br/>signs login and issuance transactions]
   end
 
@@ -117,7 +115,6 @@ flowchart TB
   end
 
   Web -->|HTTPS| API
-  Mobile -->|HTTPS| API
   Web --> Wallet
   Wallet -->|signed issueCredential transaction| RPC
   API -->|read roles, records, receipts and events| Chain
@@ -132,8 +129,6 @@ flowchart TB
   API -. uses .-> Auth
   API -. uses .-> Shared
   Web -. uses .-> Core
-  Mobile -. uses .-> Core
-  Mobile -. uses .-> Shared
   Web -. API outage or HTTP 503: direct path .-> RPC
   Web -. direct fallback for ipfs:// metadata .-> Metadata
 ```
@@ -142,8 +137,7 @@ The API is implemented as one Node process and route module. SQLite contains
 sessions, organization access, audit data, shares, issuance operations, and
 chain-derived projections. The registry and metadata bytes remain the public
 proof sources. The API chooses IPFS only when upload and gateway URLs are both
-configured; otherwise it stores local metadata. The mobile verifier is API-only;
-the web verifier has a direct RPC/gateway fallback. See the
+configured; otherwise it stores local metadata. The web verifier has a direct RPC/gateway fallback. See the
 [detailed architecture diagrams](../docs/architecture/diagrams.md) for exact
 fallback conditions, module dependencies, deployment topology, and projection
 recovery behavior.
@@ -194,7 +188,7 @@ the registry separately enforces `ISSUER_ROLE`.
 sequenceDiagram
   autonumber
   actor Verifier
-  participant Client as Web or mobile verifier
+  participant Client as Web verifier
   participant API as Credora API
   participant Browser as Web direct verifier
   participant RPC as EVM RPC and registry
@@ -213,15 +207,11 @@ sequenceDiagram
     Browser->>Store: Fetch ipfs:// metadata via public gateway
     Browser->>Browser: Recompute v1 hash and compare bound addresses
     Browser-->>Client: direct result
-  else Mobile API request fails
-    Note over Client: Show service-unavailable; the credential is not marked invalid
   end
 ```
 
-The direct fallback is a web capability only. The mobile app uses the API and
-reports service unavailability when it cannot reach it. Verification requires
-an existing registry record and metadata whose canonical v1 Keccak hash and
-issuer/learner bindings match. The detailed document also diagrams all
+Verification requires an existing registry record and metadata whose canonical
+v1 Keccak hash and issuer/learner bindings match. The detailed document also diagrams all
 individual verification states, API projection rebuilding, organization roles,
 share capabilities, and production deployment.
 
@@ -238,13 +228,12 @@ share capabilities, and production deployment.
 1. **Show the product surface.** Open `/` and verify a public credential QR or link against the configured registry and metadata source.
 2. **Issue a real local credential.** Start Anvil, deploy `CredentialRegistry`, authorize a test issuer, and configure the API and web app for that registry. Connect the issuer wallet at `/issuer`, enter a learner address and credential fields, upload metadata, then approve the wallet transaction.
 3. **Verify independently.** Open the resulting `/verify/<credential-hash>` link. Show the registry-bound result and public metadata. If configured, use direct RPC plus the IPFS gateway to demonstrate verification outside the API.
-4. **Show holder sharing.** Open `/wallet`, copy a public credential link or create a selected, expiring share QR. Scan it with the mobile app or show the `/share/<token>` receiver. Explain that every hash is verified separately and that a QR does not authenticate its presenter.
+4. **Show holder sharing.** Open `/wallet`, copy a public credential link or create a selected, expiring share QR. Open the `/share/<token>` receiver. Explain that every hash is verified separately and that a QR does not authenticate its presenter.
 5. **Show a failure state.** Demonstrate malformed input, an absent hash, or a deliberately unavailable registry/gateway. The verifier keeps service failures separate from proof mismatch.
 
 ### Setup and evidence notes
 
 - A real issuance walkthrough needs Anvil, a deployed registry, a funded local test wallet, and working metadata storage. Local file storage supports an API-backed walkthrough; configure IPFS upload and gateway settings to demonstrate direct verification outside the API.
-- Native camera scanning, file sharing, accessibility, and safe-area behavior need Android/iOS device or emulator checks before claiming mobile release readiness.
 - The organization applicant QR and superadmin approval flow is implemented in source, but should be presented as a workflow preview until the authenticated application, review, suspension, and registry-backed issuance paths receive end-to-end validation.
 
-**Evidence:** `docs/setup/blockchain.md`, `apps/web/src/components/verify-form.tsx`, `apps/web/src/components/issuer-workspace.tsx`, `apps/mobile/App.tsx`, `tests/e2e/`.
+**Evidence:** `docs/setup/blockchain.md`, `apps/web/src/components/verify-form.tsx`, `apps/web/src/components/issuer-workspace.tsx`, `tests/e2e/`.

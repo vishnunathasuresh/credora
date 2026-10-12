@@ -20,7 +20,7 @@ Credora separates the authoritative blockchain proof from the metadata and rebui
 
 ## Operating Context
 
-The web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet with selected-credential share QR codes, and administrative surfaces. Issuers can optionally attach a public image to credential metadata; the credential QR continues to open the verifiable public record. The Expo/Tamagui mobile app provides a local public-link library, QR presentation and scanning, service-backed verification, and public JSON export. Its child PRODUCT.md owns native platform context; signing-wallet sessions remain in the web holder flow.
+The web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet with selected-credential share QR codes, and administrative surfaces. Issuers can optionally attach a public image to credential metadata; the credential QR continues to open the verifiable public record. Wallet signing sessions stay in the web holder flow.
 
 ## Capabilities and Constraints
 

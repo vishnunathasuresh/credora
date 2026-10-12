@@ -33,5 +33,3 @@ Organization enrollment starts from `/org` after wallet authentication. A reques
 First-time wallet guidance explains account creation, recovery-phrase privacy, sharing the public address with an issuer, and signing the web login message. Keep this help beside the holder journey. Public verification remains available without a wallet. Distinguish wallet connection, signed login, and issuance transactions; signing in does not cost gas.
 
 Verification feedback names the failed dependency or proof condition, then offers a relevant next action. Keep malformed references, absent records, ledger outages, unavailable metadata, inconsistent metadata, and service outages distinct. An unavailable service must not appear as an invalid credential. Loading, empty collections, local storage failures, and sharing failures need explicit copy rather than blank surfaces.
-
-Native screens inherit this identity through Tamagui rather than web primitives. Platform context lives in `apps/mobile/PRODUCT.md` and `apps/mobile/DESIGN.md`: the native app carries locally saved public links and verifies through the configured service; wallet signing stays on the web.

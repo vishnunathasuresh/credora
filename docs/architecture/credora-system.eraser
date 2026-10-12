@@ -22,7 +22,7 @@ commit [label: "02 · Anchoring, discovery and sharing"] {
   Registry [icon: solidity, color: green, shape: rectangle, label: "Credential registries v1 + v3 / Immutable record · issuer check · issuance event"]
   Confirm [icon: badge-check, color: purple, shape: rectangle, label: "Validate transaction and receipt / POST /issuances/:id/confirm · sender + record bindings"]
   Sync [icon: refresh-cw, color: purple, shape: rectangle, label: "API event reconciliation / Poll CredentialIssued · confirmations · reorg rescan"]
-  Holder [icon: expo, color: blue, shape: rectangle, label: "Holder web / Android library / Save public credential reference locally"]
+  Holder [icon: next, color: blue, shape: rectangle, label: "Holder web wallet / Save public credential references"]
   Share [icon: share-2, color: purple, shape: rectangle, label: "Create fixed credential bundle / POST /wallet/shares · 1–25 hashes · 1/7/30 days"]
   Qr [icon: qr-code, color: blue, shape: rectangle, label: "Share URL / QR / Bearer link + separate management/revoke secret"]
 }
@@ -31,7 +31,7 @@ verification [label: "03 · Public proof verification"] {
   Verifier [icon: scan-line, color: blue, shape: rectangle, label: "Verifier opens link or scans QR / No login required"]
   Resolve [icon: list-checks, color: purple, shape: rectangle, label: "Resolve active share / GET /wallet/shares/:token → selected hashes"]
   Parse [icon: binary, color: purple, shape: diamond, label: "Valid 32-byte reference? / Validate configured credential reference"]
-  Route [icon: network, color: purple, shape: diamond, label: "API reachable? / Web / Android verification request"]
+  Route [icon: network, color: purple, shape: diamond, label: "API reachable? / Web verification request"]
   Direct [icon: globe, color: blue, shape: rectangle, label: "Web direct verification / Fallback to configured RPC + public IPFS gateway"]
   Read [icon: search, color: purple, shape: rectangle, label: "Read immutable chain record / getCredential(hash) via configured EVM RPC"]
   Exists [icon: file-question-mark, color: purple, shape: diamond, label: "Record exists? / Selected chain + registry"]
@@ -47,7 +47,6 @@ results [label: "04 · Verification outcomes"] {
   Malformed [icon: triangle-alert, color: red, shape: rectangle, label: "Malformed reference / Reject before proof lookup"]
   LedgerDown [icon: unplug, color: orange, shape: rectangle, label: "Ledger unavailable / RPC / registry read failure"]
   MetadataDown [icon: cloud-off, color: orange, shape: rectangle, label: "Metadata unavailable / Gateway / retrieval failure"]
-  ApiDown [icon: server-off, color: orange, shape: rectangle, label: "Android: service unavailable / API failure is not invalid proof"]
 }
 
 resources [label: "Shared persistence and metadata"] {
@@ -88,7 +87,6 @@ Resolve > Parse: each selected hash [color: purple]
 Parse > Malformed: No [color: red]
 Parse > Route: Yes [color: purple]
 Route > Direct: No · web fallback [color: blue]
-Route > ApiDown: No · Android [color: orange]
 Route > Read: Yes · API verifier [color: purple]
 Direct > Read: API-independent read [color: blue]
 Independent --> Read: bypass API [color: blue]

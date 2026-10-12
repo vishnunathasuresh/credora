@@ -9,7 +9,6 @@ explore the empty-state and public verification flows without seeded records.
 | ----------------------------------------- | ---------------------------------------------------------- |
 | [Local development](local-development.md) | Contributors running the website and API                   |
 | [Blockchain development](blockchain.md)   | Developers testing contracts and real local issuance flows |
-| [Mobile setup](mobile.md)                 | Expo Go, browser preview, and Android/iOS builds           |
 | [User roles](user-roles.md)               | Verifiers, credential holders, issuers, and administrators |
 | [Production setup](production.md)         | Operators hosting the web app and API                      |
 | [Troubleshooting](troubleshooting.md)     | Common setup and connectivity problems                     |

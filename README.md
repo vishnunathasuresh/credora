@@ -28,8 +28,6 @@ workflows and user roles.
 
 - `apps/web` — issuer, holder, organization, administration, and public verifier
   flows built with Next.js.
-- `apps/mobile` — Expo holder and verifier for saving public links, scanning QR
-  codes, checking credentials, and sharing selected records.
 - `apps/api` — wallet sessions, organization workflows, sharing, audit, and
   chain/IPFS-backed verification. It never overrides the registry.
 - `contracts` — Solidity registry and Foundry scripts.
@@ -41,7 +39,6 @@ workflows and user roles.
 | ------------------------------------------------------ | ---------------------------------------------------- |
 | Run the web app and API                                | [Local development](docs/setup/local-development.md) |
 | Run Anvil and the local registry                       | [Blockchain development](docs/setup/blockchain.md)   |
-| Use the Expo mobile app                                | [Mobile setup](docs/setup/mobile.md)                 |
 | Set up as a verifier, holder, issuer, or administrator | [User roles](docs/setup/user-roles.md)               |
 | Host Credora yourself                                  | [Production setup](docs/setup/production.md)         |
 | Diagnose common local failures                         | [Troubleshooting](docs/setup/troubleshooting.md)     |

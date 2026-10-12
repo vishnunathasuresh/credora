@@ -113,13 +113,10 @@ The web verifier calls the API first. If the request errors or returns HTTP
 503, web code can try direct RPC and a public IPFS gateway. That fallback needs
 browser-visible RPC, registry, and gateway configuration, and it handles
 `ipfs://` metadata. It cannot read files stored in the API's local directory.
-The mobile verifier currently calls the API and does not have this direct
-fallback.
 
 Sources: [API verification route](../apps/api/src/index.ts),
 [web API-first verification](../apps/web/src/lib/verification-api.ts),
 [web direct verification](../apps/web/src/lib/direct-verification.ts),
-[mobile verification](../apps/mobile/src/credentials.ts).
 
 ## Why use a blockchain?
 
@@ -183,10 +180,10 @@ chain events and operational records such as applications, sessions, and
 share management. Chain-derived rows can be rebuilt from registry events.
 Applications and access decisions cannot be reconstructed from the chain.
 
-The API is replaceable as a proof authority, but some product functions still
-depend on it. For example, the mobile app needs the API to verify credentials
-and look up share bundles. If the API goes down, the proof remains unchanged,
-but the mobile app cannot currently check it through its own direct RPC path.
+The API is replaceable as a proof authority, but product functions such as
+sessions, organization workflows, and share bundles still depend on it. If
+the API goes down, the proof remains unchanged and the web verifier can use its
+direct RPC path when configured.
 
 ## Organization access and issuer permission are different
 
@@ -227,7 +224,6 @@ public blockchain records or copies that a verifier already received.
 | Part | In plain words |
 | --- | --- |
 | [`apps/web`](../apps/web/src/app/page.tsx) | The Next.js website for issuance, organization and admin workspaces, the holder wallet, public verification, and share pages. |
-| [`apps/mobile`](../apps/mobile/App.tsx) | The Expo Android app. It saves public credential references on-device, scans QR codes, verifies through the API, and supports selected shares. |
 | [`apps/api`](../apps/api/src/index.ts) | The HTTP API. It handles sessions, roles, drafts, metadata, verification, sharing, admin operations, and chain synchronization. |
 | [`packages/credential-core`](../packages/credential-core/src/index.ts) | Shared normalization and v1 hash functions, plus v2 selective-disclosure helpers. |
 | [`packages/blockchain`](../packages/blockchain/src/index.ts) | The API's viem adapter for talking to the EVM registry. |
@@ -239,7 +235,7 @@ public blockchain records or copies that a verifier already received.
 | [`deploy`](../deploy/docker-compose.yml) | Docker Compose, Caddy HTTPS routing, and API/database operations. |
 
 The normal dependency direction is app to package. The package code should not
-depend on a web or mobile app. The API's routes and service logic are currently
+depend on a web app. The API's routes and service logic are currently
 combined in one large source file, which is important to describe honestly if
 someone asks whether the backend has separate services.
 
@@ -284,14 +280,12 @@ Implemented in the current code:
 - Organization application review and issuer authorization as separate steps.
 - SQLite projections, chain-event scanning, and reorg overlap handling.
 - Selected-hash sharing with expiry and a separate revoke token.
-- Mobile local storage for public references and API-based verification.
 - v2 hash and Merkle proof helper functions in `credential-core`.
 
 Not implemented as complete product features:
 
 - A user-facing v2 selective-disclosure issue, share, and verify flow.
 - A generic credential search endpoint. The API has scoped list endpoints.
-- A direct RPC verification fallback in the mobile app.
 - Learner wallet recovery or key rotation.
 - On-chain organization identities and issuer-key administration.
 - Credential revocation or correction in the v1 contract.
@@ -375,8 +369,7 @@ holding the QR.
 
 The app reports the relevant service as unavailable. It should not mark the
 credential invalid unless it actually fetches the sources and finds a mismatch.
-The web app may use its direct path during an API outage; mobile currently
-depends on the API.
+The web app may use its direct path during an API outage.
 
 ### “What is the project’s novelty?”
 
@@ -389,7 +382,7 @@ tools are new.
 ### “Is selective disclosure available in the app?”
 
 The shared library can build and verify v2 Merkle disclosures. The normal
-issuance, API, web, and mobile flows still use v1 public manifests, so the
+issuance, API, and web flows still use v1 public manifests, so the
 selective-disclosure experience is not shipped end to end.
 
 ## A one-minute explanation you can practice
@@ -414,7 +407,7 @@ selective-disclosure experience is not shipped end to end.
 | “Blockchain proves the person earned it.” | “The chain proves an authorized wallet recorded this hash; the verifier must trust the issuer's standards.” |
 | “The credential is private.” | “V1 proof references and metadata are public.” |
 | “IPFS guarantees the file stays online.” | “The CID identifies the file; pinning and gateway availability still matter.” |
-| “Every app verifies without the API.” | “The web app has a direct fallback; mobile currently uses the API.” |
+| “Every app verifies without the API.” | “The web app has a direct fallback when configured.” |
 | “V2 selective disclosure is shipped.” | “The core package has v2 helpers; the user-facing flow is not integrated.” |
 | “Organizations are registered on-chain.” | “Organization applications and access are API records in v1.” |
 | “A QR proves the holder owns the credential.” | “A QR shares a public reference; it does not prove wallet control.” |
@@ -442,7 +435,6 @@ selective-disclosure experience is not shipped end to end.
 - [Solidity registry](../contracts/src/CredentialRegistry.sol)
 - [Canonical and selective credential functions](../packages/credential-core/src/index.ts)
 - [Web direct and API verification](../apps/web/src/lib/direct-verification.ts), [API-first selection](../apps/web/src/lib/verification-api.ts)
-- [Mobile verification and local library](../apps/mobile/src/credentials.ts), [mobile app state and sharing](../apps/mobile/App.tsx)
 - [IPFS and file adapters](../packages/storage/src/index.ts)
 - [Production Compose services](../deploy/docker-compose.yml)
 - [Implementation diagrams](../docs/architecture/diagrams.md)

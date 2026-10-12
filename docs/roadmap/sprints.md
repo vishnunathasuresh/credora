@@ -44,7 +44,7 @@ organization issuance is available.
 Goal: make the first-time verifier feel oriented, informed, and safe.
 
 - [x] Audit the web surface with Apple Design and Impeccable guidance.
-- [x] Add an accessible mobile navigation path instead of hiding routes.
+- [x] Add an accessible compact-screen navigation path instead of hiding routes.
 - [x] Give credential-hash entry inline validation and an explicit checking state.
 - [x] Distinguish verified, not found, proof mismatch, metadata unavailable, and
       ledger unavailable in the result surface.
@@ -53,7 +53,7 @@ Goal: make the first-time verifier feel oriented, informed, and safe.
 - [x] Add route-level loading and retry affordances for slow ledger responses.
 
 Exit signal: a verifier can submit a valid or invalid reference and understand
-what happened, what is authoritative, and what to do next on desktop or mobile.
+what happened, what is authoritative, and what to do next at any screen size.
 
 ## Sprint 02 — Issuer workspace foundation (website complete)
 
@@ -75,7 +75,7 @@ Exit signal: an issuer can prepare one credential, see every infrastructure
 state, and reach a confirmed on-chain record without private key material ever
 entering the API.
 
-## Sprint 03 — Holder wallet and sharing (web and mobile UI implemented)
+## Sprint 03 — Holder wallet and sharing (web UI implemented)
 
 Goal: make credentials portable for learners without weakening privacy.
 
@@ -85,10 +85,6 @@ Goal: make credentials portable for learners without weakening privacy.
 - [x] Add recovery/empty/offline states that do not claim a credential is invalid.
 - [x] Add an expiring one-QR share for the holder-selected public credential set.
 - [x] Reverify each included proof independently when a verifier opens a share.
-- [x] Add Tamagui holder/verifier flows, QR scanning, and native credential cards.
-
-Native device/emulator QA, including camera permissions, QR scanning, safe areas,
-screen readers, and the system share sheet, remains before native release.
 
 Website exit signal: an admin can authorize an issuer, an issuer can issue an
 immutable credential, and a learner can copy a public verification link.
@@ -125,5 +121,4 @@ Deployment exit evidence still needed: Foundry contract tests, independent
 contract review, fresh-registry browser issuance, and verification against the
 deployed v3 address.
 
-The web and native UI implementation is complete for this phase. The native
-bundle is build-checked, while release readiness still requires device QA.
+The web UI implementation is complete for this phase.

@@ -26,7 +26,6 @@ stopping the API, replacing `credora.sqlite` with a verified backup, and
 starting the stack again.
 
 The CD workflow publishes the API container image; it does not connect to or
-deploy onto a hosting server. This Compose stack builds both apps on the target
-host. Point both DNS names at that host and check `docker compose ps` plus
-`https://api.<domain>/readyz` after startup. Mobile distribution remains a
-separate Expo build configured with the same public API and web URLs.
+deploy onto a hosting server. This Compose stack builds the web app and API on the target host. Point both
+DNS names at that host and check `docker compose ps` plus
+`https://api.<domain>/readyz` after startup.

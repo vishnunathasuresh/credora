@@ -15,8 +15,8 @@ this file; they do not replace the engineering rules below.
 - Issued credentials are immutable in v1. Corrections require a future
   append-only revocation/status design.
 - Apps may depend on packages; packages must not depend on apps.
-- Keep web and native UI platform-specific where needed, while sharing domain
-  types, hashing, validation, API contracts, and design tokens.
+- Keep the web UI in `apps/web`; share domain types, hashing, validation, API
+  contracts, and design tokens through workspace packages.
 - Every infrastructure failure must have a distinct user-facing state.
 - Prefer local, self-hostable, and free development dependencies.
 

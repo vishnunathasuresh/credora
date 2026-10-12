@@ -7,7 +7,7 @@ Prioritize correctness, security, and preservation of the protocol boundaries:
 - Use Keccak-256 for credential hashes and keep credential hashes distinct from IPFS CIDs.
 - Treat issued credentials as immutable in v1; corrections require a future append-only revocation/status design.
 - Keep dependencies flowing from packages to apps, never from packages to apps.
-- Preserve platform-specific web/native UI boundaries while sharing domain types, hashing, validation, API contracts, and design tokens.
+- Keep the web UI in `apps/web` and share domain types, hashing, validation, API contracts, and design tokens through workspace packages.
 - Require distinct user-facing states for ledger, metadata, and other infrastructure failures.
 
 For every pull request, look for missing tests around authorization, hash integrity,

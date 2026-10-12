@@ -11,12 +11,6 @@ Web [label: "WEB APPLICATION", icon: next, color: blue] {
   Web2 [icon: wallet, label: "viem + browser wallet / EIP-1193 signing · non-custodial keys"]
 }
 
-Mobile [label: "ANDROID APPLICATION", icon: expo, color: blue] {
-  Mobile0 [icon: expo, label: "Expo + React Native / Native holder library and verifier"]
-  Mobile1 [icon: react, label: "Tamagui + native UI / Camera · SVG / QR · sharing APIs"]
-  Mobile2 [icon: smartphone, label: "AsyncStorage / Device-local saved references + shares"]
-}
-
 Api [label: "API & OPERATIONAL STATE", icon: node, color: purple] {
   Api0 [icon: node, label: "Node.js + TypeScript / Single HTTP service · JSON routes"]
   Api1 [icon: key-round, label: "Wallet-signature authentication / Nonce challenges · sessions · live role checks"]
@@ -42,11 +36,9 @@ Ops [label: "BUILD, DEPLOY & VERIFY", icon: docker, color: gray] {
 }
 
 Web > Api: HTTPS JSON
-Mobile > Api: HTTPS JSON
 Api > Proof: registry reads + IPFS adapter
 Web > Proof: signed transactions / direct verification
 Domain --> Web: shared packages
-Domain --> Mobile: core + domain types
 Domain --> Api: shared packages
 Ops --> Web: build / host
 Ops --> Api: build / host
