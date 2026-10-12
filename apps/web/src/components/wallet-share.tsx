@@ -27,6 +27,7 @@ type ActiveShare = {
 };
 
 const storageKey = 'credora.wallet-share.v1';
+const recoveryStorageKey = 'credora.wallet-share-recovery.v1';
 
 async function shareRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(apiUrlFor(path), {
@@ -59,10 +60,31 @@ function readStoredShare(): ActiveShare | undefined {
   return undefined;
 }
 
+function readStoredRecoveryShares(): ActiveShare[] {
+  try {
+    const value = localStorage.getItem(recoveryStorageKey);
+    if (!value) return [];
+    const parsed = JSON.parse(value) as ActiveShare[];
+    if (Array.isArray(parsed))
+      return parsed.filter(
+        (share) =>
+          typeof share.id === 'string' &&
+          typeof share.managementToken === 'string' &&
+          Date.parse(share.expiresAt) > Date.now() &&
+          Array.isArray(share.credentialHashes),
+      );
+    localStorage.removeItem(recoveryStorageKey);
+  } catch {
+    localStorage.removeItem(recoveryStorageKey);
+  }
+  return [];
+}
+
 export function WalletShare({ credentials }: { credentials: ShareCredential[] }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [durationDays, setDurationDays] = useState(7);
   const [activeShare, setActiveShare] = useState<ActiveShare>();
+  const [recoveryShares, setRecoveryShares] = useState<ActiveShare[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -80,13 +102,18 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
 
   useEffect(() => {
     setCurrentOrigin(window.location.origin);
-    setActiveShare(readStoredShare());
+    const stored = readStoredShare();
+    setActiveShare(stored);
+    setSelected(stored?.credentialHashes ?? []);
+    setRecoveryShares(readStoredRecoveryShares());
   }, []);
 
   function toggle(hash: string) {
-    setSelected((current) =>
-      current.includes(hash) ? current.filter((item) => item !== hash) : [...current, hash],
-    );
+    setSelected((current) => {
+      if (current.includes(hash)) return current.filter((item) => item !== hash);
+      if (current.length >= 25) return current;
+      return [...current, hash];
+    });
   }
 
   async function turnOffShare(share = activeShare) {
@@ -98,14 +125,26 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
         method: 'DELETE',
         headers: { 'x-share-management-token': share.managementToken },
       });
-      localStorage.removeItem(storageKey);
-      setActiveShare(undefined);
+      if (share.id === activeShare?.id) {
+        localStorage.removeItem(storageKey);
+        setActiveShare(undefined);
+      } else {
+        const remaining = recoveryShares.filter((item) => item.id !== share.id);
+        localStorage.setItem(recoveryStorageKey, JSON.stringify(remaining));
+        setRecoveryShares(remaining);
+      }
       setNotice('This QR has been turned off. Saved or photographed copies cannot be recalled.');
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Could not turn off this QR.';
       if (message.toLowerCase().includes('expired') || message.toLowerCase().includes('already')) {
-        localStorage.removeItem(storageKey);
-        setActiveShare(undefined);
+        if (share.id === activeShare?.id) {
+          localStorage.removeItem(storageKey);
+          setActiveShare(undefined);
+        } else {
+          const remaining = recoveryShares.filter((item) => item.id !== share.id);
+          localStorage.setItem(recoveryStorageKey, JSON.stringify(remaining));
+          setRecoveryShares(remaining);
+        }
         setNotice('This QR is already inactive.');
       } else setError(message);
     } finally {
@@ -119,11 +158,6 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
     setError('');
     setNotice('');
     try {
-      if (activeShare)
-        await shareRequest(`/wallet/shares/${encodeURIComponent(activeShare.id)}`, {
-          method: 'DELETE',
-          headers: { 'x-share-management-token': activeShare.managementToken },
-        });
       const created = await shareRequest<Omit<ActiveShare, 'credentialHashes'>>('/wallet/shares', {
         method: 'POST',
         body: JSON.stringify({ credentialHashes: selected, durationDays }),
@@ -131,7 +165,22 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
       const next: ActiveShare = { ...created, credentialHashes: [...selected] };
       localStorage.setItem(storageKey, JSON.stringify(next));
       setActiveShare(next);
-      setNotice('Previous QR turned off. This QR shares only the selected credentials.');
+      if (activeShare) {
+        try {
+          await shareRequest(`/wallet/shares/${encodeURIComponent(activeShare.id)}`, {
+            method: 'DELETE',
+            headers: { 'x-share-management-token': activeShare.managementToken },
+          });
+          setNotice('New QR ready. The previous QR has been turned off.');
+        } catch {
+          const recoverable = [...recoveryShares, activeShare];
+          localStorage.setItem(recoveryStorageKey, JSON.stringify(recoverable));
+          setRecoveryShares(recoverable);
+          setNotice('New QR ready. The previous QR may still work; turn it off below.');
+        }
+      } else {
+        setNotice('Your share QR is ready.');
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create a share QR.');
     } finally {
@@ -193,6 +242,7 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
               <Checkbox
                 id={id}
                 checked={checked}
+                disabled={!checked && selected.length >= 25}
                 onCheckedChange={() => toggle(credential.credential_hash)}
               />
               <Label htmlFor={id} className="wallet-share-option-copy">
@@ -210,6 +260,9 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
         <p className="form-help form-error" role="alert">
           Share up to 25 credentials at a time so the results stay quick and easy to scan.
         </p>
+      ) : null}
+      {selected.length === 25 ? (
+        <p className="form-help">Maximum reached. Remove a credential to add a different one.</p>
       ) : null}
       <div className="wallet-share-controls">
         <div className="wallet-share-duration">
@@ -292,10 +345,37 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
             </div>
             {currentSetMatches === false ? (
               <span className="form-help">
-                Your selection changed. Replacing this QR will turn off the old selection first.
+                Your selection changed. Creating a new QR turns off the old one after the new one is
+                ready.
               </span>
             ) : null}
           </div>
+        </div>
+      ) : null}
+      {recoveryShares.length ? (
+        <div className="wallet-share-recovery" role="status">
+          <strong>Previous QR may still be active</strong>
+          <p>
+            The new code is ready, but Credora could not confirm that the previous one was turned
+            off. Turn it off here to stop future visits.
+          </p>
+          {recoveryShares.map((share) => (
+            <div className="wallet-share-recovery-row" key={share.id}>
+              <span>
+                {share.credentialHashes.length} credential
+                {share.credentialHashes.length === 1 ? '' : 's'} · expires{' '}
+                {new Date(share.expiresAt).toLocaleString()}
+              </span>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy}
+                onClick={() => void turnOffShare(share)}
+              >
+                Turn off previous QR
+              </Button>
+            </div>
+          ))}
         </div>
       ) : null}
       <p className="wallet-share-footnote">

@@ -3590,6 +3590,34 @@ a[data-slot='button'][data-variant='default'] {
   margin-top: 16px;
 }
 
+.wallet-share-recovery {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.wallet-share-recovery > p,
+.wallet-share-recovery-row > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.wallet-share-recovery-row {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
 .credential-card-list {
   border: 0;
   display: grid;

@@ -51,6 +51,7 @@ type Tab = 'wallet' | 'verify' | 'settings';
 const libraryKey = 'credora-public-library-v1';
 const settingsKey = 'credora-mobile-settings-v1';
 const walletShareKey = 'credora-mobile-wallet-share-v1';
+const walletShareRecoveryKey = 'credora-mobile-wallet-share-recovery-v1';
 const defaultApi = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
 const defaultWeb = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000';
 
@@ -105,6 +106,7 @@ function MobileApp() {
   const [selectedForShare, setSelectedForShare] = useState<string[]>([]);
   const [shareDuration, setShareDuration] = useState(7);
   const [activeShare, setActiveShare] = useState<WalletShare | null>(null);
+  const [recoveryShares, setRecoveryShares] = useState<WalletShare[]>([]);
   const [shareBusy, setShareBusy] = useState(false);
   const [presentedShare, setPresentedShare] = useState<{
     token: string;
@@ -125,10 +127,11 @@ function MobileApp() {
   useEffect(() => {
     void (async () => {
       try {
-        const [saved, settings, savedShare] = await Promise.all([
+        const [saved, settings, savedShare, savedRecoveryShares] = await Promise.all([
           AsyncStorage.getItem(libraryKey),
           AsyncStorage.getItem(settingsKey),
           AsyncStorage.getItem(walletShareKey),
+          AsyncStorage.getItem(walletShareRecoveryKey),
         ]);
         setLibrary(readSavedCredentials(saved));
         if (savedShare) {
@@ -138,9 +141,24 @@ function MobileApp() {
             typeof share.managementToken === 'string' &&
             Date.parse(share.expiresAt) > Date.now() &&
             Array.isArray(share.credentialHashes)
-          )
+          ) {
             setActiveShare(share);
-          else await AsyncStorage.removeItem(walletShareKey);
+            setSelectedForShare(share.credentialHashes);
+          } else await AsyncStorage.removeItem(walletShareKey);
+        }
+        if (savedRecoveryShares) {
+          const shares = JSON.parse(savedRecoveryShares) as WalletShare[];
+          setRecoveryShares(
+            Array.isArray(shares)
+              ? shares.filter(
+                  (share) =>
+                    typeof share.id === 'string' &&
+                    typeof share.managementToken === 'string' &&
+                    Date.parse(share.expiresAt) > Date.now() &&
+                    Array.isArray(share.credentialHashes),
+                )
+              : [],
+          );
         }
         setLibraryLoaded(true);
         if (settings) {
@@ -277,14 +295,21 @@ function MobileApp() {
     setShareBusy(true);
     setNotice('Preparing a share QR…');
     try {
-      if (activeShare) await revokeWalletShare(apiUrl, activeShare);
-      await AsyncStorage.removeItem(walletShareKey);
-      setActiveShare(null);
       const created = await createWalletShare(apiUrl, selectedForShare, shareDuration);
       const next: WalletShare = { ...created, credentialHashes: [...selectedForShare] };
       await AsyncStorage.setItem(walletShareKey, JSON.stringify(next));
       setActiveShare(next);
-      setNotice('Previous QR turned off. This QR shares only the selected credentials.');
+      if (activeShare) {
+        try {
+          await revokeWalletShare(apiUrl, activeShare);
+          setNotice('New QR ready. The previous QR has been turned off.');
+        } catch {
+          const recoverable = [...recoveryShares, activeShare];
+          await AsyncStorage.setItem(walletShareRecoveryKey, JSON.stringify(recoverable));
+          setRecoveryShares(recoverable);
+          setNotice('New QR ready. The previous QR may still work; turn it off below.');
+        }
+      } else setNotice('Your share QR is ready.');
     } catch (caught) {
       setNotice(
         caught instanceof Error
@@ -296,13 +321,19 @@ function MobileApp() {
     }
   }
 
-  async function turnOffShare() {
-    if (!activeShare || shareBusy) return;
+  async function turnOffShare(share = activeShare) {
+    if (!share || shareBusy) return;
     setShareBusy(true);
     try {
-      await revokeWalletShare(apiUrl, activeShare);
-      await AsyncStorage.removeItem(walletShareKey);
-      setActiveShare(null);
+      await revokeWalletShare(apiUrl, share);
+      if (share.id === activeShare?.id) {
+        await AsyncStorage.removeItem(walletShareKey);
+        setActiveShare(null);
+      } else {
+        const remaining = recoveryShares.filter((item) => item.id !== share.id);
+        await AsyncStorage.setItem(walletShareRecoveryKey, JSON.stringify(remaining));
+        setRecoveryShares(remaining);
+      }
       setNotice('This QR is off. A saved or photographed copy cannot be recalled.');
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'Could not turn off this QR.');
@@ -854,6 +885,29 @@ function MobileApp() {
                           </YStack>
                         ) : null}
                       </YStack>
+                      {recoveryShares.map((share) => (
+                        <YStack
+                          key={share.id}
+                          gap="$3"
+                          padding="$4"
+                          borderWidth={1}
+                          borderColor="$borderColor"
+                          borderRadius="$4"
+                        >
+                          <H2 fontSize={19}>Previous QR may still be active</H2>
+                          <Paragraph>
+                            {share.credentialHashes.length} selected · expires{' '}
+                            {new Date(share.expiresAt).toLocaleString()}
+                          </Paragraph>
+                          <Button
+                            minHeight={48}
+                            disabled={shareBusy}
+                            onPress={() => void turnOffShare(share)}
+                          >
+                            Turn off previous QR
+                          </Button>
+                        </YStack>
+                      ))}
                       {library.map((item) => (
                         <YStack
                           key={item.hash}
@@ -887,11 +941,16 @@ function MobileApp() {
                               accessibilityRole="checkbox"
                               accessibilityState={{ checked: selectedForShare.includes(item.hash) }}
                               onPress={() =>
-                                setSelectedForShare((current) =>
-                                  current.includes(item.hash)
-                                    ? current.filter((hash) => hash !== item.hash)
-                                    : [...current, item.hash],
-                                )
+                                setSelectedForShare((current) => {
+                                  if (current.includes(item.hash))
+                                    return current.filter((hash) => hash !== item.hash);
+                                  if (current.length >= 25) return current;
+                                  return [...current, item.hash];
+                                })
+                              }
+                              disabled={
+                                !selectedForShare.includes(item.hash) &&
+                                selectedForShare.length >= 25
                               }
                             >
                               {selectedForShare.includes(item.hash)

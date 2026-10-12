@@ -21,10 +21,23 @@ type VerifiedCredential = {
   issuerProfile: IssuerProfile;
 };
 
+class ShareRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message);
+  }
+}
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(apiUrlFor(path), { cache: 'no-store', signal });
-  const body = (await response.json().catch(() => ({}))) as T & { message?: string };
-  if (!response.ok) throw new Error(body.message ?? 'The sharing service is unavailable.');
+  const body = (await response.json().catch(() => ({}))) as T & {
+    message?: string;
+    error?: string;
+  };
+  if (!response.ok)
+    throw new ShareRequestError(body.message ?? 'The sharing service is unavailable.', body.error);
   return body as T;
 }
 
@@ -54,12 +67,14 @@ export function SharePresentation({ token }: { token: string }) {
   const [expiresAt, setExpiresAt] = useState('');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [shareUrl, setShareUrl] = useState('');
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
       setBusy(true);
       setError('');
+      setErrorCode('');
       try {
         const share = await getJson<ShareData>(
           `/wallet/shares/${encodeURIComponent(token)}`,
@@ -87,6 +102,7 @@ export function SharePresentation({ token }: { token: string }) {
         setCredentials(verified);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : 'This share cannot be opened.');
+        setErrorCode(caught instanceof ShareRequestError ? (caught.code ?? '') : '');
       } finally {
         setBusy(false);
       }
@@ -114,12 +130,26 @@ export function SharePresentation({ token }: { token: string }) {
         <section className="share-state share-state-error" role="alert">
           <AlertIcon />
           <div>
-            <strong>This share is unavailable.</strong>
-            <p>{error}</p>
+            <strong>
+              {errorCode === 'SHARE_EXPIRED'
+                ? 'This QR has expired or was turned off.'
+                : errorCode === 'SHARE_NOT_FOUND'
+                  ? 'This share link could not be found.'
+                  : 'We could not load this share.'}
+            </strong>
+            <p>
+              {errorCode === 'SHARE_EXPIRED'
+                ? 'Ask the holder for a new QR. Individual credential records may still be checked using their own links.'
+                : errorCode === 'SHARE_NOT_FOUND'
+                  ? 'Check the QR or link, or ask the holder to create a new share.'
+                  : `${error} Retry when the sharing service is available.`}
+            </p>
           </div>
-          <Button type="button" variant="outline" onClick={() => void load()}>
-            Retry
-          </Button>
+          {errorCode !== 'SHARE_EXPIRED' && errorCode !== 'SHARE_NOT_FOUND' ? (
+            <Button type="button" variant="outline" onClick={() => void load()}>
+              Retry
+            </Button>
+          ) : null}
         </section>
       ) : null}
       {!busy && !error ? (
