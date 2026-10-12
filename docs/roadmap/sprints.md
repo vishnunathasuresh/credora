@@ -22,8 +22,12 @@ The target model is recorded in [ADR 0010](../decisions/0010-organization-contro
 It is a planned migration; the current v1 role model above remains in force
 until the v3 registry and verifier are deployed.
 
-- [ ] Add organization registration and owner activation to a versioned
-      organization-aware registry; the initial owner is an issuer at activation.
+- [x] Draft `OrganizationCredentialRegistry` with one-time activation,
+      initial owner issuance, organization-admin delegation, and suspension.
+- [ ] Add contract security tests and independently review the v3 registry
+      before deployment.
+- [ ] Make organization activation contingent on a confirmed registry event
+      and project chain authority into the API.
 - [ ] Let organization admins grant and revoke their own issuer wallets
       on-chain; block issue calls for inactive or suspended organizations.
 - [ ] Keep superadmin review and suspension, but remove superadmin

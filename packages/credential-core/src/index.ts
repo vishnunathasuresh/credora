@@ -87,11 +87,39 @@ export type SelectiveCredentialPayload = {
   claimsRoot: Hex;
 };
 
+/** Organization-bound public credential payload. Credential protocol v2 remains selective disclosure. */
+export type OrganizationCredentialPayload = {
+  version: 3;
+  organizationId: Hex;
+  issuerAddress: Address;
+  learnerAddress: Address;
+  skillName: string;
+  skillLevel: string;
+  issueDate: string;
+  metadataUri: string;
+};
+
+export type OrganizationCredentialMetadata = {
+  schemaVersion: 3;
+  credentialHash?: Hex;
+  organizationId: Hex;
+  issuerAddress: Address;
+  learnerAddress: Address;
+  skillName: string;
+  skillLevel: string;
+  issueDate: string;
+  description?: string;
+  imageUri?: string;
+};
+
 const hashParameters = parseAbiParameters(
   'uint8, address, address, string, string, uint64, string',
 );
 const selectiveHashParameters = parseAbiParameters(
   'uint8, address, address, uint64, string, bytes32',
+);
+const organizationHashParameters = parseAbiParameters(
+  'uint8, bytes32, address, address, string, string, uint64, string',
 );
 const claimParameters = parseAbiParameters('string, string, bytes32');
 
@@ -158,6 +186,32 @@ export function hashSelectiveCredential(input: Omit<SelectiveCredentialPayload, 
       issueDateSeconds(issueDate),
       metadataUri,
       input.claimsRoot,
+    ]),
+  );
+}
+
+/** Hash v3 credential fields and the organization identity that is recorded by the v3 registry. */
+export function hashOrganizationCredential(
+  input: Omit<OrganizationCredentialPayload, 'version'>,
+): Hex {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(input.organizationId))
+    throw new Error('organizationId must be a 32-byte hash');
+  const issuerAddress = normalizeAddress(input.issuerAddress, 'issuerAddress');
+  const learnerAddress = normalizeAddress(input.learnerAddress, 'learnerAddress');
+  const issueDate = normalizeIssueDate(input.issueDate);
+  const skillName = normalizedText(input.skillName, 'skillName');
+  const skillLevel = normalizedText(input.skillLevel, 'skillLevel');
+  const metadataUri = normalizedText(input.metadataUri, 'metadataUri');
+  return keccak256(
+    encodeAbiParameters(organizationHashParameters, [
+      3,
+      input.organizationId,
+      issuerAddress,
+      learnerAddress,
+      skillName,
+      skillLevel,
+      issueDateSeconds(issueDate),
+      metadataUri,
     ]),
   );
 }
