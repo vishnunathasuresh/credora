@@ -1,60 +1,57 @@
 # Credora
 
-Credora issues, holds, shares, and independently verifies credentials. A
-Solidity registry is authoritative for credential proofs; IPFS stores public
-metadata; the API keeps a rebuildable projection for sessions and product
-workflows.
+Issue skills and certifications that holders can carry, share, and verify against public proof.
 
-## Start locally
+<p align="center">
+  <a href="https://credora-gules.vercel.app/">Open Credora</a> ·
+  <a href="docs/setup/local-development.md">Run it locally</a> ·
+  <a href="docs/architecture/overview.md">System architecture</a>
+</p>
 
-Requirements: Node.js 22 and pnpm 10.32.1 (the version pinned by this repo).
+<p align="center">
+  <picture>
+    <source media="(max-width: 600px)" srcset="./assets/readme/credential-proof-path-mobile.svg" />
+    <img src="./assets/readme/credential-proof-path.svg" width="100%" alt="Credora proof flow: an issuer signs a credential, its proof is anchored in an EVM registry and its metadata is stored on IPFS, a holder shares a link or QR code, and a verifier checks the public record and metadata." />
+  </picture>
+</p>
+
+Credora connects issuing organizations, credential holders, and independent verifiers. A verifier can check a credential from its public link or QR code without creating an account or connecting a wallet.
+
+## Proof and data
+
+| Source | What it establishes |
+| --- | --- |
+| **EVM registry** | Credential proof and issuer authorization. The registry is authoritative for the recorded credential fields. |
+| **IPFS** | Public metadata bytes addressed by a content identifier (CID). The CID is not the credential hash. |
+| **API + SQLite** | Sessions, organization workflows, sharing, audit records, and chain-derived projections. The projections can be rebuilt from registry history. |
+
+Credential hashes use versioned Keccak-256. Issued v1 credentials are immutable. Keep private keys and unnecessary personal data out of public metadata. Credora does not ship a seeded credential catalog; public verification and issuance need reachable, configured registry and metadata services.
+
+## Run locally
+
+Requirements: **Node.js 22** and **pnpm 10.32.1**.
 
 ```sh
 corepack enable
-corepack prepare pnpm@10.32.1 --activate
+corepack prepare \
+  pnpm@10.32.1 --activate
 pnpm install --frozen-lockfile
-[ -f .env.local ] || cp .env.example .env.local
-[ -f apps/web/.env.local ] || cp .env.example apps/web/.env.local
+[ -f .env.local ] ||
+  cp .env.example .env.local
+[ -f apps/web/.env.local ] ||
+  cp .env.example \
+    apps/web/.env.local
 pnpm dev
 ```
 
-Open <http://localhost:3000>. The API listens on port 4000. The app has no
-seeded credential catalog. Without a reachable registry, public-chain verification and
-issuance remain unavailable. See [local development setup](docs/setup/local-development.md)
-for environment details and [all setup guides](docs/setup/README.md) for other
-workflows and user roles.
+Open <http://localhost:3000>. The API listens on port `4000`. The web app can start without a wallet or local chain, but chain-backed verification and issuance need a configured registry and metadata gateway. Follow the [local development guide](docs/setup/local-development.md) for environment details, or the [blockchain guide](docs/setup/blockchain.md) to run Anvil and deploy local registries.
 
-## Applications
+## Workspaces
 
-- `apps/web` — issuer, holder, organization, administration, and public verifier
-  flows built with Next.js.
-- `apps/api` — wallet sessions, organization workflows, sharing, audit, and
-  chain/IPFS-backed verification. It never overrides the registry.
-- `contracts` — Solidity registry and Foundry scripts.
-- `packages/*` — shared protocol, storage, auth, and UI modules.
-
-## Choose a setup guide
-
-| Goal                                                   | Guide                                                |
-| ------------------------------------------------------ | ---------------------------------------------------- |
-| Run the web app and API                                | [Local development](docs/setup/local-development.md) |
-| Run Anvil and the local registry                       | [Blockchain development](docs/setup/blockchain.md)   |
-| Set up as a verifier, holder, issuer, or administrator | [User roles](docs/setup/user-roles.md)               |
-| Host Credora yourself                                  | [Production setup](docs/setup/production.md)         |
-| Diagnose common local failures                         | [Troubleshooting](docs/setup/troubleshooting.md)     |
-
-## Trust and data
-
-Credential hashes use versioned Keccak-256 and are distinct from IPFS CIDs.
-The registry proves credential existence, issuer, learner, and metadata URI;
-IPFS serves the metadata bytes. API and SQLite records are projections that
-can be rebuilt. Issued v1 credentials are immutable. Credential images are
-public metadata assets; issuers should not upload unnecessary personal data.
-
-Read the [architecture overview](docs/architecture/overview.md) and
-[protocol decisions](docs/decisions/) for the full model. The
-[self-host deployment guide](deploy/README.md) documents domains, TLS,
-persistent storage, backups, and production configuration.
+- `apps/web` — public verification, issuer and organization workspaces, holder wallet, and administration.
+- `apps/api` — wallet sessions, organization workflows, sharing, audit, and chain-backed verification.
+- `contracts` — Solidity credential registries and Foundry scripts.
+- `packages/*` — shared protocol, hashing, storage, auth, blockchain, and UI modules.
 
 ## Project checks
 
@@ -65,6 +62,11 @@ pnpm test
 pnpm build
 ```
 
-Contract checks require Foundry; API integration checks additionally require
-Anvil. See [blockchain development](docs/setup/blockchain.md) and the
-[contracts guide](contracts/README.md).
+Contract checks require Foundry; API integration checks also require Anvil. See [contract development](contracts/README.md) and the [blockchain guide](docs/setup/blockchain.md).
+
+## Guides
+
+- [All setup guides](docs/setup/README.md) — local development, blockchain, user roles, production, and troubleshooting.
+- [Architecture overview](docs/architecture/overview.md) — system boundaries and sources of truth.
+- [Protocol decisions](docs/decisions/) — credential formats, issuer authority, and sharing rules.
+- [Self-hosted deployment](deploy/README.md) — domains, TLS, persistent storage, and backups.
