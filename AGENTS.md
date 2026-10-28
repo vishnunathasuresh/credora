@@ -1,5 +1,14 @@
 # Credora Engineering Rules
 
+## Product direction
+
+Before planning or changing identity, profiles, credentials, sharing,
+organizations, or networking, read
+[the agreed product direction](docs/roadmap/product-direction.md).
+Use its delivery order and acceptance criteria; it describes planned behavior,
+not implementation status. Preserve the protocol decisions below while building
+toward that direction.
+
 ## Project skills
 
 The repository keeps reusable Codex guidance in `.agents/skills/`. Use

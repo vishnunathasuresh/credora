@@ -1,5 +1,13 @@
 # Credora sprint plan
 
+## Next product direction
+
+The [agreed product direction](product-direction.md) owns the next roadmap:
+identity and usernames, public profiles, the credential and lanyard experience,
+sharing, organizations, then professional networking. Use its release gates for
+new work. The sprint records below retain their existing implementation status;
+they do not indicate that the new direction has shipped.
+
 This plan keeps the public proof boundary authoritative: the web experience may
 make verification easier to understand, but it must never imply that API or
 database state is the source of truth.
