@@ -55,6 +55,7 @@ function RootComponent() {
     '/org',
     '/admin',
     '/superadmin',
+    '/settings/wallets',
   ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
   return (
     <RootDocument>
@@ -76,10 +77,10 @@ function RootComponent() {
           ) : (
             <div className="header-controls">
               <nav className="nav desktop-nav" aria-label="Primary navigation">
-                <Link to="/profile">Profiles</Link>
+                <Link to="/profile">My profile</Link>
                 <Link to="/verify">Verify</Link>
                 <Link to="/wallet">Credentials</Link>
-                <Link className="nav-cta" to="/profile">
+                <Link className="nav-cta" to="/join">
                   Get started
                 </Link>
               </nav>
@@ -109,6 +110,11 @@ function RootComponent() {
                   to="/dashboard"
                   label="Workspace home"
                   current={pathname === '/dashboard'}
+                />
+                <SidebarLink
+                  to="/settings/wallets"
+                  label="Linked wallets"
+                  current={pathname === '/settings/wallets'}
                 />
               </nav>
             </aside>
@@ -145,7 +151,7 @@ function SidebarLink({
   label,
   current,
 }: {
-  to: '/profile' | '/wallet' | '/verify' | '/dashboard';
+  to: '/profile' | '/wallet' | '/verify' | '/dashboard' | '/settings/wallets';
   label: string;
   current: boolean;
 }) {
@@ -163,6 +169,7 @@ function pageTitle(pathname: string) {
   if (pathname.startsWith('/org')) return 'Organization';
   if (pathname.startsWith('/admin')) return 'Administration';
   if (pathname.startsWith('/superadmin')) return 'Platform admin';
+  if (pathname.startsWith('/settings/wallets')) return 'Linked wallets';
   return 'Workspace';
 }
 

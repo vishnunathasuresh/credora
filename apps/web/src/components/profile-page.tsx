@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type {
   ProfileCredentialSummary,
   ProfileEducation,
@@ -7,12 +7,13 @@ import type {
   ProfileProject,
 } from '@credora/shared';
 import { credoraApi, type ApiError } from '../lib/credora-api';
+import { accountApi, type AccountProfileResponse } from '../lib/account-api';
 import {
-  connectWalletSession,
-  forgetSession,
-  storedSession,
-  type WalletSession,
-} from '../lib/wallet-session';
+  accountAuthConfigured,
+  signOutAccount,
+  subscribeAccountSession,
+  type AccountSession,
+} from '../lib/account-session';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -206,81 +207,121 @@ function ProfileTextField({
 }
 
 export function ProfileEditor() {
-  const [session, setSession] = useState<WalletSession>();
+  const [session, setSession] = useState<AccountSession>();
+  const [authResolved, setAuthResolved] = useState(false);
+  const requestVersion = useRef(0);
+  const loadedUser = useRef<string | undefined>(undefined);
   const [profile, setProfile] = useState<Profile>(emptyProfile);
   const [links, setLinks] = useState('');
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [linkedWalletCount, setLinkedWalletCount] = useState(0);
+  const [savedHandle, setSavedHandle] = useState('');
+  const [handleCheck, setHandleCheck] = useState<
+    'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'unavailable'
+  >('idle');
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [avatarPreviewFailed, setAvatarPreviewFailed] = useState(false);
 
-  async function load(current: WalletSession) {
+  async function load() {
+    const version = ++requestVersion.current;
     setLoading(true);
     setLoaded(false);
     setError('');
     try {
       const [result, items] = await Promise.all([
-        credoraApi<{ profile: Profile | null }>('/profile', {}, current.token),
-        credoraApi<{ items: Credential[] }>('/credentials?limit=100', {}, current.token),
+        accountApi<AccountProfileResponse<Profile>>('/account'),
+        accountApi<{ items: Credential[] }>('/account/credentials'),
       ]);
+      if (version !== requestVersion.current) return;
       const next = normalizeProfile(result.profile);
       setProfile(next);
       setLinks(next.links.join('\n'));
+      setSavedHandle(next.handle.toLowerCase());
       setAvatarPreviewFailed(false);
       setCredentials(items.items);
+      setLinkedWalletCount(result.wallets.length);
       setLoaded(true);
     } catch (cause) {
-      setError((cause as Error).message);
+      if (version === requestVersion.current) setError((cause as Error).message);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }
 
   useEffect(() => {
-    const current = storedSession();
-    if (current) {
-      setSession(current);
-      void load(current);
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    if (!accountAuthConfigured()) {
+      setAuthResolved(true);
+      return;
     }
+    void subscribeAccountSession((current) => {
+      if (!active) return;
+      setSession(current);
+      setAuthResolved(true);
+      if (current?.user.id === loadedUser.current) return;
+      loadedUser.current = current?.user.id;
+      ++requestVersion.current;
+      setProfile(emptyProfile);
+      setLinks('');
+      setLoaded(false);
+      setCredentials([]);
+      setLinkedWalletCount(0);
+      if (current)
+        setTimeout(() => {
+          if (active) void load();
+        }, 0);
+    })
+      .then((stop) => {
+        if (active) unsubscribe = stop;
+        else stop();
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : 'Account sign-in is unavailable.');
+          setAuthResolved(true);
+        }
+      });
+    return () => {
+      active = false;
+      ++requestVersion.current;
+      unsubscribe?.();
+    };
   }, []);
 
-  function disconnect() {
-    forgetSession();
-    window.location.reload();
-  }
-
   useEffect(() => {
-    const provider = (
-      window as Window & {
-        ethereum?: {
-          on?: (event: string, callback: () => void) => void;
-          removeListener?: (event: string, callback: () => void) => void;
-        };
-      }
-    ).ethereum;
-    if (!session || !provider?.on) return;
-    provider.on('accountsChanged', disconnect);
-    provider.on('disconnect', disconnect);
-    return () => {
-      provider.removeListener?.('accountsChanged', disconnect);
-      provider.removeListener?.('disconnect', disconnect);
-    };
-  }, [session?.address]);
-
-  async function connect() {
-    setError('');
-    setLoading(true);
-    try {
-      const current = await connectWalletSession();
-      setSession(current);
-      await load(current);
-    } catch (cause) {
-      setError((cause as Error).message);
-      setLoading(false);
+    const handle = profile.handle.trim().toLowerCase();
+    if (!session || !handle || handle === savedHandle) {
+      setHandleCheck('idle');
+      return;
     }
-  }
+    if (!/^[a-z0-9_]{3,30}$/.test(handle)) {
+      setHandleCheck('invalid');
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    setHandleCheck('checking');
+    const timer = setTimeout(() => {
+      void accountApi<{ available: boolean }>(`/account/handles/${encodeURIComponent(handle)}`, {
+        signal: controller.signal,
+      })
+        .then((result) => {
+          if (active) setHandleCheck(result.available ? 'available' : 'taken');
+        })
+        .catch((cause: ApiError) => {
+          if (active) setHandleCheck(cause.status === 400 ? 'invalid' : 'unavailable');
+        });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [profile.handle, savedHandle, session?.user.id]);
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -293,23 +334,20 @@ export function ProfileEditor() {
     setError('');
     setMessage('');
     try {
-      const result = await credoraApi<{ profile: Profile }>(
-        '/profile',
-        {
-          method: 'PUT',
-          body: JSON.stringify({
-            ...profile,
-            links: links
-              .split('\n')
-              .map((link) => link.trim())
-              .filter(Boolean),
-          }),
-        },
-        session.token,
-      );
+      const result = await accountApi<{ profile: Profile }>('/account/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...profile,
+          links: links
+            .split('\n')
+            .map((link) => link.trim())
+            .filter(Boolean),
+        }),
+      });
       const next = normalizeProfile(result.profile);
       setProfile(next);
       setLinks(next.links.join('\n'));
+      setSavedHandle(next.handle.toLowerCase());
       setMessage('Profile saved.');
     } catch (cause) {
       setError((cause as Error).message);
@@ -351,15 +389,13 @@ export function ProfileEditor() {
           <h1>Edit your profile</h1>
           <p>Choose the identity and credentials people can see.</p>
         </div>
-        {session && (
-          <span className="panel-note">
-            Wallet {session.address.slice(0, 6)}…{session.address.slice(-4)}
-          </span>
-        )}
       </header>
       {session && (
-        <Button variant="ghost" className="mt-4" type="button" onClick={disconnect}>
-          Disconnect wallet
+        <Button
+          variant="ghost"
+          onClick={() => void signOutAccount().catch((cause: Error) => setError(cause.message))}
+        >
+          Sign out
         </Button>
       )}
       {error && (
@@ -372,22 +408,21 @@ export function ProfileEditor() {
           {message}
         </p>
       )}
-      {!session ? (
+      {!authResolved ? (
+        <p role="status">Checking your account…</p>
+      ) : !session ? (
         <section className="workspace-panel app-connect-state">
-          <h2>Connect to edit your profile</h2>
-          <p>
-            Your profile stays under your control. Connecting signs a session message; it does not
-            send a transaction.
-          </p>
-          <Button className="min-h-11" onClick={() => void connect()} disabled={loading}>
-            {loading ? 'Connecting…' : 'Connect wallet'}
+          <h2>Your professional identity starts here.</h2>
+          <p>Choose your handle and build your profile. Add credentials when you’re ready.</p>
+          <Button asChild>
+            <Link to="/join">Continue with Google</Link>
           </Button>
         </section>
       ) : !loaded ? (
         <div className="workspace-panel app-empty-state" role={loading ? 'status' : undefined}>
           <p>{loading ? 'Loading your profile…' : 'Your profile could not be loaded.'}</p>
           {!loading && (
-            <Button variant="outline" onClick={() => void load(session)}>
+            <Button variant="outline" onClick={() => void load()}>
               Try loading again
             </Button>
           )}
@@ -414,6 +449,19 @@ export function ProfileEditor() {
                       maxLength={30}
                       onChange={(handle) => setProfile({ ...profile, handle })}
                     />
+                    <p role="status" className="text-sm text-muted-foreground">
+                      {
+                        {
+                          idle: '',
+                          checking: 'Checking availability…',
+                          available: 'This handle is available.',
+                          taken: 'This handle is taken.',
+                          invalid:
+                            'Choose 3–30 letters, numbers or underscores. System names are reserved.',
+                          unavailable: 'Availability could not be checked. You can try saving.',
+                        }[handleCheck]
+                      }
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       3–30 letters, numbers or underscores. Changes are limited to once every 30
                       days.

@@ -22,10 +22,11 @@ export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
           ['/profile', 'My profile'],
           ['/wallet', 'My credentials'],
           ['/dashboard', 'Workspace home'],
+          ['/settings/wallets', 'Linked wallets'],
           ['/verify', 'Verify a credential'],
         ] as const)
       : ([
-          ['/profile', 'Create a profile'],
+          ['/join', 'Create a profile'],
           ['/verify', 'Verify a credential'],
           ['/wallet', 'My credentials'],
         ] as const);

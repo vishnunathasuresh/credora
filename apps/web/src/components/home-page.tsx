@@ -18,7 +18,7 @@ export function HomePage() {
           </p>
           <div className="home-actions">
             <Button asChild className="home-primary-action">
-              <a href="/profile">
+              <a href="/join">
                 Build your profile <ArrowUpRightIcon />
               </a>
             </Button>
@@ -94,7 +94,7 @@ export function HomePage() {
                 keep everything else private until you’re ready to share.
               </p>
               <Button asChild variant="outline">
-                <a href="/profile">
+                <a href="/join">
                   Create a profile <ArrowUpRightIcon />
                 </a>
               </Button>
@@ -245,7 +245,7 @@ export function HomePage() {
             </p>
           </div>
           <Button asChild>
-            <a href="/profile">
+            <a href="/join">
               Build your profile <ArrowUpRightIcon />
             </a>
           </Button>

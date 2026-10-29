@@ -1,19 +1,10 @@
-'use client';
-import { WalletGuide } from './wallet-guide';
-import { Button } from './ui/button';
-
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowUpRightIcon, CheckIcon } from './icons';
-import { CredentialCard } from './credential-card';
-import { WalletShare } from './wallet-share';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { credoraApi } from '../lib/credora-api';
-import {
-  connectWalletSession,
-  forgetSession,
-  storedSession,
-  type WalletSession,
-} from '../lib/wallet-session';
+import { ArrowUpRightIcon } from './icons';
+import { Button } from './ui/button';
+import { WalletShare } from './wallet-share';
+import { accountApi, type AccountProfileResponse } from '../lib/account-api';
+import { accountAuthConfigured, subscribeAccountSession } from '../lib/account-session';
 
 type CredentialRow = {
   credential_hash: string;
@@ -23,223 +14,236 @@ type CredentialRow = {
   skill_name: string;
   skill_level: string;
   organization_name: string | null;
-  organization_logo_url: string | null;
 };
-
-function shortAddress(value: string) {
-  return `${value.slice(0, 6)}…${value.slice(-4)}`;
-}
+type Profile = {
+  handle: string;
+  name: string;
+  credentialHashes: string[];
+  [key: string]: unknown;
+};
+type Library = AccountProfileResponse<Profile> & { items: CredentialRow[] };
+type State = 'loading' | 'signed-out' | 'ready' | 'error';
 
 export function HolderWallet() {
-  const [session, setSession] = useState<WalletSession>();
-  const [credentials, setCredentials] = useState<CredentialRow[]>([]);
+  const [state, setState] = useState<State>('loading');
+  const [library, setLibrary] = useState<Library>();
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState('');
-  const [loaded, setLoaded] = useState(false);
-
-  const load = useCallback(async (current: WalletSession) => {
-    setLoaded(false);
-    setSession(current);
-    setError('');
-    const me = await credoraApi<WalletSession>('/me', {}, current.token);
-    const list = await credoraApi<{ items: CredentialRow[] }>('/credentials', {}, current.token);
-    setSession({ ...current, ...me });
-    setCredentials(list.items);
-    setLoaded(true);
-  }, []);
+  const [notice, setNotice] = useState('');
+  const [adding, setAdding] = useState('');
+  const [retry, setRetry] = useState(0);
+  const generation = useRef(0);
 
   useEffect(() => {
-    const current = storedSession();
-    if (current)
-      void load(current).catch((caught) => {
-        setSession(current);
-        setError(caught instanceof Error ? caught.message : 'Unable to load wallet data.');
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    const request = ++generation.current;
+    if (!accountAuthConfigured()) {
+      setState('signed-out');
+      return;
+    }
+    void subscribeAccountSession((session) => {
+      const current = ++generation.current;
+      setLibrary(undefined);
+      setError('');
+      setNotice('');
+      if (!session) {
+        setState('signed-out');
+        return;
+      }
+      setState('loading');
+      // Auth callbacks stay synchronous; SDK calls happen after its lock is released.
+      void Promise.resolve().then(async () => {
+        if (!active || current !== generation.current) return;
+        try {
+          const [account, credentials] = await Promise.all([
+            accountApi<AccountProfileResponse<Profile>>('/account'),
+            accountApi<{ items: CredentialRow[] }>('/account/credentials'),
+          ]);
+          if (active && current === generation.current) {
+            setLibrary({ ...account, items: credentials.items });
+            setState('ready');
+          }
+        } catch (cause) {
+          if (active && current === generation.current) {
+            setError(cause instanceof Error ? cause.message : 'Could not load your credentials.');
+            setState('error');
+          }
+        }
       });
-  }, [load]);
+    })
+      .then((stop) => {
+        if (active) unsubscribe = stop;
+        else stop();
+      })
+      .catch((cause: unknown) => {
+        if (active && request <= generation.current) {
+          setError(cause instanceof Error ? cause.message : 'Could not check your account.');
+          setState('error');
+        }
+      });
+    return () => {
+      active = false;
+      ++generation.current;
+      unsubscribe?.();
+    };
+  }, [retry]);
 
-  async function connect() {
-    setBusy(true);
+  async function addToProfile(hash: string) {
+    if (adding) return;
+    const current = generation.current;
+    setAdding(hash);
     setError('');
+    setNotice('');
     try {
-      await load(await connectWalletSession());
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Wallet connection failed.');
+      const { profile } = await accountApi<{ profile: Profile | null }>('/account/profile');
+      if (!profile) throw new Error('Create your profile before featuring a credential.');
+      const hashes = profile.credentialHashes;
+      if (hashes.some((item) => item.toLowerCase() === hash.toLowerCase())) {
+        setNotice('This credential is already featured on your profile.');
+        return;
+      }
+      const result = await accountApi<{ profile: Profile }>('/account/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ ...profile, credentialHashes: [...hashes, hash] }),
+      });
+      if (current === generation.current) {
+        setLibrary((previous) => previous && { ...previous, profile: result.profile });
+        setNotice('Credential added to your profile.');
+      }
+    } catch (cause) {
+      if (current === generation.current)
+        setError(cause instanceof Error ? cause.message : 'Could not add the credential.');
     } finally {
-      setBusy(false);
+      if (current === generation.current) setAdding('');
     }
-  }
-
-  async function copyLink(hash: string) {
-    const link = `${window.location.origin}/verify/${hash}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(hash);
-      window.setTimeout(() => setCopied(''), 1800);
-    } catch {
-      setError(
-        'The link could not be copied. Open the verification page and copy its URL instead.',
-      );
-    }
-  }
-
-  function disconnect() {
-    forgetSession();
-    setSession(undefined);
-    setCredentials([]);
-    setLoaded(false);
   }
 
   return (
     <main className="page-width workspace-page">
-      <header className="workspace-heading app-page-header">
+      <header className="app-page-header">
         <div>
           <h1>My credentials</h1>
-          <p className="lede">Your achievements and their public proof records.</p>
+          <p>Your achievements, backed by the organizations that issued them.</p>
         </div>
-        {session ? (
-          <Button className="text-button" type="button" onClick={disconnect}>
-            Disconnect {shortAddress(session.address)}
+        {library && (
+          <Button asChild variant="outline">
+            <Link to="/settings/wallets">Manage wallets</Link>
           </Button>
-        ) : null}
+        )}
       </header>
-      {!session ? (
-        <section className="workspace-panel workspace-connect app-connect-state">
-          <h2>Open your credential library</h2>
-          <p>
-            Connect the wallet that received your credentials. Visitors can still verify a
-            credential link without connecting.
-          </p>
-          <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
-            {busy ? 'Connecting…' : 'Connect learner wallet'}
+      {state === 'loading' && <p role="status">Loading your credentials…</p>}
+      {state === 'signed-out' && (
+        <section className="workspace-panel app-connect-state">
+          <h2>Your work belongs here.</h2>
+          <p>Sign in to build your profile and collect your credentials.</p>
+          <Button asChild>
+            <Link to="/join">Continue with Google</Link>
           </Button>
-          {error ? (
-            <p className="form-help form-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-        </section>
-      ) : (
-        <section className="workspace-panel">
-          <div className="panel-header">
-            <div>
-              <p className="panel-label">Your connected wallet</p>
-              <h2>{shortAddress(session.address)}</h2>
-            </div>
-            <span className="status-badge status-success">
-              <CheckIcon /> Session active
-            </span>
-          </div>
-          <div className="wallet-profile-card">
-            <span className="wallet-profile-avatar" aria-hidden="true">
-              {session.address.slice(2, 4).toUpperCase()}
-            </span>
-            <span className="wallet-profile-copy">
-              <strong>Wallet connected</strong>
-              <code>{session.address}</code>
-            </span>
-            <span className="wallet-profile-state">
-              <CheckIcon /> Connected
-            </span>
-          </div>
-          <div className="wallet-profile-edit">
-            <Link to="/profile">
-              Edit your profile <ArrowUpRightIcon />
-            </Link>
-          </div>
-          {!loaded ? (
-            <div className="empty-state app-empty-state" role="status">
-              <strong>{error ? 'Credentials unavailable' : 'Loading your credentials…'}</strong>
-              <span>
-                {error
-                  ? 'The service could not load your library. This does not mean you have no credentials.'
-                  : 'Reading the issuer’s credential list.'}
-              </span>
-              {error ? (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      await load(session);
-                    } catch (caught) {
-                      setError(
-                        caught instanceof Error ? caught.message : 'Unable to load credentials.',
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Retry loading credentials
-                </Button>
-              ) : null}
-            </div>
-          ) : credentials.length ? (
-            <>
-              <WalletShare credentials={credentials} />
-              <div className="credential-list credential-card-list">
-                {credentials.map((credential) => (
-                  <div className="holder-credential-item" key={credential.credential_hash}>
-                    <CredentialCard
-                      metadata={{
-                        schemaVersion: 1,
-                        skillName: credential.skill_name,
-                        skillLevel: credential.skill_level,
-                        issueDate: credential.issue_date,
-                        issuerAddress: credential.issuer as `0x${string}`,
-                        learnerAddress: credential.learner as `0x${string}`,
-                      }}
-                      credentialHash={credential.credential_hash}
-                      issuerProfile={
-                        credential.organization_name
-                          ? {
-                              name: credential.organization_name,
-                              websiteUrl: '',
-                              logoUrl: credential.organization_logo_url,
-                            }
-                          : null
-                      }
-                      showQr
-                      verified={false}
-                    />
-                    <div className="credential-actions">
-                      <Link
-                        className="text-link"
-                        to="/verify/$credentialRef"
-                        params={{ credentialRef: credential.credential_hash }}
-                      >
-                        Verify public record <ArrowUpRightIcon />
-                      </Link>
-                      <Button
-                        className="text-button"
-                        type="button"
-                        onClick={() => copyLink(credential.credential_hash)}
-                      >
-                        {copied === credential.credential_hash ? 'Copied' : 'Copy link'}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="empty-state app-empty-state">
-              <strong>No confirmed credentials found.</strong>
-              <span>
-                Once an issuer confirms a credential for this wallet, it will appear here.
-              </span>
-            </div>
-          )}
-          {error ? (
-            <p className="form-help form-error" role="alert">
-              {error}
-            </p>
-          ) : null}
+          <Link className="text-link" to="/verify">
+            Verify a credential without signing in
+          </Link>
         </section>
       )}
-      {!session ? <WalletGuide /> : null}
+      {state === 'error' && (
+        <section className="workspace-panel app-empty-state">
+          <h2>Credentials unavailable</h2>
+          <p>This does not mean your library is empty.</p>
+          <p role="alert">{error}</p>
+          <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
+            Try again
+          </Button>
+        </section>
+      )}
+      {state === 'ready' && library && (
+        <>
+          {library.profile && (
+            <div className="flex flex-wrap items-center justify-between gap-4 py-6">
+              <div>
+                <strong>{library.profile.name}</strong>
+                <p className="text-muted-foreground">@{library.profile.handle}</p>
+              </div>
+              <Link className="text-link" to="/profile">
+                Edit your profile <ArrowUpRightIcon />
+              </Link>
+            </div>
+          )}
+          {!library.wallets.length ? (
+            <section className="workspace-panel app-empty-state">
+              <h2>Bring your achievements into your profile.</h2>
+              <p>Link the wallet that received your credentials. Your profile works without one.</p>
+              <Button asChild>
+                <Link to="/settings/wallets">Link a wallet</Link>
+              </Button>
+            </section>
+          ) : !library.items.length ? (
+            <section className="workspace-panel app-empty-state">
+              <h2>Your next achievement starts here.</h2>
+              <p>Credentials appear after an organization confirms issuance to a linked wallet.</p>
+              <Button asChild variant="outline">
+                <Link to="/settings/wallets">Link another wallet</Link>
+              </Button>
+            </section>
+          ) : (
+            <>
+              <div className="grid gap-4">
+                {library.items.map((credential) => {
+                  const featured = library.profile?.credentialHashes.some(
+                    (hash) => hash.toLowerCase() === credential.credential_hash.toLowerCase(),
+                  );
+                  return (
+                    <article className="workspace-panel" key={credential.credential_hash}>
+                      <h2>{credential.skill_name}</h2>
+                      <p className="text-muted-foreground">
+                        {credential.organization_name || 'Independent issuer'} ·{' '}
+                        <time>{credential.issue_date}</time>
+                      </p>
+                      <p>{credential.skill_level}</p>
+                      <div className="flex flex-wrap items-center gap-3 pt-4">
+                        <Button asChild variant="outline">
+                          <Link
+                            to="/verify/$credentialRef"
+                            params={{ credentialRef: credential.credential_hash }}
+                          >
+                            View credential
+                          </Link>
+                        </Button>
+                        {library.profile ? (
+                          <Button
+                            variant="outline"
+                            disabled={Boolean(adding) || featured}
+                            onClick={() => void addToProfile(credential.credential_hash)}
+                          >
+                            {featured
+                              ? 'Added to profile'
+                              : adding === credential.credential_hash
+                                ? 'Adding…'
+                                : 'Add to profile'}
+                          </Button>
+                        ) : (
+                          <Button asChild variant="outline">
+                            <Link to="/profile">Create your profile</Link>
+                          </Button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <WalletShare credentials={library.items} />
+            </>
+          )}
+          {notice && (
+            <p role="status" className="form-help">
+              {notice}
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="form-help form-error">
+              {error}
+            </p>
+          )}
+        </>
+      )}
     </main>
   );
 }
