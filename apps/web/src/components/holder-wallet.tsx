@@ -93,8 +93,8 @@ export function HolderWallet() {
     <main className="page-width workspace-page">
       <div className="workspace-heading">
         <div>
-          <h1>Your credential wallet.</h1>
-          <p className="lede">Your public records, in one place.</p>
+          <h1>My credentials</h1>
+          <p className="lede">Your achievements, ready to carry forward.</p>
         </div>
         {session ? (
           <Button className="text-button" type="button" onClick={disconnect}>
@@ -104,8 +104,8 @@ export function HolderWallet() {
       </div>
       {!session ? (
         <section className="workspace-panel workspace-connect">
-          <h2>Connect your wallet.</h2>
-          <p>Sign in with your wallet. Your keys stay in your wallet.</p>
+          <h2>Bring your credentials together.</h2>
+          <p>Connect the wallet that received your credentials to see your collection.</p>
           <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect learner wallet'}
           </Button>
@@ -119,7 +119,7 @@ export function HolderWallet() {
         <section className="workspace-panel">
           <div className="panel-header">
             <div>
-              <p className="panel-label">Connected learner</p>
+              <p className="panel-label">Your connected wallet</p>
               <h2>{shortAddress(session.address)}</h2>
             </div>
             <span className="status-badge status-success">
@@ -131,19 +131,17 @@ export function HolderWallet() {
               {session.address.slice(2, 4).toUpperCase()}
             </span>
             <span className="wallet-profile-copy">
-              <strong>Credential holder</strong>
+              <strong>Wallet connected</strong>
               <code>{session.address}</code>
             </span>
             <span className="wallet-profile-state">
               <CheckIcon /> Connected
             </span>
           </div>
-          <div className="wallet-note">
-            <strong>Public proof, private control.</strong>
-            <span>
-              This view is an API projection for convenience. Each link still resolves through the
-              immutable registry and metadata proof.
-            </span>
+          <div className="wallet-profile-edit">
+            <a href="/profile">
+              Edit your profile <ArrowUpRightIcon />
+            </a>
           </div>
           {!loaded ? (
             <div className="empty-state" role="status">

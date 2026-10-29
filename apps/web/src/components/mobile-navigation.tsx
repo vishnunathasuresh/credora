@@ -27,8 +27,9 @@ export function MobileNavigation() {
         </DialogHeader>
         <nav className="mobile-menu-links" aria-label="Mobile navigation">
           {[
+            ['/profile', 'My profile'],
             ['/verify', 'Verify a credential'],
-            ['/wallet', 'My credentials & wallet setup'],
+            ['/wallet', 'My credentials'],
             ['/dashboard', 'Choose workspace'],
             ['/org', 'Organization workspace'],
             ['/issuer', 'Issue a credential'],

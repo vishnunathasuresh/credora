@@ -119,7 +119,6 @@ export function SharePresentation({ token }: { token: string }) {
 
   return (
     <main className="page-width narrow-page share-presentation-page">
-      <p className="panel-label">Credora wallet share</p>
       <h1>Selected credentials.</h1>
       <p className="lede">
         Each credential below is checked against its public registry record and metadata. This QR
