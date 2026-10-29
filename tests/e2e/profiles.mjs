@@ -74,9 +74,15 @@ try {
   const insert = db.prepare(
     "INSERT INTO issuances (id, issuer, learner, skill_name, skill_level, issue_date, credential_hash, state, created_at) VALUES (?, ?, ?, 'Course', '1', '2026-01-01', ?, 'confirmed', '2026-01-01')",
   );
-  insert.run('one', accountB.address, accountA.address, ownHash);
+  insert.run('one', accountB.address, accountA.address.toLowerCase(), ownHash);
   insert.run('two', accountA.address, accountB.address, otherHash);
   db.close();
+  const library = await request('/credentials', 'GET', undefined, a);
+  assert.equal(library.status, 200);
+  assert.ok(
+    library.body.items.some((item) => item.credential_hash === ownHash),
+    'lowercase projected recipients remain visible',
+  );
   const input = {
     handle: 'Alice',
     name: 'Alice',
@@ -91,6 +97,9 @@ try {
   assert.equal(created.status, 200);
   assert.equal(created.body.profile.handle, 'alice');
   assert.equal((await request('/profiles/alice')).status, 404);
+  assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
+    profile: null,
+  });
   assert.equal((await request('/profile', 'PUT', { ...input, handle: 'ALICE' }, b)).status, 409);
   assert.equal((await request('/profile', 'PUT', { ...input, handle: 'admin' }, b)).status, 400);
   assert.equal(
@@ -131,10 +140,34 @@ try {
   assert.equal(publicView.status, 200);
   assert.equal(publicView.body.profile.name, 'Alice');
   assert.deepEqual(publicView.body.profile.credentialHashes, [ownHash]);
+  assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
+    profile: { name: 'Alice', handle: 'alice' },
+  });
+  assert.deepEqual((await request(`/credentials/${otherHash}/recipient-profile`)).body, {
+    profile: null,
+  });
+  assert.deepEqual(
+    (await request(`/credentials/${`0x${'d'.repeat(64)}`}/recipient-profile`)).body,
+    { profile: null },
+  );
+  const changed = new DatabaseSync(databasePath);
+  changed
+    .prepare('UPDATE issuances SET learner = ? WHERE credential_hash = ?')
+    .run(accountB.address, ownHash);
+  assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
+    profile: null,
+  });
+  changed
+    .prepare('UPDATE issuances SET learner = ? WHERE credential_hash = ?')
+    .run(accountA.address.toLowerCase(), ownHash);
+  changed.close();
   assert.equal('handleChangedAt' in publicView.body.profile, false);
   assert.equal('token' in publicView.body.profile, false);
   await request('/profile', 'PUT', input, a);
   assert.equal((await request('/profiles/alice')).status, 404);
+  assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
+    profile: null,
+  });
   console.log('Profile privacy, authorization, handle and selection checks passed');
 } finally {
   child.kill();

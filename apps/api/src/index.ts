@@ -1326,6 +1326,26 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
+  const recipientProfile = path.match(/^\/credentials\/([^/]+)\/recipient-profile$/);
+  if (method === 'GET' && recipientProfile) {
+    const hash = recipientProfile[1].toLowerCase();
+    const profile = /^0x[0-9a-f]{64}$/.test(hash)
+      ? (database
+          .prepare(
+            `SELECT profiles.name, profiles.handle FROM profiles
+             JOIN profile_credentials ON profile_credentials.profile_id = profiles.id
+             JOIN issuances ON lower(issuances.credential_hash) = lower(profile_credentials.credential_hash)
+               AND issuances.learner = profiles.wallet_address COLLATE NOCASE
+               AND issuances.state = 'confirmed'
+             WHERE profiles.published = 1 AND lower(profile_credentials.credential_hash) = ?
+             LIMIT 1`,
+          )
+          .get(hash) ?? null)
+      : null;
+    send(request, response, 200, { profile });
+    return;
+  }
+
   if (method === 'GET' && path === '/credentials') {
     const session = requireSession(request);
     const limitValue = Number(url.searchParams.get('limit') ?? 50);
@@ -1340,7 +1360,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
                 organizations.logo_url AS organization_logo_url
          FROM issuances
          LEFT JOIN organizations ON organizations.id = issuances.organization_id
-         WHERE learner = ? AND state = 'confirmed'
+         WHERE learner = ? COLLATE NOCASE AND state = 'confirmed'
          ORDER BY issue_date DESC
          LIMIT ?`,
       )

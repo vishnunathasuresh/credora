@@ -7,6 +7,7 @@ import { loadCredentialVerification } from '../lib/verification.functions';
 import type { VerificationResult } from '../lib/verification.server';
 
 type CredentialVerificationData = {
+  recipientProfile: { name: string; handle: string } | null;
   result: VerificationResult;
   issuerProfile: { name: string; websiteUrl: string; logoUrl: string | null } | null;
 };
@@ -47,7 +48,7 @@ function VerificationError({ error, reset }: { error: unknown; reset: () => void
 
 function CredentialVerificationPage() {
   const { credentialRef } = Route.useParams();
-  const { result, issuerProfile } = Route.useLoaderData();
+  const { result, issuerProfile, recipientProfile } = Route.useLoaderData();
   const message = result.message ?? verificationMessage(result.state);
   const metadata = result.state === 'valid' ? result.metadata : undefined;
   const title =
@@ -97,6 +98,7 @@ function CredentialVerificationPage() {
           metadata={metadata}
           credentialHash={credentialRef}
           issuerProfile={issuerProfile}
+          recipientProfile={recipientProfile}
           showQr
           interactive
         />

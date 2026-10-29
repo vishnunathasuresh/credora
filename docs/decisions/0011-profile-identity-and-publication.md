@@ -12,6 +12,7 @@ A public profile is user-authored application data and cannot be reconstructed f
 - Profiles start private. The owner explicitly publishes profile fields and an ordered selection of credential references. A selection is accepted only for confirmed credential projections whose recipient is the authenticated wallet. Each reference still requires independent proof verification.
 - Handles use lowercase ASCII letters, numbers, and underscores, 3–30 characters, with route and administrative names reserved. A change has a 30-day cooldown; the old URL immediately stops resolving and the old handle becomes available. Handle reuse does not transfer profile identity or credentials. Broader impersonation handling and moderation are prerequisites to discovery.
 - Profile content, handle assignments, publication and selections are authoritative application data. Back up and restore the database durably; rebuilding chain projections cannot restore them. Chain and content-addressed metadata remain authoritative for credential proofs.
+- A credential may display the published name and handle only while that profile explicitly selects the reference and a confirmed projection still identifies its wallet as recipient. This decoration is not proof of identity or wallet control.
 - Unpublishing prevents future profile lookup; it cannot recall copies or remove public ledger records. No public profile response contains session tokens or private settings.
 
 ## Consequences and compatibility
