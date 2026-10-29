@@ -88,3 +88,22 @@ Implementation uses Luna High for scoped port and UI work; reserve Terra for
 identity/proof/privacy boundaries if needed. Root owns integration, lockfile,
 review, commits, PR and merge. Each implementer owns named files and avoids
 unrelated `demo/` content. Delivery is small commits on the feature branch.
+
+## Replacement after user review
+
+The user rejected the first sparse serif folio and selected **professional network
+
+- restrained workspaces**. That visual implementation is superseded by DESIGN.md.
+  The migration and profile functionality remain in scope and are preserved.
+
+Current primary-source study: Peerlist (https://peerlist.io/) demonstrates a
+handle-first identity entry and work-centric profile story; Contra
+(https://contra.com/) leads with actual work presentation; Linear
+(https://linear.app/) presents its working interface at meaningful scale. These
+inform composition and density, not copied branding, claims or social counts.
+The user explicitly selected https://www.shadcn.io/ for component reference and
+https://reactbits.dev/components/lanyard for the actual physics-driven lanyard.
+
+Replacement work: (1) one new visual system and full landing; (2) every inner
+page and navigation; (3) actual React Bits integration replacing CSS imitation;
+(4) fresh bounded desktop/mobile review and verification. No new deployment work.

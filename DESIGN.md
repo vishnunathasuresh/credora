@@ -1,38 +1,49 @@
 # Credora design system
 
-Status: replacement design contract for the TanStack Start port. Implementation
-and final browser evidence are tracked in docs/ux/tanstack-redesign-plan.md.
+## Direction
 
-## Identity
+The user rejected the sparse serif folio. Replace it throughout with a
+professional network and restrained workspaces, as explicitly selected on
+2026-10-29. Product behavior remains defined by docs/roadmap/product-direction.md.
 
-A professional folio centered on people and earned achievements. Warm white,
-ink, and cobalt; careful typography, hairline divisions, generous space, and a
-physical credential as the signature object. The product roadmap lives in
-[product direction](docs/roadmap/product-direction.md).
+## Visual system
 
-## Structure
+Geist variable sans, locally served. Chalk canvas, white surfaces, near-black
+ink, violet/iris brand accent and pale lavender product stages. Meaningful
+verification results retain separate semantic success/warning/error colors.
+No serif hero, eyebrow labels, fake counts, customer logos or invented activity.
+Use 12px control radii, 16px feature surfaces, hairline borders and soft elevation
+only for floating physical objects or overlays. Normal controls are at least44px.
 
-The public homepage introduces a shareable professional identity. Verification
-has a dedicated direct entry. Workspaces prioritize credential content and
-profile actions. Organization and achievement details are on the credential
-card. Keep self-written claims, reviewed organizations, and matching proof
-visually and semantically distinct.
+## Public landing
 
-## Components
+A complete product story, not a heading and disconnected badge. First viewport:
+compact navigation, strong two-line identity headline, direct profile and verify
+actions, and a large composed product preview showing the relationship between
+person, handle, organization and credential. Mark previews illustrative at their
+boundary. Subsequent sections show a profile canvas, physical credential, sharing
+and organization workflow with distinct compositions, then a real closing CTA.
+Only link to available routes; never advertise networking as shipped.
 
-Compose existing shadcn/Radix controls and Hugeicons. Use semantic tokens,
-visible focus, 44px touch actions, clear form labels, compact useful copy, and
-explicit loading/empty/error states. No eyebrow labels or implementation
-explanations in normal product flows. No invented metrics or customer claims.
+Use the actual React Bits lanyard (Three.js with upstream rope physics), customized with
+credential and organization data, on full verified detail and an explicitly
+illustrative homepage preview. Lazy-load it behind an interactive static facade.
+Retain HTML details, keyboard flip, static reduced-motion/no-WebGL fallback.
 
-## Responsive and motion
+## Inner pages
 
-Mobile-first fluid grids and component containment. Single-column narrow
-layouts, accessible navigation sheet, and wrapping long values. The lanyard
-is lazy and interactive; reduced-motion and unsupported browsers retain an
-accessible static badge with explicit flip control. Motion never asserts proof.
+A persistent compact sidebar on desktop and accessible mobile navigation.
+Profile, credentials, verification and workspaces are distinct destinations.
+Route titles, content widths, action bars, connection gates, empty/error/loading
+states, forms and tables share one visual grammar. Public profiles are expressive
+person-first pages; editing and issuer/admin workspaces are calm and task-focused.
+Remove repeated system explanations and eyebrow labels. Keep necessary safety,
+privacy and failure-state copy.
 
-## Evidence
+## Delivery and evidence
 
-Replace provisional token/layout descriptions with verified built behavior at
-finish. Do not equate intended design with completed functionality.
+Preserve the working TanStack Start port and API/proof boundaries while replacing
+all rejected visual material. Root owns integration and PR; Luna High owns scoped
+UI work. Read-only testing can use Antigravity High. Verify desktop/mobile captures
+and route content, not only HTTP status. Record implementation and honest limits
+in docs/ux/tanstack-redesign-plan.md after the redesign passes review.

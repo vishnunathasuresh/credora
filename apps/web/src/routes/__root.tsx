@@ -1,4 +1,11 @@
-import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  HeadContent,
+  Link,
+  Outlet,
+  Scripts,
+  useRouterState,
+} from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import appCss from '../styles/globals.css?url';
 import { MobileNavigation } from '../components/mobile-navigation';
@@ -9,10 +16,14 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Credora — credentials you can carry' },
-      { name: 'description', content: 'Issue, own, and independently verify digital credentials.' },
+      { title: 'Credora — work worth sharing, proof you can check' },
+      {
+        name: 'description',
+        content:
+          'Build a professional profile around your work and independently verifiable credentials.',
+      },
       { name: 'application-name', content: 'Credora' },
-      { name: 'theme-color', content: '#f4f1ea' },
+      { name: 'theme-color', content: '#faf9fc' },
       { name: 'color-scheme', content: 'light dark' },
     ],
     links: [
@@ -23,39 +34,136 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootComponent,
+  notFoundComponent: RootNotFound,
+  errorComponent: RootError,
 });
 
+const primaryLinks = [
+  { to: '/profile', label: 'My profile' },
+  { to: '/wallet', label: 'My credentials' },
+  { to: '/verify', label: 'Verify a credential' },
+] as const;
+
 function RootComponent() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const landing = pathname === '/';
+  const workspace = [
+    '/profile',
+    '/wallet',
+    '/dashboard',
+    '/issuer',
+    '/org',
+    '/admin',
+    '/superadmin',
+  ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
   return (
     <RootDocument>
-      <div className="shell credora-shell">
+      <div
+        className={`shell credora-shell ${landing ? 'landing-shell' : workspace ? 'workspace-shell' : 'public-shell'}`}
+      >
         <header className="topbar credora-topbar">
           <Link className="wordmark" to="/" aria-label="Credora home">
             <span className="mark">C</span>
             <span>credora</span>
           </Link>
-          <div className="header-controls">
-            <nav className="nav desktop-nav" aria-label="Primary navigation">
-              <Link to="/profile">My profile</Link>
-              <Link to="/verify">Verify</Link>
-              <Link to="/wallet">My credentials</Link>
-              <Link className="nav-cta" to="/dashboard">
-                Workspaces
+          {workspace ? (
+            <div className="header-controls workspace-header-controls">
+              <Link className="topbar-verify-link" to="/verify">
+                Verify a credential
               </Link>
-            </nav>
-            <ThemeToggle />
-            <MobileNavigation />
-          </div>
+              <ThemeToggle />
+            </div>
+          ) : (
+            <div className="header-controls">
+              <nav className="nav desktop-nav" aria-label="Primary navigation">
+                <Link to="/profile">Profiles</Link>
+                <Link to="/verify">Verify</Link>
+                <Link to="/wallet">Credentials</Link>
+                <Link className="nav-cta" to="/profile">
+                  Get started
+                </Link>
+              </nav>
+              <ThemeToggle />
+              <MobileNavigation />
+            </div>
+          )}
         </header>
-        <div id="main-content" tabIndex={-1}>
-          <Outlet />
-        </div>
-        <footer className="footer">
-          <span>Credora · independently verifiable credentials</span>
-        </footer>
+        {workspace ? (
+          <div className="app-shell">
+            <aside className="app-sidebar" aria-label="Workspace navigation">
+              <p className="app-sidebar-label">Your space</p>
+              <nav className="app-sidebar-nav">
+                {primaryLinks.slice(0, 2).map((item) => (
+                  <SidebarLink
+                    key={item.to}
+                    to={item.to}
+                    label={item.label}
+                    current={pathname === item.to}
+                  />
+                ))}
+              </nav>
+              <div className="app-sidebar-divider" />
+              <p className="app-sidebar-label">Workspace</p>
+              <nav className="app-sidebar-nav">
+                <SidebarLink
+                  to="/dashboard"
+                  label="Workspace home"
+                  current={pathname === '/dashboard'}
+                />
+              </nav>
+            </aside>
+            <div className="app-main-column">
+              <div className="app-mobile-header">
+                <span className="app-mobile-title">{pageTitle(pathname)}</span>
+                <MobileNavigation mode="workspace" />
+              </div>
+              <div id="main-content" className="app-page-content" tabIndex={-1}>
+                <Outlet />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div id="main-content" tabIndex={-1} className="public-page-content">
+            <Outlet />
+          </div>
+        )}
+        {landing && (
+          <footer className="footer">
+            <span>Credora · professional identity with independently verifiable credentials</span>
+            <Link to="/verify">
+              Verify a credential <span aria-hidden="true">↗</span>
+            </Link>
+          </footer>
+        )}
       </div>
     </RootDocument>
   );
+}
+
+function SidebarLink({
+  to,
+  label,
+  current,
+}: {
+  to: '/profile' | '/wallet' | '/verify' | '/dashboard';
+  label: string;
+  current: boolean;
+}) {
+  return (
+    <Link className="app-sidebar-link" to={to} aria-current={current ? 'page' : undefined}>
+      {label}
+    </Link>
+  );
+}
+function pageTitle(pathname: string) {
+  if (pathname.startsWith('/profile')) return 'My profile';
+  if (pathname.startsWith('/wallet')) return 'My credentials';
+  if (pathname.startsWith('/verify')) return 'Verify';
+  if (pathname.startsWith('/issuer')) return 'Issuer workspace';
+  if (pathname.startsWith('/org')) return 'Organization';
+  if (pathname.startsWith('/admin')) return 'Administration';
+  if (pathname.startsWith('/superadmin')) return 'Platform admin';
+  return 'Workspace';
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
@@ -72,5 +180,43 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+function RootNotFound() {
+  return (
+    <main className="page-width narrow-page">
+      <section className="workspace-panel route-state-card">
+        <h1>We couldn’t find that page.</h1>
+        <p>Check the address, or return to Credora.</p>
+        <div className="home-actions">
+          <Link className="button button-primary" to="/">
+            Go to Credora
+          </Link>
+          <Link className="button" to="/verify">
+            Verify a credential
+          </Link>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function RootError({ reset }: { reset: () => void }) {
+  return (
+    <main className="page-width narrow-page">
+      <section className="workspace-panel route-state-card" role="alert">
+        <h1>This page couldn’t load.</h1>
+        <p>Try again, or return to Credora.</p>
+        <div className="home-actions">
+          <button className="button button-primary" type="button" onClick={reset}>
+            Try again
+          </button>
+          <Link className="button" to="/verify">
+            Verify a credential
+          </Link>
+        </div>
+      </section>
+    </main>
   );
 }
