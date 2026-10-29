@@ -2,13 +2,10 @@
 
 import { ReactQRCode } from '@lglab/react-qr-code';
 import type { CredentialMetadata, OrganizationCredentialMetadata } from '@credora/credential-core';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckIcon } from './icons';
 import { apiUrlFor } from '../lib/credora-api';
-
-const CredentialLanyard = lazy(() =>
-  import('./credential-lanyard').then((module) => ({ default: module.CredentialLanyard })),
-);
+import { LanyardPreview } from './credential-lanyard';
 
 function credentialImageUrl(uri: string | undefined) {
   const match = uri?.match(/^(?:ipfs|local):\/\/([A-Za-z0-9_-]{8,128})$/);
@@ -27,6 +24,7 @@ export function CredentialCard({
   showQr = false,
   verified = true,
   interactive = false,
+  recipientProfile = null,
 }: {
   metadata: CredentialMetadata | OrganizationCredentialMetadata;
   credentialHash: string;
@@ -35,6 +33,7 @@ export function CredentialCard({
   showQr?: boolean;
   verified?: boolean;
   interactive?: boolean;
+  recipientProfile?: { name: string; handle: string } | null;
 }) {
   const [verificationUrl, setVerificationUrl] = useState('');
   const imageUrl = credentialImageUrl(metadata.imageUri);
@@ -100,11 +99,24 @@ export function CredentialCard({
         <dl className="credential-card-details">
           <div>
             <dt>Issued</dt>
-            <dd>{new Date(metadata.issueDate).toLocaleDateString()}</dd>
+            <dd className="credential-issue-date">
+              {new Date(metadata.issueDate).toLocaleDateString()}
+            </dd>
           </div>
           <div>
             <dt>Recipient</dt>
-            <dd>{shortenedAddress(metadata.learnerAddress)}</dd>
+            <dd>
+              {recipientProfile ? (
+                <>
+                  <span>{recipientProfile.name}</span>{' '}
+                  <span className="credential-recipient-handle">@{recipientProfile.handle}</span>
+                </>
+              ) : (
+                <span className="credential-wallet-address">
+                  {shortenedAddress(metadata.learnerAddress)}
+                </span>
+              )}
+            </dd>
           </div>
         </dl>
       </div>
@@ -113,7 +125,6 @@ export function CredentialCard({
   const back = (
     <article className="credential-card credential-card-reverse">
       <div className="credential-card-back-title">
-        <span>Credential details</span>
         <strong>{metadata.skillName}</strong>
       </div>
       {metadata.description ? (
@@ -125,16 +136,29 @@ export function CredentialCard({
           <dd>{metadata.skillLevel}</dd>
         </div>
         <div>
-          <dt>Issued</dt>
-          <dd>{new Date(metadata.issueDate).toLocaleDateString()}</dd>
+          <dt>Recipient</dt>
+          <dd>
+            {recipientProfile ? (
+              <>
+                <span>{recipientProfile.name}</span>{' '}
+                <span className="credential-recipient-handle">@{recipientProfile.handle}</span>
+              </>
+            ) : (
+              <span className="credential-wallet-address">
+                {shortenedAddress(metadata.learnerAddress)}
+              </span>
+            )}
+          </dd>
         </div>
         <div>
-          <dt>Recipient wallet</dt>
-          <dd>{shortenedAddress(metadata.learnerAddress)}</dd>
+          <dt>Issued</dt>
+          <dd className="credential-issue-date">
+            {new Date(metadata.issueDate).toLocaleDateString()}
+          </dd>
         </div>
         <div>
           <dt>Issuer wallet</dt>
-          <dd>{shortenedAddress(metadata.issuerAddress)}</dd>
+          <dd className="credential-wallet-address">{shortenedAddress(metadata.issuerAddress)}</dd>
         </div>
       </dl>
       {verificationUrl ? (
@@ -161,13 +185,18 @@ export function CredentialCard({
 
   if (interactive && showQr && verified) {
     return (
-      <Suspense fallback={<div className="credential-lanyard-fallback">{front}</div>}>
-        <CredentialLanyard
-          front={front}
-          back={back}
-          label={`${issuerName}, ${metadata.skillName}`}
-        />
-      </Suspense>
+      <LanyardPreview
+        title={metadata.skillName}
+        issuerName={issuerName}
+        issuerLogoUrl={issuerProfile?.logoUrl}
+        issueDate={metadata.issueDate}
+        recipientName={recipientProfile?.name ?? shortenedAddress(metadata.learnerAddress)}
+        recipientHandle={recipientProfile?.handle}
+        description={metadata.description}
+        level={metadata.skillLevel}
+        credentialHash={credentialHash}
+        qrUrl={verificationUrl}
+      />
     );
   }
   return (

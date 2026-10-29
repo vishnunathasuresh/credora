@@ -1,47 +1,262 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { ArrowDownIcon } from './icons';
+import { Component, lazy, Suspense, useState, type ReactNode } from 'react';
+import type { CSSProperties } from 'react';
+import './credential-lanyard.css';
 
-type Motion = {
-  frame: number;
-  lastFrame: number;
-  pointerX: number;
-  pointerY: number;
-  active: boolean;
-  x: number;
-  y: number;
-  rotateX: number;
-  rotateY: number;
-  velocityX: number;
-  velocityY: number;
-  velocityRotateX: number;
-  velocityRotateY: number;
-  targetX: number;
-  targetY: number;
-  targetRotateX: number;
-  targetRotateY: number;
+const ReactBitsLanyard = lazy(() => import('./Lanyard'));
+
+class LanyardErrorBoundary extends Component<
+  { children: ReactNode; onError: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    this.props.onError();
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+export type LanyardPreviewProps = {
+  title: string;
+  issuerName: string;
+  issuerLogoUrl?: string | null;
+  issueDate: string;
+  recipientName?: string;
+  recipientHandle?: string;
+  description?: string;
+  level?: string;
+  credentialHash?: string;
+  qrUrl?: string;
+  illustrative?: boolean;
+  className?: string;
+  style?: CSSProperties;
 };
-const initialMotion = (): Motion => ({
-  frame: 0,
-  lastFrame: 0,
-  pointerX: 0,
-  pointerY: 0,
-  active: false,
-  x: 0,
-  y: 0,
-  rotateX: 0,
-  rotateY: 0,
-  velocityX: 0,
-  velocityY: 0,
-  velocityRotateX: 0,
-  velocityRotateY: 0,
-  targetX: 0,
-  targetY: 0,
-  targetRotateX: 0,
-  targetRotateY: 0,
-});
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+function svgText(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&apos;',
+    };
+    return entities[character] ?? character;
+  });
+}
+
+function svgLines(value: string, limit: number) {
+  const words = value.trim().split(/\s+/);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > limit && line) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines.map(svgText);
+}
+
+function cardSvg(props: LanyardPreviewProps, back = false) {
+  const issuer = svgText(props.issuerName.slice(0, 38));
+  const titleLines = svgLines(props.title, 24);
+  const title = titleLines
+    .map((line, index) => `<tspan x="72" dy="${index === 0 ? 0 : 72}">${line}</tspan>`)
+    .join('');
+  const recipient = svgText(props.recipientName ?? 'Credential holder');
+  const issueDate = svgText(
+    new Date(props.issueDate).toLocaleDateString(undefined, { dateStyle: 'medium' }),
+  );
+  const logoUrl =
+    props.issuerLogoUrl && /^(https?:\/\/|\/)/.test(props.issuerLogoUrl)
+      ? svgText(props.issuerLogoUrl)
+      : '';
+  const issuerMark = logoUrl
+    ? `<image href="${logoUrl}" x="71" y="88" width="68" height="68" preserveAspectRatio="xMidYMid slice" clip-path="url(#issuer-circle)"/>`
+    : `<text x="105" y="132" text-anchor="middle" class="monogram">${svgText(props.issuerName.slice(0, 1).toUpperCase())}</text>`;
+  const detail = svgText(
+    (props.description ?? props.level ?? 'Independently verifiable achievement').slice(0, 65),
+  );
+  const proof = props.illustrative ? 'ILLUSTRATIVE PREVIEW' : 'VERIFIED PROOF';
+  const body = back
+    ? `<text x="72" y="270" class="title">${title}</text><text x="72" y="590" class="body">${detail}</text><text x="72" y="800" class="issuer">${issuer}</text><text x="72" y="930" class="body">${issueDate}</text><text x="72" y="1190" class="proof">${svgText((props.credentialHash ?? 'PROOF REFERENCE').slice(0, 32))}</text>`
+    : `<circle cx="105" cy="122" r="34" fill="#6d58c9"/><defs><clipPath id="issuer-circle"><circle cx="105" cy="122" r="34"/></clipPath></defs>${issuerMark}<text x="158" y="135" class="issuer">${issuer}</text><text x="72" y="320" class="title">${title}</text><text x="72" y="670" class="recipient">${recipient}</text><text x="72" y="720" class="body">${svgText(props.recipientHandle ? `@${props.recipientHandle}` : '')}</text><text x="72" y="935" class="body">${issueDate}</text><text x="72" y="1220" class="proof">${proof}</text>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1440" viewBox="0 0 1024 1440"><rect width="1024" height="1440" rx="72" fill="#fff"/><rect x="22" y="22" width="980" height="1396" rx="56" fill="none" stroke="#ddd9ec" stroke-width="3"/><path d="M415 24h194l-16 64H431z" fill="#e9e6f2"/><rect x="463" y="21" width="98" height="22" rx="11" fill="#f5f4f8"/>${body}<path d="M72 1310h880" stroke="#e7e4ee" stroke-width="3"/><text x="72" y="1360" class="footer">CREDORA · ${proof}</text><style>.title{font:700 62px Arial,sans-serif;fill:#17151e}.issuer,.recipient{font:600 36px Arial,sans-serif;fill:#282532}.eyebrow{font:600 20px Arial,sans-serif;letter-spacing:3px;fill:#797584}.body{font:400 28px Arial,sans-serif;fill:#55515f}.proof{font:700 21px Arial,sans-serif;letter-spacing:2px;fill:#5944b4}.monogram{font:700 38px Arial,sans-serif;fill:white}.footer{font:600 18px Arial,sans-serif;letter-spacing:2px;fill:#918d9b}</style></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function StaticCredential({ props, back = false }: { props: LanyardPreviewProps; back?: boolean }) {
+  const {
+    title,
+    issuerName,
+    recipientName,
+    recipientHandle,
+    issueDate,
+    description,
+    level,
+    credentialHash,
+    illustrative,
+  } = props;
+  return (
+    <article
+      className={`credential-lanyard-static${back ? ' is-back' : ''}`}
+      aria-label={`${title} credential ${back ? 'details' : 'front'}`}
+    >
+      {!back ? (
+        <>
+          <div className="credential-lanyard-issuer">
+            <span aria-hidden="true">{issuerName.slice(0, 1).toUpperCase()}</span>
+            <strong>{issuerName}</strong>
+          </div>
+          <h2>{title}</h2>
+          <dl>
+            <div>
+              <dt>Awarded to</dt>
+              <dd>
+                {recipientName || 'Credential holder'}{' '}
+                {recipientHandle ? <span>@{recipientHandle}</span> : null}
+              </dd>
+            </div>
+            <div>
+              <dt>Issued</dt>
+              <dd>{new Date(issueDate).toLocaleDateString()}</dd>
+            </div>
+          </dl>
+          <p
+            className={
+              illustrative ? 'credential-lanyard-proof illustrative' : 'credential-lanyard-proof'
+            }
+          >
+            {illustrative ? 'Illustrative preview' : 'Verified proof'}
+          </p>
+        </>
+      ) : (
+        <>
+          <h2>{title}</h2>
+          <p>{description || level || 'Credential evidence and issuer details.'}</p>
+          <dl>
+            <div>
+              <dt>Issuer</dt>
+              <dd>{issuerName}</dd>
+            </div>
+            <div>
+              <dt>Recipient</dt>
+              <dd>
+                {recipientName || 'Credential holder'}
+                {recipientHandle ? ` (@${recipientHandle})` : ''}
+              </dd>
+            </div>
+            <div>
+              <dt>Issued</dt>
+              <dd>{new Date(issueDate).toLocaleDateString()}</dd>
+            </div>
+            <div>
+              <dt>Proof status</dt>
+              <dd>{illustrative ? 'Illustrative preview' : 'Verified proof'}</dd>
+            </div>
+          </dl>
+          {credentialHash ? (
+            <details>
+              <summary>Full proof reference</summary>
+              <code>{credentialHash}</code>
+            </details>
+          ) : null}
+        </>
+      )}
+    </article>
+  );
+}
+
+export function LanyardPreview(props: LanyardPreviewProps) {
+  const [active, setActive] = useState(false);
+  const [flipKey, setFlipKey] = useState(0);
+  const [showingBack, setShowingBack] = useState(false);
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
+  const prefersReducedMotion =
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const label = `${props.title}, issued by ${props.issuerName}`;
+
+  return (
+    <section
+      className={`credential-lanyard ${props.className ?? ''}`.trim()}
+      style={props.style}
+      aria-label={label}
+    >
+      {active && !prefersReducedMotion && !webglUnavailable ? (
+        <LanyardErrorBoundary onError={() => setWebglUnavailable(true)}>
+          <Suspense fallback={<StaticCredential props={props} />}>
+            <div className="credential-lanyard-stage" aria-hidden="true">
+              <ReactBitsLanyard
+                frontImage={cardSvg(props)}
+                backImage={cardSvg(props, true)}
+                cardColor="#ffffff"
+                strapColor="#5340a3"
+                metal="silver"
+                size={0.72}
+                strapLength={0.44}
+                strapWidth={0.58}
+                gravity={0.8}
+                damping={0.62}
+                elasticity={0.35}
+                breeze={0}
+                intro
+                interactive
+                flipKey={flipKey}
+                onUnavailable={() => setWebglUnavailable(true)}
+              />
+            </div>
+          </Suspense>
+        </LanyardErrorBoundary>
+      ) : (
+        <StaticCredential props={props} back={showingBack} />
+      )}
+      <div className="credential-lanyard-controls">
+        <button
+          type="button"
+          aria-pressed={showingBack}
+          onClick={() => {
+            if (active && !prefersReducedMotion && !webglUnavailable) {
+              setFlipKey((value) => value + 1);
+              setShowingBack((value) => !value);
+            } else if (prefersReducedMotion || webglUnavailable) {
+              setShowingBack((value) => !value);
+            } else setActive(true);
+          }}
+        >
+          {active && !prefersReducedMotion && !webglUnavailable
+            ? showingBack
+              ? 'Show credential front'
+              : 'Show credential details'
+            : prefersReducedMotion || webglUnavailable
+              ? showingBack
+                ? 'Show credential front'
+                : 'Show credential details'
+              : 'Interact with credential'}
+        </button>
+        {webglUnavailable ? (
+          <span>Interactive view unavailable; showing the static credential.</span>
+        ) : null}
+      </div>
+      <details className="credential-lanyard-accessible-details">
+        <summary>Credential information</summary>
+        <StaticCredential props={props} back />
+        {props.qrUrl ? <a href={props.qrUrl}>Open verification record</a> : null}
+      </details>
+    </section>
+  );
+}
 
 export function CredentialLanyard({
   front,
@@ -52,145 +267,10 @@ export function CredentialLanyard({
   back: ReactNode;
   label: string;
 }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const motionRef = useRef<Motion>(initialMotion());
-  const [flipped, setFlipped] = useState(false);
-
-  useEffect(() => () => cancelAnimationFrame(motionRef.current.frame), []);
-
-  function animate(timestamp: number) {
-    const motion = motionRef.current;
-    const card = cardRef.current;
-    if (!card) return;
-    const delta = Math.min(2, Math.max(0.5, (timestamp - (motion.lastFrame || timestamp)) / 16.67));
-    motion.lastFrame = timestamp;
-    const spring = (value: number, velocity: number, target: number) => {
-      velocity += (target - value) * 0.115 * delta;
-      velocity *= Math.pow(0.79, delta);
-      value += velocity * delta;
-      return [value, velocity] as const;
-    };
-    [motion.x, motion.velocityX] = spring(motion.x, motion.velocityX, motion.targetX);
-    [motion.y, motion.velocityY] = spring(motion.y, motion.velocityY, motion.targetY);
-    [motion.rotateX, motion.velocityRotateX] = spring(
-      motion.rotateX,
-      motion.velocityRotateX,
-      motion.targetRotateX,
-    );
-    [motion.rotateY, motion.velocityRotateY] = spring(
-      motion.rotateY,
-      motion.velocityRotateY,
-      motion.targetRotateY,
-    );
-    card.style.setProperty('--lanyard-x', `${motion.x.toFixed(2)}px`);
-    card.style.setProperty('--lanyard-y', `${motion.y.toFixed(2)}px`);
-    card.style.setProperty('--lanyard-rotate-x', `${motion.rotateX.toFixed(2)}deg`);
-    card.style.setProperty('--lanyard-rotate-y', `${motion.rotateY.toFixed(2)}deg`);
-
-    const settled =
-      !motion.active &&
-      Math.abs(motion.x) +
-        Math.abs(motion.y) +
-        Math.abs(motion.rotateX) +
-        Math.abs(motion.rotateY) <
-        0.12 &&
-      Math.abs(motion.velocityX) +
-        Math.abs(motion.velocityY) +
-        Math.abs(motion.velocityRotateX) +
-        Math.abs(motion.velocityRotateY) <
-        0.12;
-    if (settled) {
-      motion.frame = 0;
-      motion.lastFrame = 0;
-      card.style.setProperty('--lanyard-x', '0px');
-      card.style.setProperty('--lanyard-y', '0px');
-      card.style.setProperty('--lanyard-rotate-x', '0deg');
-      card.style.setProperty('--lanyard-rotate-y', '0deg');
-      return;
-    }
-    motion.frame = requestAnimationFrame(animate);
-  }
-
-  function startAnimation() {
-    const motion = motionRef.current;
-    if (!motion.frame) motion.frame = requestAnimationFrame(animate);
-  }
-
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (
-      event.target instanceof Element &&
-      event.target.closest(
-        'a, button, input, textarea, select, summary, [role="button"], [contenteditable="true"], [data-no-drag]',
-      )
-    )
-      return;
-    const motion = motionRef.current;
-    motion.active = true;
-    motion.pointerX = event.clientX;
-    motion.pointerY = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.classList.add('is-dragging');
-  }
-
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const motion = motionRef.current;
-    if (!motion.active) return;
-    const dx = event.clientX - motion.pointerX;
-    const dy = event.clientY - motion.pointerY;
-    motion.targetX = clamp(dx * 0.12, -34, 34);
-    motion.targetY = clamp(dy * 0.08, -24, 24);
-    motion.targetRotateY = clamp(dx * 0.48, -36, 36);
-    motion.targetRotateX = clamp(-dy * 0.18, -16, 16);
-    startAnimation();
-  }
-
-  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const motion = motionRef.current;
-    if (!motion.active) return;
-    motion.active = false;
-    motion.targetX = motion.targetY = motion.targetRotateX = motion.targetRotateY = 0;
-    event.currentTarget.classList.remove('is-dragging');
-    startAnimation();
-  }
-
   return (
-    <div className="lanyard-scene">
-      <div className="lanyard-cord" aria-hidden="true" />
-      <div
-        ref={cardRef}
-        className={`lanyard-card${flipped ? ' is-flipped' : ''}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onLostPointerCapture={onPointerUp}
-        onKeyDown={(event) => {
-          if (event.target !== event.currentTarget) return;
-          if (event.key === ' ' || event.key === 'Enter') {
-            event.preventDefault();
-            setFlipped((value) => !value);
-          }
-        }}
-        role="group"
-        aria-label={`${label}. Drag to swing the credential.`}
-        tabIndex={0}
-      >
-        <div className="lanyard-face lanyard-front" aria-hidden={flipped} inert={flipped}>
-          {front}
-        </div>
-        <div className="lanyard-face lanyard-back" aria-hidden={!flipped} inert={!flipped}>
-          {back}
-        </div>
-      </div>
-      <button
-        className="lanyard-flip"
-        type="button"
-        onClick={() => setFlipped((value) => !value)}
-        aria-pressed={flipped}
-      >
-        <ArrowDownIcon /> {flipped ? 'Show front' : 'Show details'}
-      </button>
+    <div aria-label={label}>
+      {front}
+      {back}
     </div>
   );
 }
