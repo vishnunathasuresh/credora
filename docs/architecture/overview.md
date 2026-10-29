@@ -18,7 +18,7 @@ which maps these boundaries to components, connections, and runtime flows.
 
 ```text
                  ┌── reviewed organization records (API)
-Next.js web ─────┼── shared protocol packages ──┬── credential registry (chain)
+TanStack Start web ─────┼── shared protocol packages ──┬── credential registry (chain)
 Direct verifier ─┘                              └── IPFS metadata manifest
        │
        └── optional API projection (sessions, search, audit, UX)
@@ -88,3 +88,7 @@ ADRs own proof invariants and privacy rules.
 For implementation-grounded runtime, issuance, verification, projection,
 organization/share, and deployment diagrams, see
 [software architecture diagrams](diagrams.md).
+
+## Profile identity
+
+[ADR 0011](../decisions/0011-profile-identity-and-publication.md) defines stable profile IDs, wallet-session control, handles, and opt-in publication. User-authored profile content and publication settings are authoritative application data requiring durable database backup. Chain-derived credential rows remain rebuildable projections. The web app uses TanStack Start and typed Router routes; credential fallback and gateway secrets stay in server-only functions.

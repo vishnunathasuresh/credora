@@ -1,8 +1,13 @@
 # Production setup
 
-Credora's self-hosted setup serves the Next.js web app at the main domain and
-the API at `api.<domain>`, behind Caddy-managed HTTPS. SQLite, IPFS metadata,
-and rotating backups use a persistent Docker volume.
+The web runtime is now TanStack Start. Deployment configuration migration is
+explicitly deferred: existing Docker/Vercel settings may still assume Next.js
+and must be updated manually before deployment. Local production serving uses
+`pnpm --filter @credora/web build` followed by `pnpm --filter @credora/web start`.
+
+The deployment guide describes the intended web/API domain split, Caddy HTTPS,
+SQLite, IPFS metadata and persistent backups; it is not evidence that the
+TanStack runtime is deployed.
 
 Follow the authoritative [production deployment and operations guide](../../deploy/README.md).
 It covers the environment template, required DNS records, production RPC and

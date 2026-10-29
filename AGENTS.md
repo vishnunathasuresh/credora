@@ -18,7 +18,9 @@ specialist: `credora-architecture` for boundaries and change impact,
 and `credora-docs` for durable project documentation. These skills complement
 this file; they do not replace the engineering rules below.
 
-- Keep blockchain proofs authoritative; API/database state is a projection.
+- Keep blockchain proofs authoritative; chain-derived API/database state is a
+  rebuildable projection. User-authored profiles and publication settings are
+  authoritative application data under ADR 0011 and require durable backups.
 - Never store private keys or unnecessary PII in the API or contracts.
 - Use Keccak-256 for credential hashes and keep it distinct from IPFS CIDs.
 - Issued credentials are immutable in v1. Corrections require a future

@@ -19,7 +19,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>. `pnpm dev` starts the Next.js website and API;
+Open <http://localhost:3000>. `pnpm dev` starts the TanStack Start website and API;
 the API listens at <http://localhost:4000>. Check its process health at
 <http://localhost:4000/health>.
 
@@ -34,10 +34,10 @@ Stop both development processes with Ctrl+C. To start one service, use
 
 - Root `.env.local` configures the API. `pnpm dev:api` loads it.
 - `apps/web/.env.local` configures the browser build. Set
-  `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_RPC_URL`, `NEXT_PUBLIC_CHAIN_ID`,
-  `NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS`,
-  `NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS`, and, when used,
-  `NEXT_PUBLIC_IPFS_GATEWAY_URL` there.
+  `VITE_API_URL`, `VITE_RPC_URL`, `VITE_CHAIN_ID`,
+  `VITE_CREDENTIAL_REGISTRY_ADDRESS`,
+  `VITE_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS`, and, when used,
+  `VITE_IPFS_GATEWAY_URL` there.
 - `.env.example` provides local defaults. Copy it only when the target file
   does not already exist; keep tokens out of both browser-visible variables
   and Git.

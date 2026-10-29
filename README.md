@@ -19,17 +19,17 @@ Credora connects issuing organizations, credential holders, and independent veri
 
 ## Proof and data
 
-| Source | What it establishes |
-| --- | --- |
-| **EVM registry** | Credential proof and issuer authorization. The registry is authoritative for the recorded credential fields. |
-| **IPFS** | Public metadata bytes addressed by a content identifier (CID). The CID is not the credential hash. |
+| Source           | What it establishes                                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **EVM registry** | Credential proof and issuer authorization. The registry is authoritative for the recorded credential fields.                                   |
+| **IPFS**         | Public metadata bytes addressed by a content identifier (CID). The CID is not the credential hash.                                             |
 | **API + SQLite** | Sessions, organization workflows, sharing, audit records, and chain-derived projections. The projections can be rebuilt from registry history. |
 
 Credential hashes use versioned Keccak-256. Issued v1 credentials are immutable. Keep private keys and unnecessary personal data out of public metadata. Credora does not ship a seeded credential catalog; public verification and issuance need reachable, configured registry and metadata services.
 
 ## Run locally
 
-Requirements: **Node.js 22** and **pnpm 10.32.1**.
+Requirements: **Node.js 22.12 or newer** and **pnpm 10.32.1**.
 
 ```sh
 corepack enable

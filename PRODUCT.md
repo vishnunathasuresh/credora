@@ -12,7 +12,7 @@ Organizations that issue credentials, people who hold them, and independent veri
 
 ## Product Purpose
 
-Credora makes skills and certifications portable and independently checkable. An issuer creates a credential, a holder carries it, and a verifier checks the public record.
+Credora builds a shareable professional identity around people and their achievements. Issuer-backed credentials provide independently checkable evidence. Usernames and opt-in public profiles are the foundation; networking follows the agreed roadmap.
 
 ## Positioning
 
@@ -20,11 +20,11 @@ Credora separates the authoritative blockchain proof from the metadata and rebui
 
 ## Operating Context
 
-The web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet with selected-credential share QR codes, and administrative surfaces. Issuers can optionally attach a public image to credential metadata; the credential QR continues to open the verifiable public record. Wallet signing sessions stay in the web holder flow.
+The web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet with selected-credential share QR codes, and administrative surfaces. Issuers can optionally attach a public image to credential metadata; the credential QR continues to open the verifiable public record. The TanStack Start web app uses existing wallet sessions for profile editing and credential workflows. Pre-wallet accounts and recovery remain future work. Profiles and publication preferences are authoritative application data, distinct from chain-derived projections.
 
 ## Capabilities and Constraints
 
-- The blockchain registry is authoritative for credential existence, issuer, learner, metadata URI, issuance time, and issuer authorization. `ORG_ADMIN` is a separate superadmin-reviewed operational role.
+- The blockchain registry is authoritative for credential existence, issuer, learner, metadata URI, issuance time, and issuer authorization. Organization administrator authority is enforced by the organization registry; organization review and issuer delegation remain distinct.
 - Credential hashes use versioned Keccak-256 and are distinct from IPFS CIDs.
 - Issued credentials are immutable in v1.
 - A verifier should not need a wallet for read-only verification.
