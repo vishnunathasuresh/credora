@@ -428,6 +428,43 @@ button:disabled {
   align-items: center;
   gap: 0;
 }
+.home-identity-scene {
+  height: auto;
+  min-height: 550px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+}
+.hero-lanyard {
+  min-width: 0;
+  align-self: center;
+}
+.hero-lanyard .credential-lanyard-static {
+  min-height: 340px;
+  padding: 20px;
+}
+.hero-lanyard .credential-lanyard-static h2 {
+  margin: 28px 0;
+  font-size: 24px;
+}
+.hero-lanyard .credential-lanyard-stage {
+  height: 440px;
+}
+.hero-lanyard .credential-lanyard-accessible-details {
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .home-preview-layout.home-identity-scene {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 20px;
+  }
+  .home-identity-scene .home-profile-preview {
+    display: none;
+  }
+  .hero-lanyard .credential-lanyard-static {
+    max-width: 320px;
+  }
+}
 .home-profile-preview {
   position: relative;
   z-index: 2;

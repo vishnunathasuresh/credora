@@ -36,7 +36,7 @@ export function HomePage() {
 
         <div className="home-artifact" aria-label="Illustrative profile and credential preview">
           <span className="home-artifact-boundary">Illustrative preview</span>
-          <div className="home-preview-layout">
+          <div className="home-preview-layout home-identity-scene">
             <article className="home-profile-preview">
               <div className="preview-avatar" aria-hidden="true">
                 AC
@@ -53,25 +53,16 @@ export function HomePage() {
                 <small>Northstar Learning · Issuer-backed credential</small>
               </div>
             </article>
-            <article
-              className="preview-credential"
-              aria-label="Illustrative credential, not a real record"
-            >
-              <div className="preview-org">
-                <span className="preview-org-mark">N</span>
-                <span>NORTHSTAR LEARNING</span>
-              </div>
-              <h3>
-                Product Design
-                <br />
-                Foundations
-              </h3>
-              <p>Presented to Avery Chen</p>
-              <div className="preview-credential-rule" />
-              <span className="preview-proof-label">
-                <span className="preview-proof-dot" /> Verifiable credential
-              </span>
-            </article>
+            <LanyardPreview
+              className="hero-lanyard"
+              title="Product Design Foundations"
+              issuerName="Northstar Learning"
+              issueDate="2026-10-01"
+              recipientName="Avery Chen"
+              recipientHandle="averychen"
+              description="Illustrative credential preview. Drag the badge to explore it."
+              illustrative
+            />
           </div>
           <p className="home-artifact-caption">
             A profile and the achievement behind it, together.
