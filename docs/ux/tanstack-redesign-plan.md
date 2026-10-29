@@ -1,109 +1,95 @@
 # TanStack Start redesign
 
-Status: implementation plan, 2026-10-29. Scope is the complete web framework port
-and replacement design, with profile groundwork. Networking and new non-wallet
-account recovery remain later roadmap work.
+Status: implemented and reviewed, 2026-10-29. The agreed product direction is
+in [product-direction.md](../roadmap/product-direction.md); the implemented
+visual system is specified in [DESIGN.md](../../DESIGN.md). This record keeps
+the initial audit and design rejection as history, then states the built result
+and the evidence boundary.
 
-## Audit
+## Historical baseline
 
-The deployed homepage and current source were inspected. The desktop homepage
-has a coherent verifier but no profile entry or identity. The holder screen
-identifies a person as an address and "Credential holder". Credential content
-competes with QR, address, and projection copy. Most navigation uses document
-links; Next-specific routing and server rendering require explicit migration.
+The initial audit found a verifier-first homepage without a profile entry,
+holder identity represented by a wallet address, competing credential and QR
+hierarchy, legacy mixed token CSS, and narrow-screen organization/admin views
+that needed browser review. The scoped source-and-desktop score was 11/20
+(accessibility 3/4, performance 2/4, responsive 2/4, theming 2/4, integrity
+2/4); it was an audit judgment, not a WCAG certification or mobile score. A
+single 1280×800 production observation recorded 544 ms TTFB and 1331 ms
+DOMContentLoaded. It was neither field data nor a controlled comparison.
 
-Provisional source-and-desktop scores: accessibility 3/4, performance 2/4,
-responsive 2/4, theming 2/4, implementation integrity 2/4 (11/20). These are
-scoped audit judgments, not a WCAG certification or mobile performance score.
+The first sparse serif folio was rejected. The selected direction is a
+professional network with expressive, person-first public profiles and
+restrained workspaces. Do not use the rejected folio as a current design
+contract; [DESIGN.md](../../DESIGN.md) owns the current system.
 
-- P1, implementation integrity: `holder-wallet.tsx` lacks person-owned profile
-  content. Build an editable identity and optional public profile.
-- P1, implementation integrity: public result and credential card split proof,
-  achievement, and issuer hierarchy. Replace with an achievement-led badge and
-  distinct truthful proof states.
-- P2, theming: legacy global CSS mixes literal colors and token surfaces. Replace
-  the visual system with semantic light/dark tokens.
-- P2, responsive: existing forms and dense organization/admin views need narrow
-  viewport verification; static inspection is a hypothesis until browser checks.
-- P2, performance: avoid carrying camera decoding and 3D into every route.
-  Existing lazy camera imports are worth retaining. Route splitting, bounded
-  preloads, and lazy lanyard loading are migration requirements.
-- P2, integrity: remove eyebrow labels and implementation explanations from
-  ordinary product flows. Keep necessary warnings and accessible field labels.
+## Built product
 
-Positive findings: semantic public entry points, keyboard skip link, Radix
-modal primitives, real verification states, and independent proof fallback.
-Preserve those capabilities during replacement.
+- The web app uses TanStack Start, Vite, typed TanStack Router routes, and the
+  semantic light/dark CSS tokens described in DESIGN.md. Geist Variable is
+  locally served. Tailwind is restored.
+- Public profile, verification, and temporary-share surfaces are standalone.
+  The private profile/credential and issuer/admin routes use the workspace
+  shell, with a desktop sidebar and mobile navigation.
+- The profile editor supports HTTPS avatar URLs, links, projects, experience,
+  education, and ordered credential selection. Project, experience, and
+  education entries have stable IDs, reorder controls, and a maximum of eight
+  items per list. Profile publication remains explicit and opt-in.
+- Public profiles show user-authored content separately from selected
+  credential summaries. A summary does not claim fresh verification. Profile
+  sharing uses clipboard support with a native share fallback.
+- The full credential view and labeled illustrative homepage preview use the
+  React Bits lanyard implementation, including upstream Verlet rope physics.
+  The Three.js renderer is lazy and starts only after interaction. Accessible
+  HTML proof details and a working static flip remain available for reduced
+  motion or unavailable WebGL. No stock GLB is used; procedural local texture
+  data is used. The public source and license are in `public/lanyard/`.
+- Profile content, handles, publication settings, and selections are
+  authoritative application data requiring durable backup. Chain-derived
+  credential rows remain rebuildable projections; the ledger and
+  content-addressed metadata remain authoritative for proof. See
+  [ADR 0011](../decisions/0011-profile-identity-and-publication.md).
 
-Single-session production desktop observation (1280×800, normal network,
-2026-10-29): TTFB 544 ms, DOMContentLoaded 1331 ms. This is neither field data
-nor a controlled before/after comparison. No CrUX/RUM or DevTools trace tool is
-available in this session. Record local build sizes and browser observations
-separately; do not claim improvement from unlike environments.
+Pre-wallet signup, account recovery, and wallet reassignment remain future
+work. Follows, feeds, jobs, messaging, discovery, and recommendations are not
+shipped networking features. Continue to follow the product delivery order.
 
-## Design contract
+## Review and verification
 
-A personal professional folio: warm-white canvas, ink typography, deep cobalt
-primary actions, precise hairlines, spacious asymmetric layout, and a physical
-credential badge. No eyebrows, invented metrics, fake social activity, generic
-feature-tile grid, or seeded production credentials. Organization identity and
-achievement content lead. Use Hugeicons and existing Radix/shadcn primitives.
+The root workspace review completed `pnpm typecheck`, `pnpm build`,
+`pnpm lint`, and nine unit tests. Profile end-to-end coverage passed for rich
+profile round-trip, privacy, ordering, backward compatibility, and validation;
+wallet and temporary-share end-to-end coverage passed. Built web routes and
+secret/identifier boundary checks passed.
 
-Landing: left-aligned identity headline and profile action beside an authored,
-clearly illustrative credential artifact. Verifier remains a direct navigation
-item and dedicated page. Signed-in home is task-oriented rather than marketing.
+Local browser review used a synthetic account. Saving and reordering profile
+entries persisted and appeared in the public DOM; the avatar rendered. The
+share dialog was inspected at mobile width, and the 390px layout had no
+horizontal overflow. Browser review also confirmed the lanyard canvas and
+interactive flip, plus the reduced-motion static view and its working flip.
+No credentials were present in the local fixture, so the credential summary's
+visual presentation was not browser-verified; API tests cover its summary
+output.
 
-Workspace: restrained navigation, clear page title/action, credential library,
-profile edit/publish controls, and role workspaces. Mobile collapses navigation
-into an accessible sheet and content into one column. Touch controls are at
-least 44px; long hashes and handles wrap without horizontal overflow.
+Review captures are under `.impeccable/review/`: `network-home-light-desktop`
+and `network-home-light-mobile`, `network-rich-editor-desktop` and
+`network-rich-editor-mobile`, `network-rich-public-desktop` and
+`network-rich-public-mobile`, and `network-badge-active-mobile`. Corrected
+superadmin and malformed-state captures are also retained there. The first
+review found missing rich fields, low contrast, and corrupt screens. After
+those fixes, a fresh reviewer verdict was **SHIP** at the reviewed fix-list
+scope, with all three findings resolved. The Geist workhorse received one
+accepted low-severity note; the review did not report zero issues.
 
-Credential: organization and title on its face, recipient where available,
-date, actual proof state; back contains detail and QR. Drag/swing/flip is the
-signature interaction with a static reduced-motion fallback. Only matching
-proof triggers a successful reveal. Other states remain explicit and retryable.
+The lanyard renderer bundle is 540.92 KB raw and 140 KB gzip. This records the
+lazy feature chunk, not route-level transfer or a measured user experience.
+No field Core Web Vitals or controlled before/after performance result is
+available. Deployment repair was manually deferred because the preview was
+broken; deployment state is not verified by this review.
 
-## Port contract and ownership
+## Remaining evidence limits
 
-1. Replace Next.js with TanStack Start, Vite and typed TanStack Router routes.
-   Preserve `/`, `/verify`, `/verify/:credentialRef`, `/wallet`, `/dashboard`,
-   `/issuer`, `/org`, `/admin`, `/superadmin`, `/share/:token`, health and manifest.
-2. Keep server-only gateway credentials and direct verification behind server
-   functions. Public browser config uses explicit Vite variables; never expose
-   the whole process environment. Preserve temporary-share noindex/no-store.
-3. Use per-request QueryClient instances and appropriate query keys where they
-   eliminate duplicate fetches. Keep auth-scoped data isolated and clear caches
-   when sessions change. No blanket prefetching or optimistic proof validity.
-4. Build the visual system and replace public and holder surfaces; carry all
-   issuer/organization/admin behavior into the new shell.
-5. Add stable profile IDs, unique handles, private-by-default publication, and
-   selected credentials through authenticated API operations. Record the ADR
-   before implementation. Wallet sessions are the transitional auth mechanism;
-   do not imply that pre-wallet accounts or recovery have shipped.
-6. Validate build/typecheck, existing protocol/API suites, all route responses,
-   desktop/mobile keyboard and overflow behavior, and lazy-load boundaries.
-   Deployment configuration repair is explicitly outside this pass.
-
-Implementation uses Luna High for scoped port and UI work; reserve Terra for
-identity/proof/privacy boundaries if needed. Root owns integration, lockfile,
-review, commits, PR and merge. Each implementer owns named files and avoids
-unrelated `demo/` content. Delivery is small commits on the feature branch.
-
-## Replacement after user review
-
-The user rejected the first sparse serif folio and selected **professional network
-
-- restrained workspaces**. That visual implementation is superseded by DESIGN.md.
-  The migration and profile functionality remain in scope and are preserved.
-
-Current primary-source study: Peerlist (https://peerlist.io/) demonstrates a
-handle-first identity entry and work-centric profile story; Contra
-(https://contra.com/) leads with actual work presentation; Linear
-(https://linear.app/) presents its working interface at meaningful scale. These
-inform composition and density, not copied branding, claims or social counts.
-The user explicitly selected https://www.shadcn.io/ for component reference and
-https://reactbits.dev/components/lanyard for the actual physics-driven lanyard.
-
-Replacement work: (1) one new visual system and full landing; (2) every inner
-page and navigation; (3) actual React Bits integration replacing CSS imitation;
-(4) fresh bounded desktop/mobile review and verification. No new deployment work.
+No local Foundry/Anvil environment was available for browser verification of
+actual issuer/admin signed transactions. Successful API, route, build, and
+fixture checks do not establish deployed service behavior, a live issuance,
+or real credential summary rendering in a browser. Deployment and production
+performance remain outside the completed review.

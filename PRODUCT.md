@@ -20,7 +20,9 @@ Credora separates the authoritative blockchain proof from the metadata and rebui
 
 ## Operating Context
 
-The web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder wallet with selected-credential share QR codes, and administrative surfaces. Issuers can optionally attach a public image to credential metadata; the credential QR continues to open the verifiable public record. The TanStack Start web app uses existing wallet sessions for profile editing and credential workflows. Pre-wallet accounts and recovery remain future work. Profiles and publication preferences are authoritative application data, distinct from chain-derived projections.
+The TanStack Start web app includes QR-first public verification, issuer and organization workspaces, organization applications with superadmin review, a holder credential library with selected-credential share links and QR codes, public profiles, and administrative surfaces. Public profiles are opt-in and contain the owner's selected fields and credentials. The profile editor supports an HTTPS avatar URL, projects, experience, and education with stable entry IDs and user-controlled ordering; each of those lists is capped at eight entries. Selected credentials are presented as proof summaries, not as a new verification result. Issuers can optionally attach a public image to credential metadata; its QR continues to open the independently verifiable public record.
+
+Profile edits and credential workflows currently use existing wallet sessions. Pre-wallet signup, independent account recovery, and wallet reassignment are not shipped. Profile fields, handles, publication choice, and credential selection are authoritative application data requiring durable backup, as recorded in [ADR 0011](docs/decisions/0011-profile-identity-and-publication.md). Chain-derived credential projections remain rebuildable; the ledger and content-addressed metadata remain authoritative for issued proof.
 
 ## Capabilities and Constraints
 
@@ -30,6 +32,13 @@ The web app includes QR-first public verification, issuer and organization works
 - A verifier should not need a wallet for read-only verification.
 - Infrastructure failures must remain distinct from invalid proofs.
 - The product UI contains no seeded credential or organization demo catalog.
+- Public profiles start private. Publishing explicitly exposes the selected profile fields and credential references and may associate a person's name with public wallet records. Unpublishing cannot recall copied profile content or public issuance records.
+- Profile content is user-authored and does not change credential metadata, hashes, issuance, or wallet ownership. A public profile or credential summary is not itself proof of identity or wallet control.
+- The full credential view uses the actual React Bits lanyard implementation on demand, with HTML proof details and a static flip path for reduced motion or unavailable WebGL. The landing preview is illustrative and labeled; synthetic preview content is not live credential data.
+
+## Roadmap Boundary
+
+The current product supports profiles, opt-in publication, credential selection, and sharing. Follows, feeds, jobs, messaging, discovery, and recommendation systems remain future roadmap work, gated by moderation, reporting, blocking, privacy, and repeat-use evidence. Pre-wallet account creation and recovery also remain future work requiring separate authentication and wallet-linking decisions. Follow the delivery sequence in [the agreed product direction](docs/roadmap/product-direction.md); do not describe planned capabilities as shipped.
 
 ## Brand Commitments
 

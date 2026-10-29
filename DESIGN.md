@@ -1,49 +1,75 @@
 # Credora design system
 
-## Direction
+Credora uses a professional network language for public identity and restrained
+workspaces for editing and issuing. Product scope lives in
+[the product direction](docs/roadmap/product-direction.md); implementation and
+verification evidence live in [the redesign record](docs/ux/tanstack-redesign-plan.md).
 
-The user rejected the sparse serif folio. Replace it throughout with a
-professional network and restrained workspaces, as explicitly selected on
-2026-10-29. Product behavior remains defined by docs/roadmap/product-direction.md.
+## Visual language
 
-## Visual system
+Geist Variable is served locally. Chalk backgrounds, white surfaces, near-black
+text and iris purple establish the light theme; dark mode remaps those semantic
+roles to charcoal and pale iris. Ordinary supporting text uses a readable muted
+ink, including placeholders. Verification success, warnings and errors have their
+own colors and explicit text; brand decoration never asserts proof validity.
 
-Geist variable sans, locally served. Chalk canvas, white surfaces, near-black
-ink, violet/iris brand accent and pale lavender product stages. Meaningful
-verification results retain separate semantic success/warning/error colors.
-No serif hero, eyebrow labels, fake counts, customer logos or invented activity.
-Use 12px control radii, 16px feature surfaces, hairline borders and soft elevation
-only for floating physical objects or overlays. Normal controls are at least44px.
+The implementation tokens are in `apps/web/src/styles/globals.css`. Use them
+instead of introducing competing palettes. Controls have 12px radii, ordinary
+surfaces 16px radii, quiet borders and a consistent spacing scale. Soft elevation
+belongs to floating credential objects and overlays. Headings use sans-serif
+weight and scale; avoid decorative eyebrows, invented metrics and fake activity.
 
-## Public landing
+## Navigation and layout
 
-A complete product story, not a heading and disconnected badge. First viewport:
-compact navigation, strong two-line identity headline, direct profile and verify
-actions, and a large composed product preview showing the relationship between
-person, handle, organization and credential. Mark previews illustrative at their
-boundary. Subsequent sections show a profile canvas, physical credential, sharing
-and organization workflow with distinct compositions, then a real closing CTA.
-Only link to available routes; never advertise networking as shipped.
+The landing page combines a person, handle, issuer and achievement in a composed,
+explicitly illustrative preview. Profile, credential and sharing sections use
+different compositions, followed by a working profile action. Marketing copy
+must describe implemented capabilities.
 
-Use the actual React Bits lanyard (Three.js with upstream rope physics), customized with
-credential and organization data, on full verified detail and an explicitly
-illustrative homepage preview. Lazy-load it behind an interactive static facade.
-Retain HTML details, keyboard flip, static reduced-motion/no-WebGL fallback.
+Public profiles, verification and temporary shares use the public header without
+a workspace sidebar. Private profile, credential and role workspaces have a
+compact desktop sidebar. Role-specific destinations remain behind the workspace
+entry. Mobile navigation uses a named Radix dialog with focus management.
 
-## Inner pages
+Content is fluid, with a 1200px general measure and narrower public profiles.
+Narrow layouts become one column, identifiers wrap, and controls have at least
+44px touch targets. Keep loading, empty, unauthorized and infrastructure-error
+states distinct. Root errors and missing pages provide recovery actions.
 
-A persistent compact sidebar on desktop and accessible mobile navigation.
-Profile, credentials, verification and workspaces are distinct destinations.
-Route titles, content widths, action bars, connection gates, empty/error/loading
-states, forms and tables share one visual grammar. Public profiles are expressive
-person-first pages; editing and issuer/admin workspaces are calm and task-focused.
-Remove repeated system explanations and eyebrow labels. Keep necessary safety,
-privacy and failure-state copy.
+## Profiles
 
-## Delivery and evidence
+Public identity leads with the photo or initials, name, handle and headline.
+About, links, experience, education and projects follow as user-written content.
+Issuer-backed credentials are a separate section; summaries are display
+projections and their links open independent verification.
 
-Preserve the working TanStack Start port and API/proof boundaries while replacing
-all rejected visual material. Root owns integration and PR; Luna High owns scoped
-UI work. Read-only testing can use Antigravity High. Verify desktop/mobile captures
-and route content, not only HTTP status. Record implementation and honest limits
-in docs/ux/tanstack-redesign-plan.md after the redesign passes review.
+The editor groups identity, projects, experience, education, featured credentials
+and publication. Stable entry IDs preserve ordering. Use explicit up/down controls
+for accessible ordering. Photos currently use HTTPS URLs with a local initials
+fallback; this is not a file-upload service. Profiles stay private until published.
+
+## Credentials and motion
+
+The selected React Bits lanyard uses its upstream Three.js physics implementation.
+Organization, title, recipient and date are rendered onto locally generated card
+textures. Attribution and license are retained under `apps/web/public/lanyard`.
+
+Load the renderer only after interaction. Keep HTML credential information and
+working front/details controls available for reduced motion and renderer failure.
+Bound pixel density, pause offscreen/background animation and dispose resources
+on unmount. A full credential's interactive presentation requires a matching
+proof; landing demonstrations stay explicitly illustrative.
+
+## Components and review boundaries
+
+Compose the existing shadcn/Radix controls with Hugeicons. Tailwind utilities,
+semantic token mappings, keyboard focus, labels and validation states are part
+of the component foundation. Keep native checkbox sizing separate from text
+inputs. Reference sources are recorded in
+[component sources](docs/ux/component-sources.md).
+
+The detector's single Geist warning was accepted as a low-severity choice for
+readable workspaces. The independent review accepted the replacement layouts;
+its final verdict marked the reported profile, contrast and capture fixes
+resolved. This is not whole-app WCAG certification or live-chain browser proof.
+See the redesign record for tested states and remaining boundaries.
