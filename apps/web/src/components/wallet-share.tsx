@@ -202,8 +202,7 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
     <section className="wallet-share-panel" aria-labelledby="wallet-share-title">
       <div className="wallet-share-heading">
         <div>
-          <p className="panel-label">One QR · selected credentials</p>
-          <h2 id="wallet-share-title">Choose what to share.</h2>
+          <h2 id="wallet-share-title">Create a temporary share</h2>
           <p>
             Select up to 25 records. One QR opens a page that checks every credential separately.
           </p>

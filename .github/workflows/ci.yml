@@ -27,7 +27,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm test:e2e:profiles
       - run: pnpm build
+      - run: pnpm test:e2e:web
 
   contracts:
     name: Solidity checks

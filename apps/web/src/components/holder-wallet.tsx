@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRightIcon, CheckIcon } from './icons';
 import { CredentialCard } from './credential-card';
 import { WalletShare } from './wallet-share';
+import { Link } from '@tanstack/react-router';
 import { credoraApi } from '../lib/credora-api';
 import {
   connectWalletSession,
@@ -91,21 +92,24 @@ export function HolderWallet() {
 
   return (
     <main className="page-width workspace-page">
-      <div className="workspace-heading">
+      <header className="workspace-heading app-page-header">
         <div>
-          <h1>Your credential wallet.</h1>
-          <p className="lede">Your public records, in one place.</p>
+          <h1>My credentials</h1>
+          <p className="lede">Your achievements and their public proof records.</p>
         </div>
         {session ? (
           <Button className="text-button" type="button" onClick={disconnect}>
             Disconnect {shortAddress(session.address)}
           </Button>
         ) : null}
-      </div>
+      </header>
       {!session ? (
-        <section className="workspace-panel workspace-connect">
-          <h2>Connect your wallet.</h2>
-          <p>Sign in with your wallet. Your keys stay in your wallet.</p>
+        <section className="workspace-panel workspace-connect app-connect-state">
+          <h2>Open your credential library</h2>
+          <p>
+            Connect the wallet that received your credentials. Visitors can still verify a
+            credential link without connecting.
+          </p>
           <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect learner wallet'}
           </Button>
@@ -119,7 +123,7 @@ export function HolderWallet() {
         <section className="workspace-panel">
           <div className="panel-header">
             <div>
-              <p className="panel-label">Connected learner</p>
+              <p className="panel-label">Your connected wallet</p>
               <h2>{shortAddress(session.address)}</h2>
             </div>
             <span className="status-badge status-success">
@@ -131,22 +135,20 @@ export function HolderWallet() {
               {session.address.slice(2, 4).toUpperCase()}
             </span>
             <span className="wallet-profile-copy">
-              <strong>Credential holder</strong>
+              <strong>Wallet connected</strong>
               <code>{session.address}</code>
             </span>
             <span className="wallet-profile-state">
               <CheckIcon /> Connected
             </span>
           </div>
-          <div className="wallet-note">
-            <strong>Public proof, private control.</strong>
-            <span>
-              This view is an API projection for convenience. Each link still resolves through the
-              immutable registry and metadata proof.
-            </span>
+          <div className="wallet-profile-edit">
+            <Link to="/profile">
+              Edit your profile <ArrowUpRightIcon />
+            </Link>
           </div>
           {!loaded ? (
-            <div className="empty-state" role="status">
+            <div className="empty-state app-empty-state" role="status">
               <strong>{error ? 'Credentials unavailable' : 'Loading your credentials…'}</strong>
               <span>
                 {error
@@ -203,9 +205,13 @@ export function HolderWallet() {
                       verified={false}
                     />
                     <div className="credential-actions">
-                      <a className="text-link" href={`/verify/${credential.credential_hash}`}>
+                      <Link
+                        className="text-link"
+                        to="/verify/$credentialRef"
+                        params={{ credentialRef: credential.credential_hash }}
+                      >
                         Verify public record <ArrowUpRightIcon />
-                      </a>
+                      </Link>
                       <Button
                         className="text-button"
                         type="button"
@@ -219,7 +225,7 @@ export function HolderWallet() {
               </div>
             </>
           ) : (
-            <div className="empty-state">
+            <div className="empty-state app-empty-state">
               <strong>No confirmed credentials found.</strong>
               <span>
                 Once an issuer confirms a credential for this wallet, it will appear here.

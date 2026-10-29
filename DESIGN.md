@@ -1,35 +1,75 @@
-# Credora visual direction
+# Credora design system
 
-## World
+Credora uses a professional network language for public identity and restrained
+workspaces for editing and issuing. Product scope lives in
+[the product direction](docs/roadmap/product-direction.md); implementation and
+verification evidence live in [the redesign record](docs/ux/tanstack-redesign-plan.md).
 
-Credora should feel like a clear public protocol interface: quiet, precise, and inspectable. The landing page uses a shadcn-style neutral system rather than a decorative editorial treatment.
+## Visual language
 
-## Palette
+Geist Variable is served locally. Chalk backgrounds, white surfaces, near-black
+text and iris purple establish the light theme; dark mode remaps those semantic
+roles to charcoal and pale iris. Ordinary supporting text uses a readable muted
+ink, including placeholders. Verification success, warnings and errors have their
+own colors and explicit text; brand decoration never asserts proof validity.
 
-Neutral background and foreground tokens carry the page. Borders, muted text, and surfaces use the neutral scale. Semantic green is reserved for verified or healthy states; it is not a general brand accent.
+The implementation tokens are in `apps/web/src/styles/globals.css`. Use them
+instead of introducing competing palettes. Controls have 12px radii, ordinary
+surfaces 16px radii, quiet borders and a consistent spacing scale. Soft elevation
+belongs to floating credential objects and overlays. Headings use sans-serif
+weight and scale; avoid decorative eyebrows, invented metrics and fake activity.
 
-## Typography
+## Navigation and layout
 
-Use a modern system sans for interface copy and a restrained, tightly tracked display scale for the hero. Monospace is reserved for hashes, IDs, and protocol values.
+The landing page combines a person, handle, issuer and achievement in a composed,
+explicitly illustrative preview. Profile, credential and sharing sections use
+different compositions, followed by a working profile action. Marketing copy
+must describe implemented capabilities.
 
-## Surfaces
+Public profiles, verification and temporary shares use the public header without
+a workspace sidebar. Private profile, credential and role workspaces have a
+compact desktop sidebar. Role-specific destinations remain behind the workspace
+entry. Mobile navigation uses a named Radix dialog with focus management.
 
-Use a small number of calm bordered surfaces with 12px radii, one soft elevation level, and clear grouping. Avoid decorative gradients, fake metrics, and unearned customer proof.
+Content is fluid, with a 1200px general measure and narrower public profiles.
+Narrow layouts become one column, identifiers wrap, and controls have at least
+44px touch targets. Keep loading, empty, unauthorized and infrastructure-error
+states distinct. Root errors and missing pages provide recovery actions.
 
-Workspace screens use the same surfaces as the public verifier: a strong page heading, one clear primary action, compact status pills, readable forms, and projection views that visibly remain projections. Role-specific actions should stay distinct without creating a new visual language.
+## Profiles
 
-## Landing page intent
+Public identity leads with the photo or initials, name, handle and headline.
+About, links, experience, education and projects follow as user-written content.
+Issuer-backed credentials are a separate section; summaries are display
+projections and their links open independent verification.
 
-The first viewport is a public verification workbench. Put QR scan, QR-image upload, and link entry first. Keep the result tied to live configured sources; do not seed sample credentials. Holder and issuer workspaces remain one step away through compact task cards.
+The editor groups identity, projects, experience, education, featured credentials
+and publication. Stable entry IDs preserve ordering. Use explicit up/down controls
+for accessible ordering. Photos currently use HTTPS URLs with a local initials
+fallback; this is not a file-upload service. Profiles stay private until published.
 
-## Components
+## Credentials and motion
 
-Web controls use the checked-in shadcn components in `apps/web/src/components/ui`: Button, Input, Textarea, NativeSelect, Label, Card, Badge, and Dialog. Extend these primitives instead of introducing a second control system. Use Hugeicons stroke-rounded glyphs through the local icon wrapper, including icons inside shadcn primitives. Keep action links as links through Button's `asChild` support. Use the primary button for the main task, outline for secondary actions, ghost for navigation, and destructive styling for destructive actions. Preserve visible focus, disabled, loading, and error states.
+The selected React Bits lanyard uses its upstream Three.js physics implementation.
+Organization, title, recipient and date are rendered onto locally generated card
+textures. Attribution and license are retained under `apps/web/public/lanyard`.
 
-Radix-backed Dialog owns web QR sharing and narrow-screen navigation, including a named title, description, close action, and focus management. QR sharing exposes the public verification URL alongside the code; copy/share failures retain an actionable fallback. QR download is an image of the public link, not a credential document or independent proof.
+Load the renderer only after interaction. Keep HTML credential information and
+working front/details controls available for reduced motion and renderer failure.
+Bound pixel density, pause offscreen/background animation and dispose resources
+on unmount. A full credential's interactive presentation requires a matching
+proof; landing demonstrations stay explicitly illustrative.
 
-Organization enrollment starts from `/org` after wallet authentication. A request remains pending until a superadmin independently reviews the applicant wallet and self-reported website. The applicant's downloadable QR contains only an opaque protected review reference. Scanning opens the pending request in the superadmin workspace; it cannot approve, register, or authorize by itself. Keep review, issuer authorization and registry availability as distinct states. Organization access remains an API record, while the credential registry separately decides whether its wallet may issue.
+## Components and review boundaries
 
-First-time wallet guidance explains account creation, recovery-phrase privacy, sharing the public address with an issuer, and signing the web login message. Keep this help beside the holder journey. Public verification remains available without a wallet. Distinguish wallet connection, signed login, and issuance transactions; signing in does not cost gas.
+Compose the existing shadcn/Radix controls with Hugeicons. Tailwind utilities,
+semantic token mappings, keyboard focus, labels and validation states are part
+of the component foundation. Keep native checkbox sizing separate from text
+inputs. Reference sources are recorded in
+[component sources](docs/ux/component-sources.md).
 
-Verification feedback names the failed dependency or proof condition, then offers a relevant next action. Keep malformed references, absent records, ledger outages, unavailable metadata, inconsistent metadata, and service outages distinct. An unavailable service must not appear as an invalid credential. Loading, empty collections, local storage failures, and sharing failures need explicit copy rather than blank surfaces.
+The detector's single Geist warning was accepted as a low-severity choice for
+readable workspaces. The independent review accepted the replacement layouts;
+its final verdict marked the reported profile, contrast and capture fixes
+resolved. This is not whole-app WCAG certification or live-chain browser proof.
+See the redesign record for tested states and remaining boundaries.

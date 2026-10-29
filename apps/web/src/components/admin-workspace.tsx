@@ -8,6 +8,7 @@ import { organizationIdFromApplicationId } from '@credora/credential-core';
 import { createWalletClient, custom, defineChain, getAddress } from 'viem';
 import { AlertIcon, CheckIcon } from './icons';
 import { credoraApi } from '../lib/credora-api';
+import { publicEnv } from '../lib/public-env';
 import {
   Dialog,
   DialogContent,
@@ -22,8 +23,8 @@ import {
   type WalletSession,
 } from '../lib/wallet-session';
 
-const contractAddress = process.env.NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS;
-const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
+const contractAddress = publicEnv.organizationCredentialRegistryAddress;
+const chainId = publicEnv.chainId;
 
 type OrganizationApplication = {
   id: string;
@@ -121,7 +122,7 @@ export function AdminWorkspace() {
       if (action === 'approve' || action === 'suspend' || action === 'reactivate') {
         if (!contractAddress)
           throw new Error(
-            'Set NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS to manage organization authority.',
+            'Set VITE_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS to manage organization authority.',
           );
         const provider = browserWalletProvider();
         const accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
@@ -242,18 +243,18 @@ export function AdminWorkspace() {
 
   return (
     <main className="page-width workspace-page">
-      <div className="workspace-heading">
+      <header className="workspace-heading app-page-header">
         <div>
-          <h1>Superadmin control.</h1>
+          <h1>Protocol administration</h1>
           <p className="lede">
             Verify and activate organizations once. Organization admins manage issuer wallets and
             credential issuance after activation.
           </p>
         </div>
-      </div>
+      </header>
       {!session ? (
-        <section className="workspace-panel workspace-connect">
-          <h2>Connect the superadmin wallet.</h2>
+        <section className="workspace-panel workspace-connect app-connect-state">
+          <h2>Connect the superadmin wallet</h2>
           <p>
             This action requires the registry administrator account and a browser wallet connected
             to the configured chain.
@@ -272,7 +273,7 @@ export function AdminWorkspace() {
           <div className="status-badge status-warning">
             <AlertIcon /> Superadmin role required
           </div>
-          <h2>This wallet cannot manage protocol authority.</h2>
+          <h2>This wallet does not have the superadmin role</h2>
           <p>
             Connected wallet: {shortAddress(session.address)}. Switch to the registry administrator
             account and connect again.
@@ -287,8 +288,7 @@ export function AdminWorkspace() {
         <section className="workspace-panel workspace-connect">
           <div className="panel-header">
             <div>
-              <p className="panel-label">Protocol authority</p>
-              <h2>Organization authority.</h2>
+              <h2>Organization review and registry controls</h2>
             </div>
             <span className="status-badge status-success">
               <CheckIcon /> Superadmin connected
@@ -336,7 +336,6 @@ export function AdminWorkspace() {
           <section className="organization-admin-queue" aria-labelledby="organization-review-title">
             <div className="panel-header">
               <div>
-                <p className="panel-label">Manual approval gate</p>
                 <h2 id="organization-review-title">Organization requests</h2>
               </div>
               <span className="status-badge">
@@ -408,7 +407,6 @@ export function AdminWorkspace() {
           <section className="organization-admin-queue" aria-labelledby="organizations-title">
             <div className="panel-header">
               <div>
-                <p className="panel-label">Approved access</p>
                 <h2 id="organizations-title">Organizations</h2>
               </div>
               <span className="panel-note">API projection checked against on-chain authority</span>
@@ -539,8 +537,8 @@ export function AdminWorkspace() {
               Approval is unavailable because the organization registry is not configured. Deploy
               the v3 registry, set its address as{' '}
               <code>ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS</code> for the API and{' '}
-              <code>NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS</code> for the web app,
-              then restart the API and rebuild the web app.
+              <code>VITE_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS</code> for the web app, then
+              restart the API and rebuild the web app.
             </p>
           ) : null}
           {error ? (

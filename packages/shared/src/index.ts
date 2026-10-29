@@ -1,5 +1,43 @@
 export type Role = 'SUPERADMIN' | 'ORG_ADMIN' | 'ADMIN' | 'ISSUER' | 'LEARNER' | 'VERIFIER';
 
+export type ProfileProject = {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+};
+
+export type ProfileExperience = {
+  id: string;
+  role: string;
+  organization: string;
+  period: string;
+  description: string;
+};
+
+export type ProfileEducation = {
+  id: string;
+  school: string;
+  degree: string;
+  period: string;
+  description: string;
+};
+
+export type RichProfileContent = {
+  avatarUrl: string;
+  projects: ProfileProject[];
+  experience: ProfileExperience[];
+  education: ProfileEducation[];
+};
+
+export type ProfileCredentialSummary = {
+  credentialHash: string;
+  skillName: string;
+  skillLevel: string;
+  issueDate: string;
+  organizationName: string | null;
+};
+
 export type OperationState =
   | 'draft'
   | 'metadata-uploaded'

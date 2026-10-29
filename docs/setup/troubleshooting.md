@@ -4,7 +4,7 @@
 
 - Confirm the web process is running and port 3000 is free.
 - Check the terminal where `pnpm dev` or `pnpm dev:web` was started.
-- If `NEXT_PUBLIC_*` values changed, restart Next.js; the dev server reads
+- If `VITE_*` values changed, restart TanStack Start; the dev server reads
   `apps/web/.env.local`.
 
 ## API does not respond
@@ -12,7 +12,7 @@
 - Check port 4000 and the API process output.
 - Open <http://localhost:4000/health> to check process health.
 - Root `.env.local` configures the API. Verify `API_PORT` agrees with the
-  website's `NEXT_PUBLIC_API_URL`.
+  website's `VITE_API_URL`.
 
 ## `/readyz` reports `LEDGER_UNAVAILABLE`
 

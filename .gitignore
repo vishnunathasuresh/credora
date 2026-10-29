@@ -13,3 +13,10 @@ deploy/.env.production
 contracts/cache/
 contracts/out/
 contracts/broadcast/
+
+# TanStack Start build outputs
+.output/
+.tanstack/
+
+# Local visual-review evidence
+.impeccable/review/

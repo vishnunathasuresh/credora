@@ -11,3 +11,6 @@ contracts/broadcast
 .env.example
 deploy/.env.production
 apps/web/next-env.d.ts
+
+# Generated TanStack route tree
+apps/web/src/routeTree.gen.ts

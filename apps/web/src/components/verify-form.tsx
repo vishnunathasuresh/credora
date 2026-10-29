@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@tanstack/react-router';
 import { parseCredentialReference } from '@credora/shared';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -22,7 +22,7 @@ function routeForQrValue(value: string, origin: string) {
 }
 
 export function VerifyForm() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -46,9 +46,16 @@ export function VerifyForm() {
         return;
       }
       setError('');
-      router.push(route);
+      if (route.startsWith('/share/')) {
+        void navigate({ to: '/share/$token', params: { token: route.slice(7) } });
+      } else {
+        void navigate({
+          to: '/verify/$credentialRef',
+          params: { credentialRef: decodeURIComponent(route.slice(8)) },
+        });
+      }
     },
-    [router],
+    [navigate],
   );
 
   useEffect(() => {
@@ -122,7 +129,12 @@ export function VerifyForm() {
           inputRef.current?.focus();
           return;
         }
-        startTransition(() => router.push(`/verify/${encodeURIComponent(parsedReference!)}`));
+        startTransition(async () => {
+          await navigate({
+            to: '/verify/$credentialRef',
+            params: { credentialRef: parsedReference! },
+          });
+        });
       }}
     >
       <div className="verify-qr-actions">
@@ -172,8 +184,12 @@ export function VerifyForm() {
         </p>
       ) : null}
 
-      <details className="verify-reference-fallback">
-        <summary>Or enter a verification link or reference</summary>
+      <section
+        className="workspace-panel verify-reference-fallback"
+        aria-labelledby="verify-reference-title"
+      >
+        <h2 id="verify-reference-title">Enter a verification link or reference</h2>
+        <p className="form-help">Use the credential link, reference, or scan its QR code above.</p>
         <Label htmlFor="credential-reference">Verification link or reference</Label>
         <div className="form-row">
           <Input
@@ -202,7 +218,7 @@ export function VerifyForm() {
         >
           {referenceError ?? 'Direct links and existing credential references still work.'}
         </div>
-      </details>
+      </section>
     </form>
   );
 }

@@ -62,13 +62,13 @@ ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedOrganizationRegistry
 Set the same chain and registry address in `apps/web/.env.local`:
 
 ```dotenv
-NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
-NEXT_PUBLIC_CHAIN_ID=31337
-NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedRegistry
-NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedOrganizationRegistry
+VITE_RPC_URL=http://127.0.0.1:8545
+VITE_CHAIN_ID=31337
+VITE_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedRegistry
+VITE_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS=0xYourDeployedOrganizationRegistry
 ```
 
-Restart the API and Next.js dev server after changing environment values.
+Restart the API and TanStack Start dev server after changing environment values.
 The API syncs registry events into its SQLite projection; the registry remains
 authoritative.
 

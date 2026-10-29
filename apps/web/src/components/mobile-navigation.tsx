@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { MenuIcon } from './icons';
 import { Button } from './ui/button';
 import {
@@ -11,8 +12,23 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 
-export function MobileNavigation() {
+type MobileNavigationProps = { mode?: 'public' | 'workspace' };
+
+export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
   const [open, setOpen] = useState(false);
+  const links =
+    mode === 'workspace'
+      ? ([
+          ['/profile', 'My profile'],
+          ['/wallet', 'My credentials'],
+          ['/dashboard', 'Workspace home'],
+          ['/verify', 'Verify a credential'],
+        ] as const)
+      : ([
+          ['/profile', 'Create a profile'],
+          ['/verify', 'Verify a credential'],
+          ['/wallet', 'My credentials'],
+        ] as const);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -20,25 +36,20 @@ export function MobileNavigation() {
           <MenuIcon /> Menu
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="mobile-nav-sheet">
         <DialogHeader>
-          <DialogTitle>Explore Credora</DialogTitle>
-          <DialogDescription>Verify publicly or open your workspace.</DialogDescription>
+          <DialogTitle>{mode === 'workspace' ? 'Your workspace' : 'Explore Credora'}</DialogTitle>
+          <DialogDescription>
+            {mode === 'workspace'
+              ? 'Go to your profile, credentials or workspace.'
+              : 'Build a profile or check a credential.'}
+          </DialogDescription>
         </DialogHeader>
         <nav className="mobile-menu-links" aria-label="Mobile navigation">
-          {[
-            ['/verify', 'Verify a credential'],
-            ['/wallet', 'My credentials & wallet setup'],
-            ['/dashboard', 'Choose workspace'],
-            ['/org', 'Organization workspace'],
-            ['/issuer', 'Issue a credential'],
-            ['/superadmin', 'Superadmin control'],
-          ].map(([href, label]) => (
-            <Button asChild variant="ghost" key={href}>
-              <a href={href} onClick={() => setOpen(false)}>
-                {label}
-              </a>
-            </Button>
+          {links.map(([href, label]) => (
+            <Link className="mobile-menu-link" key={href} to={href} onClick={() => setOpen(false)}>
+              {label}
+            </Link>
           ))}
         </nav>
       </DialogContent>
