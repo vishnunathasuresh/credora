@@ -17,6 +17,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { ProfileShare } from './profile-share';
 
 type Profile = {
   id: string;
@@ -863,45 +864,10 @@ function Description({ children }: { children: ReactNode }) {
 
 export function PublicProfile({ handle }: { handle: string }) {
   const [profile, setProfile] = useState<Profile>();
-  const [shareResult, setShareResult] = useState<{ tone: 'status' | 'error'; message: string }>();
-  const [showManualUrl, setShowManualUrl] = useState(false);
   const [state, setState] = useState<'loading' | 'found' | 'missing' | 'unavailable' | 'error'>(
     'loading',
   );
   const isCurrentProfile = profile?.handle.toLowerCase() === handle.toLowerCase();
-
-  async function shareProfile() {
-    const url = window.location.href;
-    setShareResult(undefined);
-    setShowManualUrl(false);
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: profile?.name ?? 'Credora profile',
-          text: profile?.headline || `@${profile?.handle ?? handle}`,
-          url,
-        });
-        setShareResult({ tone: 'status', message: 'Profile shared.' });
-        return;
-      } catch (cause) {
-        if (cause instanceof DOMException && cause.name === 'AbortError') {
-          setShareResult({ tone: 'status', message: 'Sharing was canceled.' });
-          return;
-        }
-      }
-    }
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable.');
-      await navigator.clipboard.writeText(url);
-      setShareResult({ tone: 'status', message: 'Profile link copied.' });
-    } catch {
-      setShowManualUrl(true);
-      setShareResult({
-        tone: 'error',
-        message: 'Could not copy the link. Select and copy the profile URL below.',
-      });
-    }
-  }
 
   useEffect(() => {
     let active = true;
@@ -964,24 +930,7 @@ export function PublicProfile({ handle }: { handle: string }) {
               <h1>{profile.name}</h1>
               {profile.headline && <p className="public-profile-headline">{profile.headline}</p>}
             </div>
-            <div className="profile-share-actions">
-              <Button type="button" variant="outline" onClick={() => void shareProfile()}>
-                Share profile
-              </Button>
-              {shareResult && (
-                <p role={shareResult.tone === 'error' ? 'alert' : 'status'}>
-                  {shareResult.message}
-                </p>
-              )}
-              {showManualUrl && (
-                <Input
-                  aria-label="Public profile URL"
-                  readOnly
-                  value={typeof window === 'undefined' ? '' : window.location.href}
-                  onFocus={(event) => event.currentTarget.select()}
-                />
-              )}
-            </div>
+            <ProfileShare handle={profile.handle} name={profile.name} />
           </section>
           <div className="profile-public-claims">
             {profile.bio && (
