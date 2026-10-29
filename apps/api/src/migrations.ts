@@ -245,6 +245,23 @@ const migrations: Migration[] = [
     sql: `ALTER TABLE issuances ADD COLUMN reviewed_credential_hash TEXT;
       CREATE INDEX issuances_awaiting_review ON issuances(organization_id, review_status, created_at);`,
   },
+  {
+    version: 14,
+    name: 'private-profiles',
+    sql: `
+      CREATE TABLE profiles (
+        id TEXT PRIMARY KEY, wallet_address TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        handle TEXT NOT NULL UNIQUE COLLATE NOCASE, handle_changed_at TEXT NOT NULL,
+        name TEXT NOT NULL, headline TEXT NOT NULL, bio TEXT NOT NULL,
+        links_json TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0, 1))
+      );
+      CREATE TABLE profile_credentials (
+        profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        credential_hash TEXT NOT NULL, position INTEGER NOT NULL,
+        PRIMARY KEY (profile_id, credential_hash), UNIQUE (profile_id, position)
+      );
+    `,
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {

@@ -157,7 +157,7 @@ function originHeaders(request: IncomingMessage) {
   return {
     ...jsonHeaders,
     ...(allowedOrigin ? { 'access-control-allow-origin': allowedOrigin } : {}),
-    'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+    'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     'access-control-allow-headers': 'content-type,authorization,x-share-management-token',
     'x-content-type-options': 'nosniff',
     'cache-control': 'no-store',
@@ -846,6 +846,80 @@ async function reconcileChainEvents(resetFromBlock?: bigint) {
   }
 }
 
+type ProfileRow = {
+  id: string;
+  handle: string;
+  handleChangedAt: string;
+  name: string;
+  headline: string;
+  bio: string;
+  linksJson: string;
+  published: number;
+};
+const reservedProfileHandles = new Set([
+  'admin',
+  'api',
+  'auth',
+  'dashboard',
+  'issuer',
+  'org',
+  'profile',
+  'settings',
+  'share',
+  'superadmin',
+  'support',
+  'u',
+  'verify',
+  'wallet',
+  'www',
+]);
+function profileByWallet(address: string): ProfileRow | undefined {
+  return database
+    .prepare(
+      `SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson, published FROM profiles WHERE wallet_address = ? COLLATE NOCASE`,
+    )
+    .get(address) as ProfileRow | undefined;
+}
+function profileView(row: ProfileRow) {
+  const credentials = database
+    .prepare(
+      'SELECT credential_hash AS credentialHash FROM profile_credentials WHERE profile_id = ? ORDER BY position',
+    )
+    .all(row.id) as { credentialHash: string }[];
+  return {
+    id: row.id,
+    handle: row.handle,
+    name: row.name,
+    headline: row.headline,
+    bio: row.bio,
+    links: JSON.parse(row.linksJson) as string[],
+    credentialHashes: credentials.map((item) => item.credentialHash),
+    published: Boolean(row.published),
+    handleChangedAt: row.handleChangedAt,
+  };
+}
+function profileText(value: unknown, label: string, max: number, required = false): string {
+  if (typeof value !== 'string' || value.trim().length > max || (required && !value.trim()))
+    throw new CredoraError(
+      `${label} must be ${required ? '1' : '0'}–${max} characters`,
+      'INVALID_PROFILE',
+      400,
+    );
+  return value.trim();
+}
+function profileHandle(value: unknown): string {
+  if (typeof value !== 'string')
+    throw new CredoraError('Enter a valid handle', 'INVALID_HANDLE', 400);
+  const handle = value.trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,30}$/.test(handle) || reservedProfileHandles.has(handle))
+    throw new CredoraError(
+      'Handle must be 3–30 letters, numbers or underscores and cannot be reserved',
+      'INVALID_HANDLE',
+      400,
+    );
+  return handle;
+}
+
 async function route(request: IncomingMessage, response: ServerResponse) {
   checkRateLimit(request);
   const url = new URL(request.url ?? '/', 'http://localhost');
@@ -1117,6 +1191,138 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       )
       .all(organization?.id ?? session.address, limitValue);
     send(request, response, 200, { items, limit: limitValue });
+    return;
+  }
+
+  if (path === '/profile' && method === 'GET') {
+    const session = requireSession(request);
+    const row = profileByWallet(session.address);
+    send(request, response, 200, { profile: row ? profileView(row) : null });
+    return;
+  }
+
+  if (path === '/profile' && method === 'PUT') {
+    const session = requireSession(request);
+    const body = await bodyOf(request);
+    const handle = profileHandle(body.handle);
+    const name = profileText(body.name, 'Name', 100, true);
+    const headline = profileText(body.headline, 'Headline', 160);
+    const bio = profileText(body.bio, 'Bio', 1000);
+    if (!Array.isArray(body.links) || body.links.length > 10)
+      throw new CredoraError('Choose up to 10 links', 'INVALID_PROFILE', 400);
+    const links = body.links.map((value) => {
+      const link = profileText(value, 'Link', 500, true);
+      try {
+        const url = new URL(link);
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error();
+        return url.toString();
+      } catch {
+        throw new CredoraError('Links must be valid HTTP or HTTPS URLs', 'INVALID_PROFILE', 400);
+      }
+    });
+    if (typeof body.published !== 'boolean')
+      throw new CredoraError('Choose a publication setting', 'INVALID_PROFILE', 400);
+    if (!Array.isArray(body.credentialHashes) || body.credentialHashes.length > 25)
+      throw new CredoraError('Choose up to 25 credentials', 'INVALID_PROFILE', 400);
+    const hashes = body.credentialHashes.map((value) => {
+      try {
+        if (typeof value !== 'string') throw new Error();
+        return credentialReferenceFromHash(value).toLowerCase();
+      } catch {
+        throw new CredoraError('Invalid credential reference', 'INVALID_PROFILE', 400);
+      }
+    });
+    if (new Set(hashes).size !== hashes.length)
+      throw new CredoraError('Duplicate credential selection', 'INVALID_PROFILE', 400);
+    const now = new Date().toISOString();
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      const existing = profileByWallet(session.address);
+      if (
+        existing &&
+        existing.handle !== handle &&
+        Date.now() - Date.parse(existing.handleChangedAt) < 30 * 24 * 60 * 60 * 1000
+      )
+        throw new CredoraError('Handles can be changed once every 30 days', 'HANDLE_COOLDOWN', 409);
+      for (const hash of hashes) {
+        const owned = database
+          .prepare(
+            "SELECT 1 FROM issuances WHERE lower(credential_hash) = ? AND learner = ? COLLATE NOCASE AND state = 'confirmed' LIMIT 1",
+          )
+          .get(hash, session.address);
+        if (!owned)
+          throw new CredoraError(
+            'A selected credential is not a confirmed credential for this wallet',
+            'INVALID_PROFILE_SELECTION',
+            400,
+          );
+      }
+      const id = existing?.id ?? randomUUID();
+      if (existing)
+        database
+          .prepare(
+            'UPDATE profiles SET handle = ?, handle_changed_at = ?, name = ?, headline = ?, bio = ?, links_json = ?, published = ? WHERE id = ?',
+          )
+          .run(
+            handle,
+            existing.handle === handle ? existing.handleChangedAt : now,
+            name,
+            headline,
+            bio,
+            JSON.stringify(links),
+            Number(body.published),
+            id,
+          );
+      else
+        database
+          .prepare(
+            'INSERT INTO profiles (id, wallet_address, handle, handle_changed_at, name, headline, bio, links_json, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          )
+          .run(
+            id,
+            session.address,
+            handle,
+            now,
+            name,
+            headline,
+            bio,
+            JSON.stringify(links),
+            Number(body.published),
+          );
+      database.prepare('DELETE FROM profile_credentials WHERE profile_id = ?').run(id);
+      const insert = database.prepare(
+        'INSERT INTO profile_credentials (profile_id, credential_hash, position) VALUES (?, ?, ?)',
+      );
+      hashes.forEach((hash, index) => insert.run(id, hash, index));
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      if (
+        error instanceof Error &&
+        /UNIQUE constraint failed: profiles\.handle/i.test(error.message)
+      )
+        throw new CredoraError('That handle is already in use', 'HANDLE_TAKEN', 409);
+      throw error;
+    }
+    send(request, response, 200, { profile: profileView(profileByWallet(session.address)!) });
+    return;
+  }
+
+  const publicProfile = path.match(/^\/profiles\/([^/]+)$/);
+  if (method === 'GET' && publicProfile) {
+    const handle = profileHandle(decodeURIComponent(publicProfile[1]));
+    const row = database
+      .prepare(
+        'SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson, published FROM profiles WHERE handle = ? AND published = 1',
+      )
+      .get(handle) as ProfileRow | undefined;
+    if (!row) throw new CredoraError('Profile not found', 'PROFILE_NOT_FOUND', 404);
+    const {
+      handleChangedAt: _handleChangedAt,
+      published: _published,
+      ...profile
+    } = profileView(row);
+    send(request, response, 200, { profile });
     return;
   }
 
