@@ -24,7 +24,8 @@
     "contracts:build": "forge build --root contracts",
     "contracts:deploy": "cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url http://127.0.0.1:8545 --broadcast",
     "contracts:deploy:organizations": "cd contracts && forge script script/DeployOrganizationCredentialRegistry.s.sol:DeployOrganizationCredentialRegistry --rpc-url http://127.0.0.1:8545 --broadcast",
-    "test:e2e:profiles": "node tests/e2e/profiles.mjs"
+    "test:e2e:profiles": "node tests/e2e/profiles.mjs",
+    "test:e2e:web": "node tests/e2e/web-routes.mjs"
   },
   "devDependencies": {
     "@alchemy/cli": "^0.24.1",
