@@ -19,8 +19,9 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { ProfileShare } from './profile-share';
+import type { PublicProfileResult } from '../lib/public-profile.server';
 
-type Profile = {
+export type Profile = {
   id: string;
   handle: string;
   name: string;
@@ -910,14 +911,23 @@ function Description({ children }: { children: ReactNode }) {
   return <p className="whitespace-pre-wrap leading-relaxed">{children}</p>;
 }
 
-export function PublicProfile({ handle }: { handle: string }) {
-  const [profile, setProfile] = useState<Profile>();
+export function PublicProfile({
+  handle,
+  initial,
+}: {
+  handle: string;
+  initial?: PublicProfileResult;
+}) {
+  const [profile, setProfile] = useState<Profile | undefined>(
+    initial?.profile ? normalizeProfile(initial.profile) : undefined,
+  );
   const [state, setState] = useState<'loading' | 'found' | 'missing' | 'unavailable' | 'error'>(
-    'loading',
+    initial?.state ?? 'loading',
   );
   const isCurrentProfile = profile?.handle.toLowerCase() === handle.toLowerCase();
 
   useEffect(() => {
+    if (initial) return;
     let active = true;
     setState('loading');
     credoraApi<{ profile: Profile | null }>(`/profiles/${encodeURIComponent(handle)}`)
@@ -942,7 +952,7 @@ export function PublicProfile({ handle }: { handle: string }) {
     return () => {
       active = false;
     };
-  }, [handle]);
+  }, [handle, initial]);
 
   return (
     <main className="page-width workspace-page public-profile-page">

@@ -93,3 +93,26 @@ actual issuer/admin signed transactions. Successful API, route, build, and
 fixture checks do not establish deployed service behavior, a live issuance,
 or real credential summary rendering in a browser. Deployment and production
 performance remain outside the completed review.
+
+## Identity-first follow-up (PR 5, in progress)
+
+ADRs 0012 and 0013 replace the transitional wallet-first profile entry with
+Google sign-in through Supabase, account-owned private profiles, and separately
+signed wallet associations. Legacy issuer authorization is unchanged. Local
+account integration tests cover walletless profiles, account isolation, signature
+binding/replay, ownership selection, unlink suppression and explicit legacy
+migration/conflict behavior. Live Google OAuth still requires provider setup and
+browser validation.
+
+Public profiles now use server loaders and emit published identity in HTML and
+social metadata. `/u/{handle}/image` renders a 1200x630 PNG from published name,
+handle and headline with a server-only native renderer and bundled licensed font;
+it does not fetch an avatar or add verification badges. Private/missing profiles
+use generic metadata and have no image. No-store headers apply to both. Set
+`VITE_SITE_URL` to the public origin for absolute metadata URLs. The Latin font
+subset does not provide complete international-script coverage.
+
+The built-route suite checks published SSR content, PNG format/dimensions and
+private-profile metadata/image exclusion. A rendered PNG was visually inspected.
+These checks do not prove crawler cache invalidation or live social platform
+rendering. Further responsive journey review and design work remain in progress.

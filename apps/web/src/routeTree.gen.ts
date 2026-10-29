@@ -26,6 +26,7 @@ import { Route as SettingsWalletsRouteImport } from './routes/settings.wallets'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
 import { Route as VerifyCredentialRefRouteImport } from './routes/verify_.$credentialRef'
+import { Route as UHandleImageRouteImport } from './routes/u.$handle_.image'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -112,6 +113,11 @@ const VerifyCredentialRefRoute = VerifyCredentialRefRouteImport.update({
   path: '/verify/$credentialRef',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UHandleImageRoute = UHandleImageRouteImport.update({
+  id: '/u/$handle_/image',
+  path: '/u/$handle/image',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/share/$token': typeof ShareTokenRoute
   '/u/$handle': typeof UHandleRoute
   '/verify/$credentialRef': typeof VerifyCredentialRefRoute
+  '/u/$handle/image': typeof UHandleImageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/share/$token': typeof ShareTokenRoute
   '/u/$handle': typeof UHandleRoute
   '/verify/$credentialRef': typeof VerifyCredentialRefRoute
+  '/u/$handle/image': typeof UHandleImageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/share/$token': typeof ShareTokenRoute
   '/u/$handle': typeof UHandleRoute
   '/verify_/$credentialRef': typeof VerifyCredentialRefRoute
+  '/u/$handle_/image': typeof UHandleImageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/share/$token'
     | '/u/$handle'
     | '/verify/$credentialRef'
+    | '/u/$handle/image'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/share/$token'
     | '/u/$handle'
     | '/verify/$credentialRef'
+    | '/u/$handle/image'
   id:
     | '__root__'
     | '/'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/share/$token'
     | '/u/$handle'
     | '/verify_/$credentialRef'
+    | '/u/$handle_/image'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -249,6 +261,7 @@ export interface RootRouteChildren {
   ShareTokenRoute: typeof ShareTokenRoute
   UHandleRoute: typeof UHandleRoute
   VerifyCredentialRefRoute: typeof VerifyCredentialRefRoute
+  UHandleImageRoute: typeof UHandleImageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyCredentialRefRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$handle_/image': {
+      id: '/u/$handle_/image'
+      path: '/u/$handle/image'
+      fullPath: '/u/$handle/image'
+      preLoaderRoute: typeof UHandleImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -393,6 +413,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShareTokenRoute: ShareTokenRoute,
   UHandleRoute: UHandleRoute,
   VerifyCredentialRefRoute: VerifyCredentialRefRoute,
+  UHandleImageRoute: UHandleImageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
