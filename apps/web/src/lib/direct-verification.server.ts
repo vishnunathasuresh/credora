@@ -6,13 +6,27 @@ import {
 import { credentialRegistryAbi } from '@credora/contracts';
 import type { VerificationState } from '@credora/shared';
 import { createPublicClient, defineChain, http, isAddress, type Hex } from 'viem';
-import type { VerificationResult } from './verification-api';
+import type { VerificationResult } from './verification.server';
 
-const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? process.env.CHAIN_ID ?? 31337);
-const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.RPC_URL ?? 'http://127.0.0.1:8545';
-const registryAddress =
-  process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS ?? process.env.CREDENTIAL_REGISTRY_ADDRESS;
-const gatewayUrl = process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL ?? process.env.IPFS_GATEWAY_URL;
+function verificationConfig() {
+  const chainId = Number(
+    process.env.VITE_CHAIN_ID ?? process.env.NEXT_PUBLIC_CHAIN_ID ?? process.env.CHAIN_ID ?? 31337,
+  );
+  const rpcUrl =
+    process.env.VITE_RPC_URL ??
+    process.env.NEXT_PUBLIC_RPC_URL ??
+    process.env.RPC_URL ??
+    'http://127.0.0.1:8545';
+  const registryAddress =
+    process.env.VITE_CREDENTIAL_REGISTRY_ADDRESS ??
+    process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS ??
+    process.env.CREDENTIAL_REGISTRY_ADDRESS;
+  const gatewayUrl =
+    process.env.VITE_IPFS_GATEWAY_URL ??
+    process.env.NEXT_PUBLIC_IPFS_GATEWAY_URL ??
+    process.env.IPFS_GATEWAY_URL;
+  return { chainId, rpcUrl, registryAddress, gatewayUrl };
+}
 
 function unavailable(message: string): VerificationResult {
   return { state: 'ledger-unavailable', message, source: 'direct-rpc' };
@@ -23,6 +37,7 @@ function sameAddress(left: string, right: string) {
 }
 
 function metadataUrl(uri: string) {
+  const { gatewayUrl } = verificationConfig();
   if (uri.startsWith('ipfs://') && gatewayUrl)
     return `${gatewayUrl.replace(/\/$/, '')}/${uri.slice('ipfs://'.length)}`;
   return undefined;
@@ -31,9 +46,8 @@ function metadataUrl(uri: string) {
 async function readMetadata(uri: string): Promise<CredentialMetadata> {
   const url = metadataUrl(uri);
   if (!url) throw new Error('No public metadata gateway is configured for this credential.');
-  const headers = process.env.IPFS_GATEWAY_AUTH_TOKEN
-    ? { authorization: `Bearer ${process.env.IPFS_GATEWAY_AUTH_TOKEN}` }
-    : undefined;
+  const authToken = process.env.IPFS_GATEWAY_AUTH_TOKEN;
+  const headers = authToken ? { authorization: `Bearer ${authToken}` } : undefined;
   const response = await fetch(url, { headers, cache: 'no-store' });
   if (!response.ok) throw new Error(`Metadata gateway returned ${response.status}.`);
   return (await response.json()) as CredentialMetadata;
@@ -87,6 +101,7 @@ function invalidMetadata(
 }
 
 export async function fetchDirectVerification(reference: string): Promise<VerificationResult> {
+  const { chainId, rpcUrl, registryAddress } = verificationConfig();
   let credentialHash: Hex;
   try {
     credentialHash = credentialReferenceFromHash(reference);

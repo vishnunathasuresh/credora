@@ -1,7 +1,7 @@
 'use client';
 import { Button } from './ui/button';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@tanstack/react-router';
 import { useTransition } from 'react';
 
 export function RetryVerification() {
@@ -12,7 +12,11 @@ export function RetryVerification() {
     <Button
       className="button button-dark"
       type="button"
-      onClick={() => startTransition(() => router.refresh())}
+      onClick={() =>
+        startTransition(async () => {
+          await router.invalidate();
+        })
+      }
       disabled={isPending}
     >
       {isPending ? 'Checking again…' : 'Try again'}

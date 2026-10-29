@@ -1,4 +1,6 @@
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
+import { publicEnv } from './public-env';
+
+const apiUrl = publicEnv.apiUrl;
 
 export type ApiError = Error & { status?: number; code?: string };
 

@@ -1,24 +1,55 @@
+import { createFileRoute } from '@tanstack/react-router';
 import { verificationMessage } from '@credora/credential-core';
-import { fetchIssuerProfile, fetchVerification } from '../../../lib/verification-api';
-import { AlertIcon, ArrowUpRightIcon, CheckIcon, MinusIcon } from '../../../components/icons';
-import { RetryVerification } from '../../../components/retry-verification';
-import { CredentialCard } from '../../../components/credential-card';
+import { AlertIcon, ArrowUpRightIcon, CheckIcon, MinusIcon } from '../components/icons';
+import { CredentialCard } from '../components/credential-card';
+import { RetryVerification } from '../components/retry-verification';
+import { loadCredentialVerification } from '../lib/verification.functions';
+import type { VerificationResult } from '../lib/verification.server';
 
-export const dynamic = 'force-dynamic';
+type CredentialVerificationData = {
+  result: VerificationResult;
+  issuerProfile: { name: string; websiteUrl: string; logoUrl: string | null } | null;
+};
 
-export default async function CredentialVerificationPage({
-  params,
-}: {
-  params: Promise<{ credentialRef: string }>;
-}) {
-  const { credentialRef } = await params;
-  const isHash = /^0x[0-9a-fA-F]{64}$/.test(credentialRef);
-  const result = isHash
-    ? await fetchVerification(credentialRef)
-    : { state: 'malformed' as const, message: 'This reference is not a valid credential hash.' };
+export const Route = createFileRoute('/verify_/$credentialRef')({
+  loader: async ({ params }): Promise<CredentialVerificationData> => {
+    return await loadCredentialVerification({ data: { credentialRef: params.credentialRef } });
+  },
+  pendingComponent: VerificationLoading,
+  errorComponent: VerificationError,
+  component: CredentialVerificationPage,
+});
+
+function VerificationLoading() {
+  return (
+    <main className="page-width narrow-page" aria-busy="true">
+      <h1>Checking the credential.</h1>
+      <p className="lede">Reading the immutable registry and its metadata source.</p>
+    </main>
+  );
+}
+
+function VerificationError({ error, reset }: { error: unknown; reset: () => void }) {
+  return (
+    <main className="page-width narrow-page">
+      <h1>Verification could not be completed.</h1>
+      <p className="lede">
+        {error instanceof Error && error.message
+          ? error.message
+          : 'The verification service could not complete this request.'}
+      </p>
+      <button className="button button-dark" type="button" onClick={reset}>
+        Try again
+      </button>
+    </main>
+  );
+}
+
+function CredentialVerificationPage() {
+  const { credentialRef } = Route.useParams();
+  const { result, issuerProfile } = Route.useLoaderData();
   const message = result.message ?? verificationMessage(result.state);
   const metadata = result.state === 'valid' ? result.metadata : undefined;
-  const issuerProfile = metadata ? await fetchIssuerProfile(metadata.issuerAddress) : null;
   const title =
     result.state === 'valid'
       ? 'Credential verified.'
@@ -67,6 +98,7 @@ export default async function CredentialVerificationPage({
           credentialHash={credentialRef}
           issuerProfile={issuerProfile}
           showQr
+          interactive
         />
       ) : (
         <div className={`result-card result-${statusTone}`} role="alert">

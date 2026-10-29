@@ -1,6 +1,9 @@
-import { VerifyForm } from '../../components/verify-form';
+import { createFileRoute } from '@tanstack/react-router';
+import { VerifyForm } from '../components/verify-form';
 
-export default function VerifyPage() {
+export const Route = createFileRoute('/verify')({ component: VerifyPage });
+
+function VerifyPage() {
   return (
     <main className="page-width narrow-page">
       <h1>Check the record.</h1>

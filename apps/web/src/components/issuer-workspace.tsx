@@ -16,6 +16,7 @@ import { AlertIcon, ArrowUpRightIcon, CheckIcon } from './icons';
 import { CredentialShare } from './credential-share';
 import { CredentialCard } from './credential-card';
 import { credoraApi, type ApiError } from '../lib/credora-api';
+import { publicEnv } from '../lib/public-env';
 import {
   browserWalletProvider,
   connectWalletSession,
@@ -112,10 +113,9 @@ type OrganizationApplication = {
   createdAt: string;
 };
 
-const contractAddress = process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS;
-const organizationContractAddress =
-  process.env.NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS;
-const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
+const contractAddress = publicEnv.credentialRegistryAddress;
+const organizationContractAddress = publicEnv.organizationCredentialRegistryAddress;
+const chainId = publicEnv.chainId;
 
 const initialForm = {
   learnerAddress: '',
@@ -155,7 +155,7 @@ async function issueOnChain(
   const address = organization ? organizationContractAddress : contractAddress;
   if (!address)
     throw new Error(
-      `Set NEXT_PUBLIC_${organization ? 'ORGANIZATION_' : ''}CREDENTIAL_REGISTRY_ADDRESS before issuing on-chain.`,
+      `Set VITE_${organization ? 'ORGANIZATION_' : ''}CREDENTIAL_REGISTRY_ADDRESS before issuing on-chain.`,
     );
   const provider = browserWalletProvider();
   const accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
@@ -1254,7 +1254,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             >
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Operational projection</p>
                   <h2>Organization overview</h2>
                 </div>
                 <span className="panel-note">
@@ -1292,7 +1291,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel" aria-labelledby="organization-team-title">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Organization settings</p>
                   <h2 id="organization-team-title">Administrators</h2>
                 </div>
               </div>
@@ -1352,7 +1350,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel" aria-labelledby="organization-policy-title">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Governance policy</p>
                   <h2 id="organization-policy-title">Issuance review</h2>
                 </div>
               </div>
@@ -1430,7 +1427,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel" aria-labelledby="issuance-review-queue-title">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Organization governance</p>
                   <h2 id="issuance-review-queue-title">Awaiting review</h2>
                 </div>
                 <span className="panel-note">{reviewQueue.length} prepared item(s)</span>
@@ -1491,7 +1487,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel" aria-labelledby="organization-templates-title">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Organization settings</p>
                   <h2 id="organization-templates-title">Credential templates</h2>
                 </div>
               </div>
@@ -1569,7 +1564,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel" aria-labelledby="organization-issuers-title">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Organization settings</p>
                   <h2 id="organization-issuers-title">Issuer wallets</h2>
                 </div>
               </div>
@@ -1659,9 +1653,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">
-                    {audience === 'organization' ? 'Organization workflow' : 'Issuance workflow'}
-                  </p>
                   <h2>New credential</h2>
                 </div>
                 <span
@@ -1919,7 +1910,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             <section className="workspace-panel workspace-history">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Projection view</p>
                   <h2>Recent issuances</h2>
                 </div>
                 <span className="panel-note">API convenience state</span>
@@ -1974,7 +1964,6 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
               <section className="workspace-panel" aria-labelledby="bulk-issuance-title">
                 <div className="panel-header">
                   <div>
-                    <p className="panel-label">Organization issuance</p>
                     <h2 id="bulk-issuance-title">Issue to multiple holders</h2>
                   </div>
                   <span className="panel-note">One registry transaction · up to 25 recipients</span>
