@@ -26,7 +26,15 @@ import {
   RegistryBlockchainAdapter,
   type BlockchainAdapter,
 } from '@credora/blockchain';
-import { CredoraError, isRecord, type OperationState, type Role } from '@credora/shared';
+import {
+  CredoraError,
+  isRecord,
+  type OperationState,
+  type ProfileEducation,
+  type ProfileExperience,
+  type ProfileProject,
+  type Role,
+} from '@credora/shared';
 import { FileStorage, IpfsStorage, type MetadataStorage } from '@credora/storage';
 import { decodeFunctionData, defineChain, isAddress, type Address, type Hex } from 'viem';
 
@@ -854,6 +862,10 @@ type ProfileRow = {
   headline: string;
   bio: string;
   linksJson: string;
+  avatarUrl: string;
+  projectsJson: string;
+  experienceJson: string;
+  educationJson: string;
   published: number;
 };
 const reservedProfileHandles = new Set([
@@ -876,7 +888,9 @@ const reservedProfileHandles = new Set([
 function profileByWallet(address: string): ProfileRow | undefined {
   return database
     .prepare(
-      `SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson, published FROM profiles WHERE wallet_address = ? COLLATE NOCASE`,
+      `SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson,
+              avatar_url AS avatarUrl, projects_json AS projectsJson, experience_json AS experienceJson,
+              education_json AS educationJson, published FROM profiles WHERE wallet_address = ? COLLATE NOCASE`,
     )
     .get(address) as ProfileRow | undefined;
 }
@@ -886,6 +900,26 @@ function profileView(row: ProfileRow) {
       'SELECT credential_hash AS credentialHash FROM profile_credentials WHERE profile_id = ? ORDER BY position',
     )
     .all(row.id) as { credentialHash: string }[];
+  const credentialSummaries = database
+    .prepare(
+      `SELECT issuances.credential_hash AS credentialHash,
+              issuances.skill_name AS skillName, issuances.skill_level AS skillLevel,
+              issuances.issue_date AS issueDate, organizations.name AS organizationName
+       FROM profile_credentials
+       JOIN issuances ON lower(issuances.credential_hash) = lower(profile_credentials.credential_hash)
+         AND issuances.learner = (SELECT wallet_address FROM profiles WHERE id = profile_credentials.profile_id) COLLATE NOCASE
+         AND issuances.state = 'confirmed'
+       LEFT JOIN organizations ON organizations.id = issuances.organization_id
+       WHERE profile_credentials.profile_id = ?
+       ORDER BY profile_credentials.position`,
+    )
+    .all(row.id) as {
+    credentialHash: string;
+    skillName: string;
+    skillLevel: string;
+    issueDate: string;
+    organizationName: string | null;
+  }[];
   return {
     id: row.id,
     handle: row.handle,
@@ -893,10 +927,61 @@ function profileView(row: ProfileRow) {
     headline: row.headline,
     bio: row.bio,
     links: JSON.parse(row.linksJson) as string[],
+    avatarUrl: row.avatarUrl,
+    projects: JSON.parse(row.projectsJson) as ProfileProject[],
+    experience: JSON.parse(row.experienceJson) as ProfileExperience[],
+    education: JSON.parse(row.educationJson) as ProfileEducation[],
     credentialHashes: credentials.map((item) => item.credentialHash),
+    credentialSummaries,
     published: Boolean(row.published),
     handleChangedAt: row.handleChangedAt,
   };
+}
+function profileUrl(
+  value: unknown,
+  label: string,
+  options: { allowEmpty?: boolean; httpsOnly?: boolean } = {},
+): string {
+  if (options.allowEmpty && value === '') return '';
+  const raw = profileText(value, label, 1000, true);
+  try {
+    const parsed = new URL(raw);
+    if (
+      (parsed.protocol !== 'https:' && (options.httpsOnly || parsed.protocol !== 'http:')) ||
+      parsed.username ||
+      parsed.password
+    )
+      throw new Error();
+    return parsed.toString();
+  } catch {
+    throw new CredoraError(`${label} must be a valid HTTP or HTTPS URL`, 'INVALID_PROFILE', 400);
+  }
+}
+function profileEntries<T extends Record<string, string>>(
+  value: unknown,
+  label: string,
+  fields: Record<Exclude<keyof T, 'id'>, { label: string; max: number; required?: boolean }>,
+): T[] {
+  if (!Array.isArray(value) || value.length > 8)
+    throw new CredoraError(`${label} must contain up to 8 entries`, 'INVALID_PROFILE', 400);
+  const ids = new Set<string>();
+  return value.map((entry) => {
+    if (!isRecord(entry))
+      throw new CredoraError(`${label} entries must be objects`, 'INVALID_PROFILE', 400);
+    const id = entry.id;
+    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(id) || ids.has(id))
+      throw new CredoraError(`${label} entry IDs must be unique and valid`, 'INVALID_PROFILE', 400);
+    ids.add(id);
+    const sanitized: Record<string, string> = { id };
+    for (const [key, metadata] of Object.entries(fields))
+      sanitized[key] = profileText(
+        entry[key],
+        metadata.label,
+        metadata.max,
+        metadata.required ?? false,
+      );
+    return sanitized as T;
+  });
 }
 function profileText(value: unknown, label: string, max: number, required = false): string {
   if (typeof value !== 'string' || value.trim().length > max || (required && !value.trim()))
@@ -1204,6 +1289,39 @@ async function route(request: IncomingMessage, response: ServerResponse) {
   if (path === '/profile' && method === 'PUT') {
     const session = requireSession(request);
     const body = await bodyOf(request);
+    const hasAvatarUrl = Object.hasOwn(body, 'avatarUrl');
+    const hasProjects = Object.hasOwn(body, 'projects');
+    const hasExperience = Object.hasOwn(body, 'experience');
+    const hasEducation = Object.hasOwn(body, 'education');
+    const avatarUrl = hasAvatarUrl
+      ? profileUrl(body.avatarUrl, 'Avatar URL', { allowEmpty: true, httpsOnly: true })
+      : undefined;
+    const projects = hasProjects
+      ? profileEntries<ProfileProject>(body.projects, 'Projects', {
+          name: { label: 'Project name', max: 120, required: true },
+          description: { label: 'Project description', max: 1000 },
+          url: { label: 'Project URL', max: 1000 },
+        }).map((project) => ({
+          ...project,
+          url: project.url ? profileUrl(project.url, 'Project URL') : '',
+        }))
+      : undefined;
+    const experience = hasExperience
+      ? profileEntries<ProfileExperience>(body.experience, 'Experience', {
+          role: { label: 'Role', max: 120, required: true },
+          organization: { label: 'Organization', max: 120, required: true },
+          period: { label: 'Period', max: 80 },
+          description: { label: 'Experience description', max: 1000 },
+        })
+      : undefined;
+    const education = hasEducation
+      ? profileEntries<ProfileEducation>(body.education, 'Education', {
+          school: { label: 'School', max: 120, required: true },
+          degree: { label: 'Degree', max: 120, required: true },
+          period: { label: 'Period', max: 80 },
+          description: { label: 'Education description', max: 1000 },
+        })
+      : undefined;
     const handle = profileHandle(body.handle);
     const name = profileText(body.name, 'Name', 100, true);
     const headline = profileText(body.headline, 'Headline', 160);
@@ -1238,6 +1356,10 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     database.exec('BEGIN IMMEDIATE');
     try {
       const existing = profileByWallet(session.address);
+      const nextAvatarUrl = avatarUrl ?? existing?.avatarUrl ?? '';
+      const nextProjects = projects ?? (existing ? JSON.parse(existing.projectsJson) : []);
+      const nextExperience = experience ?? (existing ? JSON.parse(existing.experienceJson) : []);
+      const nextEducation = education ?? (existing ? JSON.parse(existing.educationJson) : []);
       if (
         existing &&
         existing.handle !== handle &&
@@ -1261,7 +1383,8 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       if (existing)
         database
           .prepare(
-            'UPDATE profiles SET handle = ?, handle_changed_at = ?, name = ?, headline = ?, bio = ?, links_json = ?, published = ? WHERE id = ?',
+            `UPDATE profiles SET handle = ?, handle_changed_at = ?, name = ?, headline = ?, bio = ?, links_json = ?,
+             avatar_url = ?, projects_json = ?, experience_json = ?, education_json = ?, published = ? WHERE id = ?`,
           )
           .run(
             handle,
@@ -1270,13 +1393,18 @@ async function route(request: IncomingMessage, response: ServerResponse) {
             headline,
             bio,
             JSON.stringify(links),
+            nextAvatarUrl,
+            JSON.stringify(nextProjects),
+            JSON.stringify(nextExperience),
+            JSON.stringify(nextEducation),
             Number(body.published),
             id,
           );
       else
         database
           .prepare(
-            'INSERT INTO profiles (id, wallet_address, handle, handle_changed_at, name, headline, bio, links_json, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            `INSERT INTO profiles (id, wallet_address, handle, handle_changed_at, name, headline, bio, links_json,
+             avatar_url, projects_json, experience_json, education_json, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             id,
@@ -1287,6 +1415,10 @@ async function route(request: IncomingMessage, response: ServerResponse) {
             headline,
             bio,
             JSON.stringify(links),
+            nextAvatarUrl,
+            JSON.stringify(nextProjects),
+            JSON.stringify(nextExperience),
+            JSON.stringify(nextEducation),
             Number(body.published),
           );
       database.prepare('DELETE FROM profile_credentials WHERE profile_id = ?').run(id);
@@ -1313,7 +1445,9 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const handle = profileHandle(decodeURIComponent(publicProfile[1]));
     const row = database
       .prepare(
-        'SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson, published FROM profiles WHERE handle = ? AND published = 1',
+        `SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson,
+                avatar_url AS avatarUrl, projects_json AS projectsJson, experience_json AS experienceJson,
+                education_json AS educationJson, published FROM profiles WHERE handle = ? AND published = 1`,
       )
       .get(handle) as ProfileRow | undefined;
     if (!row) throw new CredoraError('Profile not found', 'PROFILE_NOT_FOUND', 404);

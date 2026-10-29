@@ -70,11 +70,13 @@ try {
   assert.match(preflight.headers.get('access-control-allow-methods'), /PUT/);
   const db = new DatabaseSync(databasePath);
   const ownHash = `0x${'b'.repeat(64)}`;
+  const ownHash2 = `0x${'e'.repeat(64)}`;
   const otherHash = `0x${'c'.repeat(64)}`;
   const insert = db.prepare(
     "INSERT INTO issuances (id, issuer, learner, skill_name, skill_level, issue_date, credential_hash, state, created_at) VALUES (?, ?, ?, 'Course', '1', '2026-01-01', ?, 'confirmed', '2026-01-01')",
   );
   insert.run('one', accountB.address, accountA.address.toLowerCase(), ownHash);
+  insert.run('three', accountB.address, accountA.address.toLowerCase(), ownHash2);
   insert.run('two', accountA.address, accountB.address, otherHash);
   db.close();
   const library = await request('/credentials', 'GET', undefined, a);
@@ -91,17 +93,107 @@ try {
     links: ['https://example.com'],
     credentialHashes: [],
     published: false,
+    avatarUrl: 'https://images.example.com/alice.png',
+    projects: [
+      {
+        id: 'portfolio_1',
+        name: 'Portfolio',
+        description: 'Selected work',
+        url: 'https://example.com/work',
+      },
+      { id: 'open-source-2', name: 'Open source', description: 'Contributions', url: '' },
+    ],
+    experience: [
+      {
+        id: 'role_1',
+        role: 'Engineer',
+        organization: 'Example Labs',
+        period: '2024–now',
+        description: 'Built things',
+      },
+    ],
+    education: [
+      {
+        id: 'school-1',
+        school: 'Example University',
+        degree: 'B.Tech',
+        period: '2020–2024',
+        description: 'Computer science',
+      },
+    ],
   };
   assert.equal((await request('/profile', 'PUT', input)).status, 401);
-  const created = await request('/profile', 'PUT', input, a);
+  const creationInput = {
+    ...input,
+    projects: input.projects.map((project, index) =>
+      index === 0 ? { ...project, privateNote: 'must be discarded' } : project,
+    ),
+  };
+  const created = await request('/profile', 'PUT', creationInput, a);
   assert.equal(created.status, 200);
   assert.equal(created.body.profile.handle, 'alice');
+  assert.equal(created.body.profile.avatarUrl, input.avatarUrl);
+  assert.deepEqual(created.body.profile.projects, input.projects);
+  assert.deepEqual(created.body.profile.experience, input.experience);
+  assert.deepEqual(created.body.profile.education, input.education);
+  assert.equal('unexpected' in created.body.profile.projects[0], false);
+  assert.equal('privateNote' in created.body.profile.projects[0], false);
   assert.equal((await request('/profiles/alice')).status, 404);
   assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
     profile: null,
   });
   assert.equal((await request('/profile', 'PUT', { ...input, handle: 'ALICE' }, b)).status, 409);
   assert.equal((await request('/profile', 'PUT', { ...input, handle: 'admin' }, b)).status, 400);
+  assert.equal(
+    (
+      await request(
+        '/profile',
+        'PUT',
+        {
+          ...input,
+          projects: [
+            { ...input.projects[0], id: 'dup' },
+            { ...input.projects[1], id: 'dup' },
+          ],
+        },
+        a,
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(
+        '/profile',
+        'PUT',
+        { ...input, projects: [{ ...input.projects[0], name: '   ' }] },
+        a,
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(
+        '/profile',
+        'PUT',
+        { ...input, avatarUrl: 'http://images.example.com/a.png' },
+        a,
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(
+        '/profile',
+        'PUT',
+        { ...input, projects: [{ ...input.projects[0], url: 'javascript:alert(1)' }] },
+        a,
+      )
+    ).status,
+    400,
+  );
   assert.equal(
     (await request('/profile', 'PUT', { ...input, handle: 'alice2' }, a)).body.error,
     'HANDLE_COOLDOWN',
@@ -132,14 +224,51 @@ try {
   const published = await request(
     '/profile',
     'PUT',
-    { ...input, credentialHashes: [ownHash], published: true },
+    { ...input, credentialHashes: [ownHash, ownHash2], published: true },
     a,
   );
   assert.equal(published.body.profile.id, created.body.profile.id);
   const publicView = await request('/profiles/alice');
   assert.equal(publicView.status, 200);
   assert.equal(publicView.body.profile.name, 'Alice');
-  assert.deepEqual(publicView.body.profile.credentialHashes, [ownHash]);
+  assert.deepEqual(publicView.body.profile.credentialHashes, [ownHash, ownHash2]);
+  assert.deepEqual(publicView.body.profile.credentialSummaries, [
+    {
+      credentialHash: ownHash,
+      skillName: 'Course',
+      skillLevel: '1',
+      issueDate: '2026-01-01',
+      organizationName: null,
+    },
+    {
+      credentialHash: ownHash2,
+      skillName: 'Course',
+      skillLevel: '1',
+      issueDate: '2026-01-01',
+      organizationName: null,
+    },
+  ]);
+  assert.deepEqual(publicView.body.profile.projects, input.projects);
+  assert.deepEqual(publicView.body.profile.education, input.education);
+  const reorderedProjects = [...input.projects].reverse();
+  const reordered = await request(
+    '/profile',
+    'PUT',
+    {
+      ...input,
+      projects: reorderedProjects,
+      credentialHashes: [ownHash, ownHash2],
+      published: true,
+    },
+    a,
+  );
+  assert.equal(reordered.status, 200);
+  assert.deepEqual(
+    reordered.body.profile.projects.map((item) => item.id),
+    ['open-source-2', 'portfolio_1'],
+  );
+  assert.deepEqual(reordered.body.profile.experience, input.experience);
+  assert.deepEqual(reordered.body.profile.education, input.education);
   assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
     profile: { name: 'Alice', handle: 'alice' },
   });
@@ -163,7 +292,17 @@ try {
   changed.close();
   assert.equal('handleChangedAt' in publicView.body.profile, false);
   assert.equal('token' in publicView.body.profile, false);
-  await request('/profile', 'PUT', input, a);
+  const legacyUpdate = { ...input };
+  delete legacyUpdate.avatarUrl;
+  delete legacyUpdate.projects;
+  delete legacyUpdate.experience;
+  delete legacyUpdate.education;
+  const preserved = await request('/profile', 'PUT', legacyUpdate, a);
+  assert.deepEqual(
+    preserved.body.profile.projects.map((item) => item.id),
+    ['open-source-2', 'portfolio_1'],
+  );
+  assert.equal(preserved.body.profile.avatarUrl, input.avatarUrl);
   assert.equal((await request('/profiles/alice')).status, 404);
   assert.deepEqual((await request(`/credentials/${ownHash}/recipient-profile`)).body, {
     profile: null,

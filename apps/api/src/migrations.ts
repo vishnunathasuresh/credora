@@ -262,6 +262,16 @@ const migrations: Migration[] = [
       );
     `,
   },
+  {
+    version: 15,
+    name: 'rich-public-profile-content',
+    sql: `
+      ALTER TABLE profiles ADD COLUMN avatar_url TEXT NOT NULL DEFAULT '';
+      ALTER TABLE profiles ADD COLUMN projects_json TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE profiles ADD COLUMN experience_json TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE profiles ADD COLUMN education_json TEXT NOT NULL DEFAULT '[]';
+    `,
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {
