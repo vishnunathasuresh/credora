@@ -1,4 +1,5 @@
 import { Button } from './ui/button';
+import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 
 export function WalletGuide() {
@@ -48,7 +49,7 @@ export function WalletGuide() {
             recording a credential. A local Anvil network is for development only.
           </p>
           <Button asChild variant="link">
-            <a href="/verify">Just checking a credential? Verify without a wallet.</a>
+            <Link to="/verify">Checking a credential? Verify without a wallet.</Link>
           </Button>
         </CardContent>
       </Card>

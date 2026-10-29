@@ -5,12 +5,13 @@ export const Route = createFileRoute('/verify')({ component: VerifyPage });
 
 function VerifyPage() {
   return (
-    <main className="page-width narrow-page">
-      <h1>Check the record.</h1>
-      <p className="lede">
-        Scan a credential QR or upload its image. No wallet, account, or issuer relationship is
-        needed.
-      </p>
+    <main className="page-width narrow-page workspace-page">
+      <header className="app-page-header">
+        <div>
+          <h1>Verify a credential</h1>
+          <p className="lede">Check a public credential record without an account or wallet.</p>
+        </div>
+      </header>
       <VerifyForm />
     </main>
   );

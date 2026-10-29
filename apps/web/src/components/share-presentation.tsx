@@ -118,13 +118,21 @@ export function SharePresentation({ token }: { token: string }) {
   }, [load]);
 
   return (
-    <main className="page-width narrow-page share-presentation-page">
-      <h1>Selected credentials.</h1>
-      <p className="lede">
-        Each credential below is checked against its public registry record and metadata. This QR
-        groups records for convenience; it does not prove who is presenting them.
-      </p>
-      {busy ? <p role="status">Loading and checking selected credentials…</p> : null}
+    <main className="page-width narrow-page workspace-page share-presentation-page">
+      <header className="app-page-header">
+        <div>
+          <h1>Shared credentials</h1>
+          <p className="lede">
+            Each credential below is checked against its public registry record and metadata. This
+            QR groups records for convenience; it does not prove who is presenting them.
+          </p>
+        </div>
+      </header>
+      {busy ? (
+        <p className="app-empty-state" role="status">
+          Checking shared credentials…
+        </p>
+      ) : null}
       {error ? (
         <section className="share-state share-state-error" role="alert">
           <AlertIcon />

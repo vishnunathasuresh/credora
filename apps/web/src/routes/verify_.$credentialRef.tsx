@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { verificationMessage } from '@credora/credential-core';
 import { AlertIcon, ArrowUpRightIcon, CheckIcon, MinusIcon } from '../components/icons';
 import { CredentialCard } from '../components/credential-card';
@@ -23,17 +24,25 @@ export const Route = createFileRoute('/verify_/$credentialRef')({
 
 function VerificationLoading() {
   return (
-    <main className="page-width narrow-page" aria-busy="true">
-      <h1>Checking the credential.</h1>
-      <p className="lede">Reading the immutable registry and its metadata source.</p>
+    <main className="page-width narrow-page workspace-page" aria-busy="true">
+      <header className="app-page-header">
+        <div>
+          <h1>Checking credential</h1>
+          <p className="lede">Reading the registry and credential metadata.</p>
+        </div>
+      </header>
     </main>
   );
 }
 
 function VerificationError({ error, reset }: { error: unknown; reset: () => void }) {
   return (
-    <main className="page-width narrow-page">
-      <h1>Verification could not be completed.</h1>
+    <main className="page-width narrow-page workspace-page">
+      <header className="app-page-header">
+        <div>
+          <h1>Verification could not be completed</h1>
+        </div>
+      </header>
       <p className="lede">
         {error instanceof Error && error.message
           ? error.message
@@ -86,7 +95,7 @@ function CredentialVerificationPage() {
       <AlertIcon />
     );
   return (
-    <main className="page-width narrow-page">
+    <main className="page-width narrow-page workspace-page">
       <h1>{title}</h1>
       <p className="lede">{message}</p>
       <div className={`status-badge status-${statusTone}`} role="status">
@@ -124,9 +133,9 @@ function CredentialVerificationPage() {
           </span>
         </div>
       ) : null}
-      <a className="text-link" href="/verify">
+      <Link className="text-link" to="/verify">
         Try another reference <ArrowUpRightIcon />
-      </a>
+      </Link>
     </main>
   );
 }

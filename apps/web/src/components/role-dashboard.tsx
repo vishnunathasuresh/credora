@@ -1,6 +1,7 @@
 'use client';
 import { WalletGuide } from './wallet-guide';
 import { Button } from './ui/button';
+import { Link } from '@tanstack/react-router';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRightIcon, CheckIcon } from './icons';
@@ -10,6 +11,8 @@ import { connectWalletSession, storedSession, type WalletSession } from '../lib/
 function shortAddress(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
+
+type WorkspacePath = '/superadmin' | '/org' | '/issuer' | '/wallet' | '/verify';
 
 export function RoleDashboard() {
   const [session, setSession] = useState<WalletSession>();
@@ -41,12 +44,12 @@ export function RoleDashboard() {
     }
   }
 
-  const links = session
+  const links: { href: WorkspacePath; title: string; body: string }[] = session
     ? [
         ...(session.roles.includes('SUPERADMIN') || session.roles.includes('ADMIN')
           ? [
               {
-                href: '/superadmin',
+                href: '/superadmin' as const,
                 title: 'Superadmin control',
                 body: 'Authorize issuers, inspect protocol health, and reconcile projections.',
               },
@@ -55,7 +58,7 @@ export function RoleDashboard() {
         ...(session.roles.includes('ORG_ADMIN')
           ? [
               {
-                href: '/org',
+                href: '/org' as const,
                 title: 'Organization workspace',
                 body: 'Manage organizational issuance operations and activity.',
               },
@@ -64,7 +67,7 @@ export function RoleDashboard() {
         ...(!session.roles.includes('ORG_ADMIN')
           ? [
               {
-                href: '/org',
+                href: '/org' as const,
                 title: 'Request an organization workspace',
                 body: 'Submit your wallet and organization name for superadmin review.',
               },
@@ -73,7 +76,7 @@ export function RoleDashboard() {
         ...(session.roles.includes('ISSUER')
           ? [
               {
-                href: '/issuer',
+                href: '/issuer' as const,
                 title: 'Issuer workspace',
                 body: 'Prepare and confirm immutable credential proofs.',
               },
@@ -82,14 +85,14 @@ export function RoleDashboard() {
         ...(session.roles.includes('LEARNER')
           ? [
               {
-                href: '/wallet',
+                href: '/wallet' as const,
                 title: 'Credential wallet',
                 body: 'Find your public proofs and share verification links.',
               },
             ]
           : []),
         {
-          href: '/verify',
+          href: '/verify' as const,
           title: 'Public verification',
           body: 'Check a credential without connecting a wallet.',
         },
@@ -100,17 +103,17 @@ export function RoleDashboard() {
     <main className="page-width workspace-page">
       <div className="workspace-heading">
         <div>
-          <h1>Choose your Credora workspace.</h1>
-          <p className="lede">
-            One protocol, different responsibilities. Your wallet determines which tools are
-            available.
-          </p>
+          <h1>Your workspaces</h1>
+          <p className="lede">Choose a workspace available to your connected wallet.</p>
         </div>
       </div>
       {!session ? (
-        <section className="workspace-panel workspace-connect">
-          <h2>Connect your wallet.</h2>
-          <p>Credora signs a session challenge only. Private keys stay in the browser wallet.</p>
+        <section className="workspace-panel workspace-connect app-connect-state">
+          <h2>Connect to see your workspaces</h2>
+          <p>
+            Your wallet determines which organization and issuer tools are available. The session
+            uses a signature only.
+          </p>
           <Button className="button button-dark" type="button" onClick={connect} disabled={busy}>
             {busy ? 'Connecting…' : 'Connect wallet'}
           </Button>
@@ -130,13 +133,13 @@ export function RoleDashboard() {
           </div>
           <div className="role-grid">
             {links.map((link) => (
-              <a className="role-link" href={link.href} key={link.href}>
+              <Link className="role-link" to={link.href} key={link.href}>
                 <div>
                   <h2>{link.title}</h2>
                   <p>{link.body}</p>
                 </div>
                 <ArrowUpRightIcon />
-              </a>
+              </Link>
             ))}
           </div>
         </>

@@ -184,8 +184,12 @@ export function VerifyForm() {
         </p>
       ) : null}
 
-      <details className="verify-reference-fallback">
-        <summary>Or enter a verification link or reference</summary>
+      <section
+        className="workspace-panel verify-reference-fallback"
+        aria-labelledby="verify-reference-title"
+      >
+        <h2 id="verify-reference-title">Enter a verification link or reference</h2>
+        <p className="form-help">Use the credential link, reference, or scan its QR code above.</p>
         <Label htmlFor="credential-reference">Verification link or reference</Label>
         <div className="form-row">
           <Input
@@ -214,7 +218,7 @@ export function VerifyForm() {
         >
           {referenceError ?? 'Direct links and existing credential references still work.'}
         </div>
-      </details>
+      </section>
     </form>
   );
 }

@@ -243,18 +243,18 @@ export function AdminWorkspace() {
 
   return (
     <main className="page-width workspace-page">
-      <div className="workspace-heading">
+      <header className="workspace-heading app-page-header">
         <div>
-          <h1>Superadmin control.</h1>
+          <h1>Protocol administration</h1>
           <p className="lede">
             Verify and activate organizations once. Organization admins manage issuer wallets and
             credential issuance after activation.
           </p>
         </div>
-      </div>
+      </header>
       {!session ? (
-        <section className="workspace-panel workspace-connect">
-          <h2>Connect the superadmin wallet.</h2>
+        <section className="workspace-panel workspace-connect app-connect-state">
+          <h2>Connect the superadmin wallet</h2>
           <p>
             This action requires the registry administrator account and a browser wallet connected
             to the configured chain.
@@ -273,7 +273,7 @@ export function AdminWorkspace() {
           <div className="status-badge status-warning">
             <AlertIcon /> Superadmin role required
           </div>
-          <h2>This wallet cannot manage protocol authority.</h2>
+          <h2>This wallet does not have the superadmin role</h2>
           <p>
             Connected wallet: {shortAddress(session.address)}. Switch to the registry administrator
             account and connect again.
@@ -288,7 +288,7 @@ export function AdminWorkspace() {
         <section className="workspace-panel workspace-connect">
           <div className="panel-header">
             <div>
-              <h2>Organization authority.</h2>
+              <h2>Organization review and registry controls</h2>
             </div>
             <span className="status-badge status-success">
               <CheckIcon /> Superadmin connected

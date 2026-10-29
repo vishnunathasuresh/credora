@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Tooltip } from './ui/tooltip';
+import { Link } from '@tanstack/react-router';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ReactQRCode, type ReactQRCodeRef } from '@lglab/react-qr-code';
@@ -1021,9 +1022,9 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
 
   return (
     <main className="page-width workspace-page">
-      <div className="workspace-heading">
+      <header className="workspace-heading app-page-header">
         <div>
-          <h1>{audience === 'organization' ? 'Organization workspace.' : 'Issue a credential.'}</h1>
+          <h1>{audience === 'organization' ? 'Organization workspace' : 'Issue a credential'}</h1>
           <p className="lede">
             {audience === 'organization'
               ? 'Manage your organization’s issuance work while the registry keeps authority on-chain.'
@@ -1035,11 +1036,11 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             Disconnect {shortAddress(session.address)}
           </Button>
         ) : null}
-      </div>
+      </header>
 
       {!session ? (
-        <section className="workspace-panel workspace-connect">
-          <h2>Connect the {audience === 'organization' ? 'applicant' : 'issuer'} wallet.</h2>
+        <section className="workspace-panel workspace-connect app-connect-state">
+          <h2>Connect the {audience === 'organization' ? 'applicant' : 'issuer'} wallet</h2>
           <p>
             Credora asks the wallet to sign a one-time session challenge. Private keys never enter
             the API.
@@ -1863,9 +1864,13 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                   <div>
                     <strong>Credential confirmed.</strong>
                     <span>Share the public verification link with the learner.</span>
-                    <a className="text-link" href={`/verify/${result.credentialHash}`}>
+                    <Link
+                      className="text-link"
+                      to="/verify/$credentialRef"
+                      params={{ credentialRef: result.credentialHash }}
+                    >
                       Open verification <ArrowUpRightIcon />
-                    </a>
+                    </Link>
                     <CredentialShare
                       credentialHash={result.credentialHash}
                       credentialName={form.skillName}
@@ -1941,12 +1946,13 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                         </Button>
                       ) : null}
                       {issuance.credential_hash ? (
-                        <a
-                          href={`/verify/${issuance.credential_hash}`}
+                        <Link
+                          to="/verify/$credentialRef"
+                          params={{ credentialRef: issuance.credential_hash }}
                           aria-label={`Verify ${issuance.skill_name}`}
                         >
                           <ArrowUpRightIcon />
-                        </a>
+                        </Link>
                       ) : null}
                     </article>
                   ))}
