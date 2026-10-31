@@ -39,12 +39,22 @@ services:
       context: ..
       dockerfile: Dockerfile.web
       args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set the public API URL in deploy/.env.production}
         NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:?Set the browser RPC URL in deploy/.env.production}
         NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:?Set the browser chain ID in deploy/.env.production}
         NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser registry address in deploy/.env.production}
         NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser organization registry address in deploy/.env.production}
         NEXT_PUBLIC_IPFS_GATEWAY_URL: ${NEXT_PUBLIC_IPFS_GATEWAY_URL:?Set the public IPFS gateway URL in deploy/.env.production}
+    environment:
+      # These public values are also read by TanStack server rendering at runtime.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set the public API URL in deploy/.env.production}
+      NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:?Set the browser RPC URL in deploy/.env.production}
+      NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:?Set the browser chain ID in deploy/.env.production}
+      NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser registry address in deploy/.env.production}
+      NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS: ${NEXT_PUBLIC_ORGANIZATION_CREDENTIAL_REGISTRY_ADDRESS:?Set the browser organization registry address in deploy/.env.production}
+      NEXT_PUBLIC_IPFS_GATEWAY_URL: ${NEXT_PUBLIC_IPFS_GATEWAY_URL:?Set the public IPFS gateway URL in deploy/.env.production}
     expose:
       - '3000'
     restart: unless-stopped
