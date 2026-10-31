@@ -1,9 +1,50 @@
 /* Shared navigation surfaces: intentionally scoped away from page content. */
 .credora-topbar {
-  border-bottom: 1px solid var(--border, #deded8);
+  border-bottom: 1px solid var(--line);
 }
 .credora-topbar .wordmark {
   letter-spacing: -0.04em;
+}
+.credora-topbar .wordmark .mark {
+  border-radius: 7px;
+  color: var(--brand-foreground);
+  background: var(--brand);
+}
+.credora-topbar .desktop-nav {
+  gap: 2px;
+  padding-right: 18px;
+  border-right: 1px solid var(--line);
+}
+.credora-topbar .desktop-nav a {
+  border-radius: 6px;
+}
+.credora-topbar .desktop-nav a[aria-current='page'] {
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+.header-cta {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 15px;
+  border: 1px solid var(--brand);
+  border-radius: 7px;
+  color: var(--brand-foreground);
+  background: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.header-cta:hover {
+  border-color: var(--brand-hover);
+  color: var(--brand-foreground);
+  background: var(--brand-hover);
+}
+@media (max-width: 760px) {
+  .header-cta {
+    display: none;
+  }
 }
 .workspace-shell .app-sidebar {
   padding-top: 2rem;
