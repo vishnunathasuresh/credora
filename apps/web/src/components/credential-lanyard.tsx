@@ -1,7 +1,8 @@
 'use client';
 
-import { Component, lazy, Suspense, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { CSSProperties } from 'react';
+import { ReactQRCode } from '@lglab/react-qr-code';
 import './credential-lanyard.css';
 
 const ReactBitsLanyard = lazy(() => import('./Lanyard'));
@@ -69,7 +70,7 @@ function svgLines(value: string, limit: number) {
   return lines.map(svgText);
 }
 
-function cardSvg(props: LanyardPreviewProps, back = false) {
+function cardSvg(props: LanyardPreviewProps, back = false, qrDataUrl = '') {
   const issuer = svgText(props.issuerName.slice(0, 38));
   const titleLines = svgLines(props.title, 24);
   const title = titleLines
@@ -90,8 +91,11 @@ function cardSvg(props: LanyardPreviewProps, back = false) {
     (props.description ?? props.level ?? 'Independently verifiable achievement').slice(0, 65),
   );
   const proof = props.illustrative ? 'ILLUSTRATIVE PREVIEW' : 'VERIFIED PROOF';
+  const qr = qrDataUrl
+    ? `<image href="${svgText(qrDataUrl)}" x="585" y="930" width="360" height="360"/>`
+    : '';
   const body = back
-    ? `<text x="72" y="270" class="title">${title}</text><text x="72" y="590" class="body">${detail}</text><text x="72" y="800" class="issuer">${issuer}</text><text x="72" y="930" class="body">${issueDate}</text><text x="72" y="1190" class="proof">${svgText((props.credentialHash ?? 'PROOF REFERENCE').slice(0, 32))}</text>`
+    ? `<text x="72" y="270" class="title">${title}</text><text x="72" y="590" class="body">${detail}</text><text x="72" y="685" class="body">${svgText(props.level ?? '')}</text><text x="72" y="800" class="issuer">${issuer}</text><text x="72" y="930" class="body">${issueDate}</text><text x="72" y="1190" class="proof">${svgText((props.credentialHash ?? 'PROOF REFERENCE').slice(0, 32))}</text>${qr}`
     : `<circle cx="105" cy="122" r="34" fill="#1f5c40"/><defs><clipPath id="issuer-circle"><circle cx="105" cy="122" r="34"/></clipPath></defs>${issuerMark}<text x="158" y="135" class="issuer">${issuer}</text><text x="72" y="320" class="title">${title}</text><text x="72" y="670" class="recipient">${recipient}</text><text x="72" y="720" class="body">${svgText(props.recipientHandle ? `@${props.recipientHandle}` : '')}</text><text x="72" y="935" class="body">${issueDate}</text><text x="72" y="1220" class="proof">${proof}</text>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1440" viewBox="0 0 1024 1440"><rect width="1024" height="1440" rx="72" fill="#fff"/><rect x="22" y="22" width="980" height="1396" rx="56" fill="none" stroke="#d9ded7" stroke-width="3"/><path d="M415 24h194l-16 64H431z" fill="#e6eee8"/><rect x="463" y="21" width="98" height="22" rx="11" fill="#f8f7f1"/>${body}<path d="M72 1310h880" stroke="#dde1d9" stroke-width="3"/><text x="72" y="1360" class="footer">CREDORA · ${proof}</text><style>.title{font:700 62px Arial,sans-serif;fill:#1b1f1a}.issuer,.recipient{font:600 36px Arial,sans-serif;fill:#282e29}.eyebrow{font:600 20px Arial,sans-serif;letter-spacing:3px;fill:#5e635d}.body{font:400 28px Arial,sans-serif;fill:#595f59}.proof{font:700 21px Arial,sans-serif;letter-spacing:2px;fill:#1f5c40}.monogram{font:700 38px Arial,sans-serif;fill:white}.footer{font:600 18px Arial,sans-serif;letter-spacing:2px;fill:#918d9b}</style></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -108,6 +112,7 @@ function StaticCredential({ props, back = false }: { props: LanyardPreviewProps;
     level,
     credentialHash,
     illustrative,
+    qrUrl,
   } = props;
   return (
     <article
@@ -145,8 +150,14 @@ function StaticCredential({ props, back = false }: { props: LanyardPreviewProps;
       ) : (
         <>
           <h2>{title}</h2>
-          <p>{description || level || 'Credential evidence and issuer details.'}</p>
+          {description ? <p>{description}</p> : null}
           <dl>
+            {level ? (
+              <div>
+                <dt>Level</dt>
+                <dd>{level}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Issuer</dt>
               <dd>{issuerName}</dd>
@@ -173,6 +184,19 @@ function StaticCredential({ props, back = false }: { props: LanyardPreviewProps;
               <code>{credentialHash}</code>
             </details>
           ) : null}
+          {qrUrl ? (
+            <div className="credential-lanyard-qr">
+              <ReactQRCode
+                value={qrUrl}
+                size={192}
+                marginSize={4}
+                level="H"
+                background="#fff"
+                svgProps={{ role: 'img', 'aria-label': 'Credential verification QR code' }}
+              />
+              <span>Scan to open verification</span>
+            </div>
+          ) : null}
         </>
       )}
     </article>
@@ -184,9 +208,29 @@ export function LanyardPreview(props: LanyardPreviewProps) {
   const [flipKey, setFlipKey] = useState(0);
   const [showingBack, setShowingBack] = useState(false);
   const [webglUnavailable, setWebglUnavailable] = useState(false);
+  const [qrImage, setQrImage] = useState<{ url: string; dataUrl: string }>();
   const prefersReducedMotion =
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const label = `${props.title}, issued by ${props.issuerName}`;
+
+  useEffect(() => {
+    let current = true;
+    const url = props.qrUrl;
+    setQrImage(undefined);
+    if (url && active && !prefersReducedMotion && !webglUnavailable) {
+      void import('qrcode')
+        .then(({ toDataURL }) => toDataURL(url, { width: 360, margin: 4 }))
+        .then((dataUrl) => {
+          if (current) setQrImage({ url, dataUrl });
+        })
+        .catch(() => {
+          // The accessible static view still renders the QR directly.
+        });
+    }
+    return () => {
+      current = false;
+    };
+  }, [active, prefersReducedMotion, props.qrUrl, webglUnavailable]);
 
   return (
     <section
@@ -200,7 +244,11 @@ export function LanyardPreview(props: LanyardPreviewProps) {
             <div className="credential-lanyard-stage" aria-hidden="true">
               <ReactBitsLanyard
                 frontImage={cardSvg(props)}
-                backImage={cardSvg(props, true)}
+                backImage={cardSvg(
+                  props,
+                  true,
+                  qrImage && qrImage.url === props.qrUrl ? qrImage.dataUrl : '',
+                )}
                 cardColor="#ffffff"
                 strapColor="#255e41"
                 metal="silver"
@@ -225,7 +273,6 @@ export function LanyardPreview(props: LanyardPreviewProps) {
       <div className="credential-lanyard-controls">
         <button
           type="button"
-          aria-pressed={showingBack}
           onClick={() => {
             if (active && !prefersReducedMotion && !webglUnavailable) {
               setFlipKey((value) => value + 1);
