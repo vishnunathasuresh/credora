@@ -23,7 +23,7 @@ export const Route = createRootRoute({
           'Build a professional profile around your work and independently verifiable credentials.',
       },
       { name: 'application-name', content: 'Credora' },
-      { name: 'theme-color', content: '#faf9fc' },
+      { name: 'theme-color', content: '#f8f7f1' },
       { name: 'color-scheme', content: 'light dark' },
     ],
     links: [
@@ -77,11 +77,10 @@ function RootComponent() {
           ) : (
             <div className="header-controls">
               <nav className="nav desktop-nav" aria-label="Primary navigation">
-                <Link to="/profile">My profile</Link>
                 <Link to="/verify">Verify</Link>
-                <Link to="/wallet">Credentials</Link>
+                <Link to="/wallet">My credentials</Link>
                 <Link className="nav-cta" to="/join">
-                  Get started
+                  Create a profile
                 </Link>
               </nav>
               <ThemeToggle />

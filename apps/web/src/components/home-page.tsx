@@ -1,6 +1,14 @@
 import { ArrowUpRightIcon, CheckIcon } from './icons';
-import { LanyardPreview } from './credential-lanyard';
 import { Button } from './ui/button';
+import { EditorialProfileIdentity } from './profile/editorial-profile-identity';
+
+const illustrativeCredential = {
+  title: 'Product Design Foundations',
+  issuerName: 'Northstar Learning',
+  issueDate: '2025-06-01',
+  recipientName: 'Avery Chen',
+  recipientHandle: 'averychen',
+};
 
 export function HomePage() {
   return (
@@ -8,13 +16,13 @@ export function HomePage() {
       <section className="home-hero" aria-labelledby="home-title">
         <div className="home-copy">
           <h1 id="home-title">
-            Let your work
+            Your work,
             <br />
-            speak for you.
+            with proof.
           </h1>
           <p>
-            A professional profile for your story and the achievements you’ve earned — with
-            credentials anyone can verify.
+            Build a professional profile around your story and the achievements you’ve earned.
+            Visitors can check credential proof without signing in or connecting a wallet.
           </p>
           <div className="home-actions">
             <Button asChild className="home-primary-action">
@@ -22,67 +30,63 @@ export function HomePage() {
                 Build your profile <ArrowUpRightIcon />
               </a>
             </Button>
-            <a className="home-text-action" href="/wallet">
-              Explore credentials <ArrowUpRightIcon />
+            <a className="home-text-action" href="/verify">
+              Verify a credential <ArrowUpRightIcon />
             </a>
           </div>
-          <a className="home-verify-link" href="/verify">
-            Already have a credential?{' '}
-            <span>
-              Verify it here <ArrowUpRightIcon />
-            </span>
-          </a>
+          <p className="home-verify-link">
+            <span>Profiles start private.</span> Add a wallet only when you need your credentials.
+          </p>
         </div>
 
-        <div className="home-artifact" aria-label="Illustrative profile and credential preview">
-          <span className="home-artifact-boundary">Illustrative preview</span>
+        <div className="home-artifact" aria-label="Illustrative profile and credential composition">
+          <span className="home-artifact-boundary">Illustrative profile and credential</span>
           <div className="home-preview-layout home-identity-scene">
             <article className="home-profile-preview">
-              <div className="preview-avatar" aria-hidden="true">
-                AC
-              </div>
-              <h2 className="preview-name">Avery Chen</h2>
-              <p className="preview-handle">@averychen</p>
-              <p className="preview-role">
-                Product designer · Building useful things with thoughtful teams
-              </p>
+              <EditorialProfileIdentity
+                name={illustrativeCredential.recipientName}
+                handle={illustrativeCredential.recipientHandle}
+                role="Product designer"
+                initials="AC"
+              />
               <div className="preview-divider" />
               <span className="preview-label">Featured achievement</span>
               <div className="preview-project">
-                Product Design Foundations
-                <small>Northstar Learning · Issuer-backed credential</small>
+                {illustrativeCredential.title}
+                <small>{illustrativeCredential.issuerName} · Issuer-backed credential</small>
               </div>
             </article>
-            <LanyardPreview
-              className="hero-lanyard"
-              title="Product Design Foundations"
-              issuerName="Northstar Learning"
-              issueDate="2026-10-01"
-              recipientName="Avery Chen"
-              recipientHandle="averychen"
-              description="Illustrative credential preview. Drag the badge to explore it."
-              illustrative
-            />
+            <article className="home-demo-panel home-demo-credential">
+              <span className="preview-label">Illustrative credential</span>
+              <h2>{illustrativeCredential.title}</h2>
+              <p>Issued by {illustrativeCredential.issuerName}</p>
+              <span className="home-demo-note">Issuer-backed achievement</span>
+            </article>
+            <article className="home-demo-panel home-demo-proof">
+              <span className="preview-label">Independent verification</span>
+              <h2>Proof you can check.</h2>
+              <p>Explore the public record without signing in or connecting a wallet.</p>
+              <a href="/verify">Verify a credential <ArrowUpRightIcon size={14} /></a>
+            </article>
           </div>
-          <p className="home-artifact-caption">
-            A profile and the achievement behind it, together.
-          </p>
         </div>
       </section>
 
       <section className="home-section home-profile-section" aria-labelledby="profile-story-title">
         <div className="home-section-inner">
-          <h2 id="profile-story-title">One link for your professional story.</h2>
-          <p className="home-section-intro">
-            Bring your name, headline, bio, links and issuer-backed achievements into a profile that
-            feels like you.
-          </p>
+          <div className="home-profile-intro">
+            <h2 id="profile-story-title">Your story, your evidence.</h2>
+            <p className="home-section-intro">
+              Write about your work in your own words and choose which credentials to feature. Your
+              profile starts private; publish it when you’re ready.
+            </p>
+          </div>
           <div className="home-profile-composition">
             <div className="home-profile-story">
-              <h3>Your name, your point of view.</h3>
+              <h3>A profile that starts with you.</h3>
               <p>
-                Tell your story in your own words. Choose what appears on your public profile, and
-                keep everything else private until you’re ready to share.
+                Add a headline, bio, links, projects, experience and education. Your profile works
+                before you connect a wallet.
               </p>
               <Button asChild variant="outline">
                 <a href="/join">
@@ -92,26 +96,23 @@ export function HomePage() {
             </div>
             <article
               className="home-profile-sample"
-              aria-label="Illustrative public profile preview"
+              aria-label="How profile information is presented"
             >
-              <div className="profile-sample-head">
-                <div className="preview-avatar" aria-hidden="true">
-                  AC
-                </div>
+              <div className="home-evidence-row">
+                <span className="home-evidence-index">A</span>
                 <div>
-                  <h3>Avery Chen</h3>
-                  <p>@averychen · Product designer</p>
+                  <h3>Your profile</h3>
+                  <p>Self-written details you choose to publish</p>
                 </div>
+                <span className="home-evidence-kind">Your words</span>
               </div>
-              <p className="profile-sample-body">
-                I turn complex ideas into clear, useful products. Currently exploring the
-                intersection of design systems and developer experience.
-              </p>
-              <div className="preview-divider" />
-              <span className="preview-label">Featured achievement</span>
-              <div className="preview-project">
-                Product Design Foundations
-                <small>Northstar Learning · Issuer-backed credential</small>
+              <div className="home-evidence-row">
+                <span className="home-evidence-index">B</span>
+                <div>
+                  <h3>Your credentials</h3>
+                  <p>Achievements issued by organizations and linked to public proof</p>
+                </div>
+                <span className="home-evidence-kind">Their record</span>
               </div>
             </article>
           </div>
@@ -122,51 +123,53 @@ export function HomePage() {
         className="home-section home-credential-section"
         aria-labelledby="credential-story-title"
       >
-        <div className="home-section-inner">
-          <h2 id="credential-story-title">An achievement with its proof attached.</h2>
-          <p className="home-section-intro">
-            Credentials stay connected to the organization that issued them and the evidence
-            visitors can check for themselves.
-          </p>
-          <div className="home-credential-composition">
-            <div className="home-credential-object">
-              <LanyardPreview
-                className="home-lanyard"
-                title="Product Design Foundations"
-                issuerName="Northstar Learning"
-                issueDate="2025-06-01"
-                recipientName="Avery Chen"
-                recipientHandle="averychen"
-                description="An illustrative achievement preview"
-                illustrative
-              />
-            </div>
-            <div className="home-credential-copy">
-              <h3>Made to be carried. Built to be checked.</h3>
-              <p>
-                Lead with the accomplishment. Open the details when you need them. A visitor can
-                independently check a credential without connecting a wallet or creating an account.
-              </p>
-              <div className="home-credential-points">
-                <div>
-                  <span className="home-point-mark">
-                    <CheckIcon size={15} />
-                  </span>
-                  Achievement and issuer stay in focus
-                </div>
-                <div>
-                  <span className="home-point-mark">
-                    <CheckIcon size={15} />
-                  </span>
-                  Proof details remain available when needed
-                </div>
-                <div>
-                  <span className="home-point-mark">
-                    <CheckIcon size={15} />
-                  </span>
-                  Visitors can verify without signing in
-                </div>
+        <div className="home-section-inner home-proof-inner">
+          <div className="home-proof-copy">
+            <h2 id="credential-story-title">Proof travels with each credential.</h2>
+            <p className="home-section-intro">
+              The registry records the issuer and credential proof. Public metadata describes the
+              achievement. A verifier checks both independently.
+            </p>
+            <div className="home-credential-points">
+              <div>
+                <span className="home-point-mark">
+                  <CheckIcon size={15} />
+                </span>
+                Issuer and achievement remain in focus
               </div>
+              <div>
+                <span className="home-point-mark">
+                  <CheckIcon size={15} />
+                </span>
+                Proof details are available when needed
+              </div>
+              <div>
+                <span className="home-point-mark">
+                  <CheckIcon size={15} />
+                </span>
+                Visitors can verify without an account
+              </div>
+            </div>
+          </div>
+          <div className="home-proof-path" aria-label="Credential verification path">
+            <div className="home-proof-step">
+              <span>Achievement</span>
+              <strong>{illustrativeCredential.title}</strong>
+            </div>
+            <span className="home-proof-connector" aria-hidden="true">
+              →
+            </span>
+            <div className="home-proof-step">
+              <span>Issuer</span>
+              <strong>{illustrativeCredential.issuerName}</strong>
+            </div>
+            <span className="home-proof-connector" aria-hidden="true">
+              →
+            </span>
+            <div className="home-proof-step home-proof-result">
+              <span>Public record</span>
+              <strong>Check the proof</strong>
+              <small>Illustrative flow</small>
             </div>
           </div>
         </div>
@@ -174,53 +177,39 @@ export function HomePage() {
 
       <section className="home-section home-sharing-section" aria-labelledby="sharing-title">
         <div className="home-section-inner">
-          <h2 id="sharing-title">Share with confidence.</h2>
+          <h2 id="sharing-title">Choose what leaves your hands.</h2>
           <p className="home-section-intro">
-            A clear public link makes it easy to share the profile you choose and the credentials
-            you want people to see.
+            Publish selected profile details, share a public credential link, or create a temporary
+            collection for a specific conversation.
           </p>
           <div className="home-share-composition">
             <article className="home-share-panel">
               <div className="home-share-copy">
-                <h3>Your profile, ready to travel.</h3>
+                <h3>A public profile, when you choose.</h3>
                 <p>
-                  Choose what is public, then share one memorable link with a recruiter,
-                  collaborator or community.
+                  Visitors can see the profile details you’ve added and the credentials you chose to
+                  feature. You can unpublish later, but copies and public proof records may remain
+                  elsewhere.
                 </p>
               </div>
               <div className="home-share-link">
-                <span>credora.app/u/your-handle</span>
-                <span>Profile link</span>
+                <span>/u/your-handle</span>
+                <span>Public profile path</span>
               </div>
-              <p className="home-share-note">
-                Illustrative link format. Public profiles are opt-in.
-              </p>
             </article>
-            <article className="home-share-panel">
+            <article className="home-share-panel home-share-secondary">
               <div className="home-share-copy">
-                <h3>Issuers add context.</h3>
+                <h3>A temporary credential collection.</h3>
                 <p>
-                  Organizations can present their programs and issue achievements that recipients
-                  can carry into their professional story.
+                  Choose credentials for a time-limited share link. This stays separate from your
+                  public profile.
                 </p>
               </div>
-              <div className="home-org-card">
-                <div className="home-org-card-head">
-                  <span className="home-org-card-mark">N</span>
-                  <div>
-                    <h3>Northstar Learning</h3>
-                    <p>Illustrative organization page</p>
-                  </div>
-                </div>
-                <div className="home-org-row">
-                  <span>Product Design Foundations</span>
-                  <span>Achievement</span>
-                </div>
-                <div className="home-org-row">
-                  <span>Applied Research Studio</span>
-                  <span>Program</span>
-                </div>
-              </div>
+              <Button asChild variant="outline">
+                <a href="/wallet">
+                  Explore credentials <ArrowUpRightIcon />
+                </a>
+              </Button>
             </article>
           </div>
         </div>
@@ -230,16 +219,16 @@ export function HomePage() {
         <div className="home-closing-inner">
           <div>
             <h2 id="closing-title">Start with what you’ve done.</h2>
-            <p>
-              Build your profile, choose what to share, and give your achievements a home of their
-              own.
-            </p>
+            <p>Build your profile, or check a credential someone has shared with you.</p>
           </div>
-          <Button asChild>
-            <a href="/join">
-              Build your profile <ArrowUpRightIcon />
-            </a>
-          </Button>
+          <div className="home-actions home-closing-actions">
+            <Button asChild>
+              <a href="/join">
+                Build your profile <ArrowUpRightIcon />
+              </a>
+            </Button>
+            <a href="/verify">Verify a credential</a>
+          </div>
         </div>
       </section>
     </main>

@@ -1,75 +1,74 @@
-# Credora design system
+# Credora design direction
 
-Credora uses a professional network language for public identity and restrained
-workspaces for editing and issuing. Product scope lives in
-[the product direction](docs/roadmap/product-direction.md); implementation and
-verification evidence live in [the redesign record](docs/ux/tanstack-redesign-plan.md).
+Credora presents professional identity as an open editorial spread, with credentials treated as
+evidence that can be checked independently. The visual system follows OpenSource UI's quiet neutral
+stage, clear type, hairline separators, and restrained semantic color, adapted to Credora's neutral paper and graphite ink. Product and protocol truth remain in [PRODUCT.md](PRODUCT.md)
+and the [agreed product direction](docs/roadmap/product-direction.md).
 
-## Visual language
+## Visual system
 
-Geist Variable is served locally. Chalk backgrounds, white surfaces, near-black
-text and iris purple establish the light theme; dark mode remaps those semantic
-roles to charcoal and pale iris. Ordinary supporting text uses a readable muted
-ink, including placeholders. Verification success, warnings and errors have their
-own colors and explicit text; brand decoration never asserts proof validity.
+- **Palette:** white and near-white paper (`#ffffff`, `#fafafa`), graphite ink (`#171717`),
+  neutral rules (`#e5e5e5`), and charcoal (`#262626`) for primary actions. Dark mode uses neutral
+  charcoal surfaces. Green is reserved for proof and success states. Success, unavailable, warning, and error states use distinct semantic colors and explicit
+  labels. Purple is not part of the interface palette.
+- **Type:** locally served Instrument Serif for marketing display headings and Geist Variable for UI.
+  Public display headings carry the editorial scale through size, measure, and deliberate line breaks; operational headings
+  stay compact. Supporting copy remains readable and direct.
+- **Surfaces:** flat neutral-paper fields and quiet hairline separators. Use filled panels only when
+  they group a real task or a credential object. Avoid decorative gradients, glow, dot fields,
+  invented metrics, and generic icon tiles.
+- **Controls:** follow the OpenSource UI component language and keep Credora's Radix primitives and
+  Hugeicons. Controls retain visible focus, accessible labels, clear disabled/pending states, and
+  touch targets of at least 44px where practical.
 
-The implementation tokens are in `apps/web/src/styles/globals.css`. Use them
-instead of introducing competing palettes. Controls have 12px radii, ordinary
-surfaces 16px radii, quiet borders and a consistent spacing scale. Soft elevation
-belongs to floating credential objects and overlays. Headings use sans-serif
-weight and scale; avoid decorative eyebrows, invented metrics and fake activity.
+## Public pages
 
-## Navigation and layout
+The landing page leads with an open two-column identity-and-credential spread, explicitly marked
+illustrative. The profile and credential belong together; avoid stacked decorative card frames,
+repeated sample cards, and fictitious public organization pages. Following sections explain the
+distinction between user-written profile claims and issuer-backed evidence, independent
+verification, and the available sharing choices. Keep the primary path to profile creation distinct
+from the visitor path to verification.
 
-The landing page combines a person, handle, issuer and achievement in a composed,
-explicitly illustrative preview. Profile, credential and sharing sections use
-different compositions, followed by a working profile action. Marketing copy
-must describe implemented capabilities.
+Public profile pages lead with the person's selected identity, then user-authored sections, then
+featured credential summaries. A summary is not a verification result. Credential detail and
+temporary-share pages retain the actual proof status and source failure states. Social previews are
+generated from the same public profile data. Profile details that have been added publish together;
+credential featuring is selected independently. Copy must not suggest field-by-field privacy controls.
 
-Public profiles, verification and temporary shares use the public header without
-a workspace sidebar. Private profile, credential and role workspaces have a
-compact desktop sidebar. Role-specific destinations remain behind the workspace
-entry. Mobile navigation uses a named Radix dialog with focus management.
+## Operational pages
 
-Content is fluid, with a 1200px general measure and narrower public profiles.
-Narrow layouts become one column, identifiers wrap, and controls have at least
-44px touch targets. Keep loading, empty, unauthorized and infrastructure-error
-states distinct. Root errors and missing pages provide recovery actions.
+Workspaces use the compact sidebar shell on desktop and the workspace menu on narrow screens.
+Forms, libraries, issuer operations, organization applications, and administration use page-specific
+layouts around their primary task. Keep issuer, wallet, account, review, and verification sessions
+distinct. Evidence fields and actions must scan clearly without suggesting that a record is verified
+until the proof flow says so.
 
-## Profiles
+## Product truth and interface states
 
-Public identity leads with the photo or initials, name, handle and headline.
-About, links, experience, education and projects follow as user-written content.
-Issuer-backed credentials are a separate section; summaries are display
-projections and their links open independent verification.
+Profiles start private and remain usable before wallet linking. Publication is explicit and names
+what becomes public. Temporary selected-credential shares remain distinct from public profiles.
+On-chain records are authoritative for issued proof; API projections and workspaces do not replace
+independent verification. Never imply that profile content proves wallet control or changes an
+issued credential.
 
-The editor groups identity, projects, experience, education, featured credentials
-and publication. Stable entry IDs preserve ordering. Use explicit up/down controls
-for accessible ordering. Photos currently use HTTPS URLs with a local initials
-fallback; this is not a file-upload service. Profiles stay private until published.
+Preserve distinct checking, verified, absent, malformed, mismatch, metadata-unavailable,
+ledger-unavailable, service-error, signed-out, loading, empty, and retry states. Infrastructure
+failure never becomes an invalid-proof result. Example identity and achievement details are marked
+illustrative; there is no seeded live credential catalog.
 
-## Credentials and motion
+## Responsive behavior and review
 
-The selected React Bits lanyard uses its upstream Three.js physics implementation.
-Organization, title, recipient and date are rendered onto locally generated card
-textures. Attribution and license are retained under `apps/web/public/lanyard`.
+Public compositions have generous desktop rhythm and move into a readable single-column sequence on
+mobile. Operational screens keep controls and evidence legible without shrinking a desktop grid;
+tables may scroll horizontally when necessary. Check the landing page, profile editor, credential
+library, verification entry/result, issuer workspace, and share route at desktop, tablet, and mobile
+widths. Captures prove the local UI composition only; they do not prove live OAuth, chain, gateway,
+camera, or wallet behavior.
 
-Load the renderer only after interaction. Keep HTML credential information and
-working front/details controls available for reduced motion and renderer failure.
-Bound pixel density, pause offscreen/background animation and dispose resources
-on unmount. A full credential's interactive presentation requires a matching
-proof; landing demonstrations stay explicitly illustrative.
+## OpenSource UI source adaptations
 
-## Components and review boundaries
-
-Compose the existing shadcn/Radix controls with Hugeicons. Tailwind utilities,
-semantic token mappings, keyboard focus, labels and validation states are part
-of the component foundation. Keep native checkbox sizing separate from text
-inputs. Reference sources are recorded in
-[component sources](docs/ux/component-sources.md).
-
-The detector's single Geist warning was accepted as a low-severity choice for
-readable workspaces. The independent review accepted the replacement layouts;
-its final verdict marked the reported profile, contrast and capture fixes
-resolved. This is not whole-app WCAG certification or live-chain browser proof.
-See the redesign record for tested states and remaining boundaries.
+The credential/profile share flows use an adapted Copy to Clipboard component, and the landing
+identity preview uses an adapted Editorial Staff Profile row. Both preserve Credora's route data,
+fallback behavior, accessibility semantics, and illustrative labeling. Their MIT attribution and
+permission notice are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

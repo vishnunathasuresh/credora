@@ -497,6 +497,28 @@ export function ProfileEditor() {
         </div>
       ) : (
         <form onSubmit={save} className="workspace-form profile-editor-form">
+          {profile.id && (
+            <div className="profile-editor-overview">
+              <nav className="profile-editor-nav" aria-label="Profile editor sections">
+                <a href="#profile-identity-title">Identity</a>
+                <a href="#profile-projects-title">Projects</a>
+                <a href="#profile-experience-title">Experience</a>
+                <a href="#profile-education-title">Education</a>
+                <a href="#profile-featured-title">Credentials</a>
+                <a href="#profile-publication-title">Publication</a>
+              </nav>
+              <p className="profile-editor-visibility" role="status">
+                <span
+                  className={`profile-visibility-mark ${profile.published ? 'is-public' : ''}`}
+                />
+                {profile.published ? 'Public profile' : 'Private until you publish'}
+                <span className="profile-visibility-count">
+                  {profile.credentialHashes.length} featured credential
+                  {profile.credentialHashes.length === 1 ? '' : 's'}
+                </span>
+              </p>
+            </div>
+          )}
           <section className="workspace-panel" aria-labelledby="profile-identity-title">
             <h2 id="profile-identity-title">Profile identity</h2>
             <div className="profile-section-grid grid gap-6 sm:grid-cols-[minmax(0,1fr)_14rem]">

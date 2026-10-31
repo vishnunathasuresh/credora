@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { ArrowUpRightIcon } from './icons';
+import { OpenSourceUICopyButton } from './ui/opensource-ui-copy-button';
 import {
   Dialog,
   DialogTrigger,
@@ -26,7 +27,6 @@ function shareUrl(hash: string) {
 export function CredentialShare({ credentialHash, credentialName }: CredentialShareProps) {
   const [open, setOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const verificationUrl = useMemo(() => shareUrl(credentialHash), [credentialHash]);
 
@@ -47,16 +47,17 @@ export function CredentialShare({ credentialHash, credentialName }: CredentialSh
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(verificationUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
+      setError('');
+      return true;
     } catch {
       setError('The link could not be copied. Use the public verification link below.');
+      return false;
     }
   }
 
   async function shareLink() {
     if (!navigator.share) {
-      await copyLink();
+      setError('Sharing is unavailable in this browser. Use Copy link instead.');
       return;
     }
     try {
@@ -99,9 +100,7 @@ export function CredentialShare({ credentialHash, credentialName }: CredentialSh
         <code className="share-dialog-url">{verificationUrl}</code>
         <div className="share-dialog-actions">
           <Button onClick={shareLink}>Share link</Button>
-          <Button variant="outline" onClick={copyLink}>
-            {copied ? 'Copied' : 'Copy link'}
-          </Button>
+          <OpenSourceUICopyButton onCopy={copyLink} />
           {qrDataUrl ? (
             <Button variant="outline" asChild>
               <a href={qrDataUrl} download={`credora-${credentialHash}.png`}>
@@ -120,9 +119,6 @@ export function CredentialShare({ credentialHash, credentialName }: CredentialSh
             {error}
           </p>
         ) : null}
-        <span className="sr-only" role="status">
-          {copied ? 'Link copied' : ''}
-        </span>
       </DialogContent>
     </Dialog>
   );

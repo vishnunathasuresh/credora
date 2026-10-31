@@ -92,8 +92,8 @@ function cardSvg(props: LanyardPreviewProps, back = false) {
   const proof = props.illustrative ? 'ILLUSTRATIVE PREVIEW' : 'VERIFIED PROOF';
   const body = back
     ? `<text x="72" y="270" class="title">${title}</text><text x="72" y="590" class="body">${detail}</text><text x="72" y="800" class="issuer">${issuer}</text><text x="72" y="930" class="body">${issueDate}</text><text x="72" y="1190" class="proof">${svgText((props.credentialHash ?? 'PROOF REFERENCE').slice(0, 32))}</text>`
-    : `<circle cx="105" cy="122" r="34" fill="#6d58c9"/><defs><clipPath id="issuer-circle"><circle cx="105" cy="122" r="34"/></clipPath></defs>${issuerMark}<text x="158" y="135" class="issuer">${issuer}</text><text x="72" y="320" class="title">${title}</text><text x="72" y="670" class="recipient">${recipient}</text><text x="72" y="720" class="body">${svgText(props.recipientHandle ? `@${props.recipientHandle}` : '')}</text><text x="72" y="935" class="body">${issueDate}</text><text x="72" y="1220" class="proof">${proof}</text>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1440" viewBox="0 0 1024 1440"><rect width="1024" height="1440" rx="72" fill="#fff"/><rect x="22" y="22" width="980" height="1396" rx="56" fill="none" stroke="#ddd9ec" stroke-width="3"/><path d="M415 24h194l-16 64H431z" fill="#e9e6f2"/><rect x="463" y="21" width="98" height="22" rx="11" fill="#f5f4f8"/>${body}<path d="M72 1310h880" stroke="#e7e4ee" stroke-width="3"/><text x="72" y="1360" class="footer">CREDORA · ${proof}</text><style>.title{font:700 62px Arial,sans-serif;fill:#17151e}.issuer,.recipient{font:600 36px Arial,sans-serif;fill:#282532}.eyebrow{font:600 20px Arial,sans-serif;letter-spacing:3px;fill:#797584}.body{font:400 28px Arial,sans-serif;fill:#55515f}.proof{font:700 21px Arial,sans-serif;letter-spacing:2px;fill:#5944b4}.monogram{font:700 38px Arial,sans-serif;fill:white}.footer{font:600 18px Arial,sans-serif;letter-spacing:2px;fill:#918d9b}</style></svg>`;
+    : `<circle cx="105" cy="122" r="34" fill="#1f5c40"/><defs><clipPath id="issuer-circle"><circle cx="105" cy="122" r="34"/></clipPath></defs>${issuerMark}<text x="158" y="135" class="issuer">${issuer}</text><text x="72" y="320" class="title">${title}</text><text x="72" y="670" class="recipient">${recipient}</text><text x="72" y="720" class="body">${svgText(props.recipientHandle ? `@${props.recipientHandle}` : '')}</text><text x="72" y="935" class="body">${issueDate}</text><text x="72" y="1220" class="proof">${proof}</text>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1440" viewBox="0 0 1024 1440"><rect width="1024" height="1440" rx="72" fill="#fff"/><rect x="22" y="22" width="980" height="1396" rx="56" fill="none" stroke="#d9ded7" stroke-width="3"/><path d="M415 24h194l-16 64H431z" fill="#e6eee8"/><rect x="463" y="21" width="98" height="22" rx="11" fill="#f8f7f1"/>${body}<path d="M72 1310h880" stroke="#dde1d9" stroke-width="3"/><text x="72" y="1360" class="footer">CREDORA · ${proof}</text><style>.title{font:700 62px Arial,sans-serif;fill:#1b1f1a}.issuer,.recipient{font:600 36px Arial,sans-serif;fill:#282e29}.eyebrow{font:600 20px Arial,sans-serif;letter-spacing:3px;fill:#5e635d}.body{font:400 28px Arial,sans-serif;fill:#595f59}.proof{font:700 21px Arial,sans-serif;letter-spacing:2px;fill:#1f5c40}.monogram{font:700 38px Arial,sans-serif;fill:white}.footer{font:600 18px Arial,sans-serif;letter-spacing:2px;fill:#918d9b}</style></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
@@ -202,7 +202,7 @@ export function LanyardPreview(props: LanyardPreviewProps) {
                 frontImage={cardSvg(props)}
                 backImage={cardSvg(props, true)}
                 cardColor="#ffffff"
-                strapColor="#5340a3"
+                strapColor="#255e41"
                 metal="silver"
                 size={0.72}
                 strapLength={0.44}

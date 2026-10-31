@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
+import { OpenSourceUICopyButton } from './ui/opensource-ui-copy-button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -39,7 +40,6 @@ export function ProfileShare({ handle, name }: { handle: string; name: string })
   const [profileUrl, setProfileUrl] = useState('');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [qr, setQr] = useState<QrState | null>(null);
-  const [copying, setCopying] = useState(false);
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
@@ -47,7 +47,6 @@ export function ProfileShare({ handle, name }: { handle: string; name: string })
     setProfileUrl(canonicalProfileUrl(handle));
     setFeedback(null);
     setQr(null);
-    setCopying(false);
     setSharing(false);
   }, [handle, open]);
 
@@ -75,17 +74,18 @@ export function ProfileShare({ handle, name }: { handle: string; name: string })
 
   async function copyLink() {
     const url = canonicalProfileUrl(handle);
-    setCopying(true);
     setFeedback(null);
     try {
       if (await copyWithFallback(url)) {
         setFeedback({ tone: 'status', message: 'Profile link copied.' });
+        return true;
       } else {
         setProfileUrl(url);
         setFeedback({
           tone: 'error',
           message: 'Could not copy the link. Select it below and copy it manually.',
         });
+        return false;
       }
     } catch {
       setProfileUrl(url);
@@ -93,8 +93,7 @@ export function ProfileShare({ handle, name }: { handle: string; name: string })
         tone: 'error',
         message: 'Could not copy the link. Select it below and copy it manually.',
       });
-    } finally {
-      setCopying(false);
+      return false;
     }
   }
 
@@ -149,9 +148,7 @@ export function ProfileShare({ handle, name }: { handle: string; name: string })
               onClick={(event) => event.currentTarget.select()}
             />
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => void copyLink()} disabled={copying}>
-                {copying ? 'Copying…' : 'Copy link'}
-              </Button>
+              <OpenSourceUICopyButton onCopy={copyLink} />
               <Button
                 type="button"
                 variant="outline"
