@@ -1442,7 +1442,9 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
               </div>
               {reviewQueueUnavailable ? (
                 <div className="organization-review-empty" role="alert">
-                  <p>The review queue could not be loaded. No review status has been inferred.</p>
+                  <p>
+                    The review queue could not be loaded. Try again to see items awaiting review.
+                  </p>
                   <Button
                     type="button"
                     variant="outline"
