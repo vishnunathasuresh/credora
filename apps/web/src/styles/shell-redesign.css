@@ -534,6 +534,10 @@
 .profile-editor-form section[aria-labelledby='profile-publication-title'] > label + div {
   margin-top: 20px;
 }
+.profile-editor-form fieldset label > span {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 600px) {
   .wallet-share-panel {
     padding: 20px;
