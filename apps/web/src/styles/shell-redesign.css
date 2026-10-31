@@ -153,7 +153,8 @@
 .verify-reference-fallback #credential-reference-help {
   margin: 10px 0 0;
 }
-.form-error {
+.form-error,
+.workspace-panel > .form-error {
   color: var(--danger);
 }
 .verify-reference-fallback input[aria-invalid='true'] {

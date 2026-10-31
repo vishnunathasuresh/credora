@@ -1,32 +1,29 @@
-# Component sources
+# UI component sources
 
-The user selected shadcn.io and React Bits for the replacement redesign.
-Existing local Radix/shadcn controls remain the form and overlay foundation.
+This manifest records the current Opensource UI Studio direction. Earlier
+shadcn.io exploration was a historical reference, not a requirement for new
+UI. Existing local primitives remain in use where they provide the right
+semantics and behavior. Remove a dependency only after its final consumer has
+been replaced and its behavior verified.
 
-## Selected references
+| Component and surface                        | Decision                                   | Source and local implementation                                                                                                                         | Notes                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Profile identity in the landing illustration | Adapt                                      | [Editorial Staff Profile](https://opensourceui.in/components/editorial-staff-profile); `apps/web/src/components/profile/editorial-profile-identity.tsx` | Uses initials and profile fields instead of the stock image, roster index and bio. Illustrative only.                 |
+| Copy link feedback in sharing                | Adapt                                      | [Copy to Clipboard](https://opensourceui.in/components/copy-button); `apps/web/src/components/ui/opensource-ui-copy-button.tsx`                         | Caller owns clipboard and fallback errors; pending and timed confirmation remain explicit.                            |
+| Public and workspace navigation              | Custom                                     | `apps/web/src/routes/__root.tsx`, `apps/web/src/components/mobile-navigation.tsx`                                                                       | Native links, current-page state and a keyboard-accessible mobile dialog.                                             |
+| Buttons, fields and dialogs                  | Adapt local                                | `apps/web/src/components/ui/`                                                                                                                           | Existing Radix-backed behavior and local styling; not copied from the Opensource UI catalog.                          |
+| Credential proof and lanyard                 | Custom plus existing React Bits adaptation | `apps/web/src/components/credential-card.tsx`, `apps/web/src/components/credential-lanyard.tsx`, `apps/web/src/components/Lanyard.tsx`                  | Proof state and static accessibility path remain Credora-specific. React Bits attribution is under `public/lanyard/`. |
+| Workspace overview and verification form     | Custom                                     | `apps/web/src/components/role-dashboard.tsx`, `apps/web/src/components/verify-form.tsx`                                                                 | Account, camera, QR and service states follow the existing application contracts.                                     |
 
-- [shadcn.io sidebar](https://www.shadcn.io/ui/sidebar): application navigation
-  and responsive collapse patterns.
-- [shadcn.io avatar](https://www.shadcn.io/ui/avatar): person-first identity and
-  initial fallback patterns.
-- [shadcn.io tabs](https://www.shadcn.io/ui/tabs): accessible grouped navigation.
-- [React Bits Lanyard](https://reactbits.dev/components/lanyard): exact user-selected
-  component, inspected and installed with the shadcn CLI before adaptation.
+The two Opensource UI adaptations retain their MIT notice in
+[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md). No upstream photography
+or demo data is shipped. Instrument Serif's license is stored with the bundled
+font; Geist is installed through `@fontsource-variable/geist`.
 
-## Shoogle discovery
-
-Search uses item names rather than semantic layouts. The queried namespace
-`@shadcn-io` was reported unknown by Shoogle; shadcn.io's public component docs
-were read directly. That does not imply its website is unavailable.
-
-| name          | registry     | homepage                 | add command                                            | type               | description                                     |
-| ------------- | ------------ | ------------------------ | ------------------------------------------------------ | ------------------ | ----------------------------------------------- |
-| Lanyard-TS-TW | @react-bits  | https://reactbits.dev/   | `pnpm dlx shadcn@latest add @react-bits/Lanyard-TS-TW` | registry:component | Swinging draggable 3D badge; selected by user.  |
-| avatar-stack  | @shadcncraft | https://shadcncraft.com/ | `pnpm dlx shadcn@latest add @shadcncraft/avatar-stack` | registry:ui        | Overlapping avatars; discovered, not installed. |
-| avatar9       | @shadcnuikit | https://shadcnuikit.com/ | `pnpm dlx shadcn@latest add @shadcnuikit/avatar9`      | registry:component | Avatar; discovered, not installed.              |
-| avatar8       | @shadcnuikit | https://shadcnuikit.com/ | `pnpm dlx shadcn@latest add @shadcnuikit/avatar8`      | registry:component | Avatar; discovered, not installed.              |
-| avatar7       | @shadcnuikit | https://shadcnuikit.com/ | `pnpm dlx shadcn@latest add @shadcnuikit/avatar7`      | registry:component | Avatar; discovered, not installed.              |
-
-Avatar search returned 100 indexed matches, page 1–4. Lanyard discovery returned
-6 matches, page 1–4; the exact React Bits selection made alternatives unnecessary.
-No community avatar component or paid block was installed from this comparison.
+Reference study: [Opensource UI catalog](https://opensourceui.in/components),
+[design reference](https://github.com/bidyut10/opensourceui/blob/main/skills/opensource-ui/references/design.md),
+[Apple Browser mockup](https://opensourceui.in/components/browser),
+and [Fine Grain pattern](https://opensourceui.in/components/fine-grain-pattern). The
+latter two were studied as presentation options; their code and assets are not
+used. A real product view or clearly labeled illustration is preferable to a
+fabricated screenshot, and the application surfaces stay neutral.

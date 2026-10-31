@@ -23,3 +23,11 @@ The shared shell, workspace overview, credential presentations and proof states 
 ## Boundaries
 
 Registry proof remains authoritative. A profile claim, an issuer-backed achievement and control of a wallet are separate assurances. Publication cannot recall copies or remove public proof. Keep issuer confirmation bound to the exact recipient address and retain existing authorization, privacy and infrastructure-failure behavior when changing presentation.
+
+## Tokens and composition
+
+The light canvas is `#fafafa` with white surfaces, `#171717` ink and `#e5e5e5` dividers. Dark mode uses `#171717` canvas, `#202020` surfaces and `#f5f5f5` ink. The semantic tokens in `globals.css` own success, warning, error and focus colors for both themes. Controls use an 8px base radius and larger panels use 16px; avoid nested panels when a divider conveys the same structure.
+
+The landing signature is an editorial split: an oversized serif claim and primary profile action beside a labeled profile-and-proof illustration. On smaller screens the claim precedes the illustration. The illustration uses real component structure and synthetic, explicitly labeled content, not a screenshot or a claim of live verification. Product workspaces use Geist, a persistent desktop navigation and a labeled mobile menu. Constrain reading widths, use a predictable 4/8/16/24/48px spacing rhythm, and allow headings and references to wrap.
+
+Use one coherent line-icon grammar and text labels for meaningful actions. Photos are user supplied, never assumed to prove identity; provide initials or text when absent. The hero is the only place for a substantial atmospheric surface. Actions have visible focus and short state feedback; respect reduced motion and retain a static credential presentation. Empty, loading, error, unavailable and success states name what happened and the next available action. Do not imply a failed network request is an empty library or invalid proof.

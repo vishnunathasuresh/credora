@@ -1,6 +1,9 @@
 # TanStack Start redesign
 
-Status: implemented and reviewed, 2026-10-29. The agreed product direction is
+Status: historical implementation and review record, 2026-10-29. The current
+Opensource UI Studio direction supersedes this record where visual or route
+details conflict; see [component sources](component-sources.md) and
+[DESIGN.md](../../DESIGN.md). The agreed product direction is
 in [product-direction.md](../roadmap/product-direction.md); the implemented
 visual system is specified in [DESIGN.md](../../DESIGN.md). This record keeps
 the initial audit and design rejection as history, then states the built result
@@ -49,8 +52,9 @@ contract; [DESIGN.md](../../DESIGN.md) owns the current system.
   content-addressed metadata remain authoritative for proof. See
   [ADR 0011](../decisions/0011-profile-identity-and-publication.md).
 
-Pre-wallet signup, account recovery, and wallet reassignment remain future
-work. Follows, feeds, jobs, messaging, discovery, and recommendations are not
+At the time of that review, pre-wallet signup, account recovery, and wallet
+reassignment were future work; the identity-first follow-up below records
+subsequent signup work. Follows, feeds, jobs, messaging, discovery, and recommendations are not
 shipped networking features. Continue to follow the product delivery order.
 
 ## Review and verification
