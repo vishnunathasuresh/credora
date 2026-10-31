@@ -15,7 +15,9 @@ function routeForQrValue(value: string, origin: string) {
     const url = new URL(value.trim(), origin);
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
     const share = url.pathname.match(/^\/share\/([A-Za-z0-9_-]{43})\/?$/);
-    if (share) return `/share/${share[1]}`;
+    if (share) return `/share#${share[1]}`;
+    const fragmentShare = url.pathname === '/share' && url.hash.match(/^#([A-Za-z0-9_-]{43})$/);
+    if (fragmentShare) return `/share#${fragmentShare[1]}`;
   } catch {
     return;
   }
@@ -46,8 +48,8 @@ export function VerifyForm() {
         return;
       }
       setError('');
-      if (route.startsWith('/share/')) {
-        void navigate({ to: '/share/$token', params: { token: route.slice(7) } });
+      if (route.startsWith('/share#')) {
+        window.location.assign(route);
       } else {
         void navigate({
           to: '/verify/$credentialRef',

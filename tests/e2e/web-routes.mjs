@@ -142,14 +142,27 @@ try {
   assert.match(detail.html, /not-a-hash/);
   assert.doesNotMatch(detail.html, /class="verify-form"/);
 
-  for (const token of ['invalid-short', 'a'.repeat(43)]) {
-    const { response, html } = await page('/share/' + token);
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get('cache-control') ?? '', /no-store/);
-    assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
-    assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/);
-    if (token === 'invalid-short') assert.match(html, /Share code not understood/);
-  }
+  const syntheticShareToken = 'T'.repeat(43);
+  const legacyShare = await fetch(base + '/share/' + syntheticShareToken, { redirect: 'manual' });
+  assert.equal(legacyShare.status, 303);
+  assert.equal(legacyShare.headers.get('location'), '/share#' + syntheticShareToken);
+  assert.equal(
+    logs.includes(syntheticShareToken),
+    false,
+    'legacy share path must not appear in web logs',
+  );
+  const sharePage = await page('/share#' + syntheticShareToken);
+  assert.equal(sharePage.response.status, 200);
+  assert.match(sharePage.response.headers.get('cache-control') ?? '', /no-store/);
+  assert.equal(sharePage.response.headers.get('referrer-policy'), 'no-referrer');
+  assert.match(sharePage.response.headers.get('x-robots-tag') ?? '', /noindex/);
+  assert.match(sharePage.html, /Opening shared credentials/);
+  assert.doesNotMatch(sharePage.html, new RegExp(syntheticShareToken));
+  assert.equal(
+    logs.includes(syntheticShareToken),
+    false,
+    'share fragment must not appear in web logs',
+  );
   assert.equal((await fetch(base + '/unknown-route-for-e2e')).status, 404);
   console.log('Built web routes, detail rendering, share privacy and client boundaries passed.');
 } finally {

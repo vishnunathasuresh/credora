@@ -93,7 +93,13 @@ try {
   assert.ok(Date.parse(created.body.expiresAt) > Date.now() + 6 * 24 * 60 * 60_000);
   assert.ok(Date.parse(created.body.expiresAt) < Date.now() + 8 * 24 * 60 * 60_000);
 
-  const shared = await request(`/wallet/shares/${created.body.token}`);
+  const resolveShare = (token) =>
+    request('/wallet/share-resolution', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+  const shared = await resolveShare(created.body.token);
   assert.equal(shared.response.status, 200);
   assert.deepEqual(shared.body.credentials, [
     { credentialHash: firstHash },
@@ -101,6 +107,9 @@ try {
   ]);
   assert.equal('managementToken' in shared.body, false);
   assert.equal('token' in shared.body, false);
+  const legacyShared = await request(`/wallet/shares/${created.body.token}`);
+  assert.equal(legacyShared.response.status, 200);
+  assert.deepEqual(legacyShared.body, shared.body);
 
   const denied = await request(`/wallet/shares/${created.body.id}`, {
     method: 'DELETE',
@@ -114,13 +123,36 @@ try {
   });
   assert.equal(revoked.response.status, 200);
 
-  const inactive = await request(`/wallet/shares/${created.body.token}`);
+  const inactive = await resolveShare(created.body.token);
   assert.equal(inactive.response.status, 410);
   assert.equal(inactive.body.error, 'SHARE_EXPIRED');
+  const legacyInactive = await request(`/wallet/shares/${created.body.token}`);
+  assert.equal(legacyInactive.response.status, 410);
+  assert.equal(legacyInactive.body.error, 'SHARE_EXPIRED');
   assert.equal(
     logs.includes(created.body.token),
     false,
     'bearer share token must not appear in API logs',
+  );
+
+  const unknownToken = 'Z'.repeat(43);
+  const unknown = await resolveShare(unknownToken);
+  assert.equal(unknown.response.status, 404);
+  assert.equal(unknown.body.error, 'SHARE_NOT_FOUND');
+  const legacyUnknown = await request(`/wallet/shares/${unknownToken}`);
+  assert.equal(legacyUnknown.response.status, 404);
+  assert.equal(legacyUnknown.body.error, 'SHARE_NOT_FOUND');
+  assert.equal(
+    logs.includes(unknownToken),
+    false,
+    'unknown bearer token must not appear in API logs',
+  );
+  const legacyPath = await request(`/wallet/shares/${unknownToken}?probe=${unknownToken}`);
+  assert.equal(legacyPath.response.status, 404);
+  assert.equal(
+    logs.includes(unknownToken),
+    false,
+    'legacy token URL and query must not appear in API logs',
   );
 
   const secondShare = await request('/wallet/shares', valid([firstHash], 1));

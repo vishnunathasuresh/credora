@@ -340,7 +340,7 @@ flowchart LR
 
   Holder[Holder or share creator] -->|1..25 credential hashes; 1, 7 or 30 days| Create[POST /wallet/shares]
   Create -->|random public token and management token| ShareDb[(SQLite stores SHA-256 token digests<br/>plus fixed selected hashes)]
-  ShareDb -->|GET with public token| Receiver[Web share receiver]
+  ShareDb -->|POST /wallet/share-resolution with token in body| Receiver[Web share receiver]
   Receiver -->|each selected hash goes through normal verify route| Verify[Ordinary chain and metadata verification]
   Holder -->|DELETE with management token| Revoke[Revoke future bundle lookup]
   Revoke --> ShareDb
@@ -353,6 +353,8 @@ for retrieving a fixed list of public hashes: the API stores token digests,
 and management-token validation permits revocation. Expiry or revocation
 blocks future bundle lookup but cannot erase public registry records or copies
 already retrieved. A share does not prove control of the learner wallet.
+The share link carries its bearer in the URL fragment, which is not sent with
+the page request; the web app forwards it only in a POST body.
 
 ## 7. Production deployment topology
 

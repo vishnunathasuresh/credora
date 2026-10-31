@@ -3,6 +3,7 @@ import {
   fetchIssuerProfile,
   fetchRecipientProfile,
   fetchVerification,
+  shouldLookupIssuerProfile,
 } from './verification.server';
 
 export const loadCredentialVerification = createServerFn({ method: 'GET' })
@@ -15,7 +16,9 @@ export const loadCredentialVerification = createServerFn({ method: 'GET' })
     const [issuerProfile, recipientProfile] =
       result.state === 'valid' && result.metadata
         ? await Promise.all([
-            fetchIssuerProfile(result.metadata.issuerAddress),
+            shouldLookupIssuerProfile(result)
+              ? fetchIssuerProfile(result.metadata.issuerAddress)
+              : Promise.resolve(null),
             fetchRecipientProfile(data.credentialRef),
           ])
         : [null, null];

@@ -1,4 +1,9 @@
-import type { CredentialMetadata } from '@credora/credential-core';
+import { credentialReferenceFromHash } from '@credora/credential-core';
+import type {
+  CredentialMetadata,
+  OrganizationCredentialMetadata,
+  SelectiveCredentialMetadata,
+} from '@credora/credential-core';
 import type { VerificationState } from '@credora/shared';
 
 export type VerificationResult = {
@@ -9,10 +14,19 @@ export type VerificationResult = {
   metadataUri?: string;
   transactionHash?: string;
   blockNumber?: string;
-  metadata?: CredentialMetadata;
+  metadata?: CredentialMetadata | SelectiveCredentialMetadata | OrganizationCredentialMetadata;
+  protocolVersion?: 1 | 2 | 3;
   message?: string;
   source?: 'api' | 'direct-rpc';
 };
+
+export function requiresDirectV3Verification(result: VerificationResult) {
+  return result.protocolVersion === 3 || result.metadata?.schemaVersion === 3;
+}
+
+export function shouldLookupIssuerProfile(result: VerificationResult) {
+  return result.state === 'valid' && !!result.metadata && !requiresDirectV3Verification(result);
+}
 
 export async function fetchIssuerProfile(address: string) {
   const apiUrl =
@@ -32,38 +46,30 @@ export async function fetchIssuerProfile(address: string) {
   }
 }
 
-export async function fetchVerification(reference: string): Promise<VerificationResult> {
-  const apiUrl =
-    process.env.VITE_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
+export async function fetchVerification(
+  reference: string,
+  verifyDirect?: (reference: string) => Promise<VerificationResult>,
+): Promise<VerificationResult> {
   try {
-    const response = await fetch(
-      `${apiUrl.replace(/\/$/, '')}/credentials/${encodeURIComponent(reference)}/verify`,
-      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
-    );
-    const body = (await response.json()) as Partial<VerificationResult> & { error?: string };
-    if (body.state && response.ok) return { ...(body as VerificationResult), source: 'api' };
-    if (response.status !== 503)
-      return {
-        state: body.state ?? 'malformed',
-        source: 'api',
-        message: body.message ?? body.error,
-      };
-    const { fetchDirectVerification } = await import('./direct-verification.server');
-    const direct = await fetchDirectVerification(reference);
-    if (direct.state === 'ledger-unavailable' && body.state)
-      return { ...(body as VerificationResult), source: 'api' };
-    return direct;
+    credentialReferenceFromHash(reference);
   } catch {
-    try {
-      const { fetchDirectVerification } = await import('./direct-verification.server');
-      return await fetchDirectVerification(reference);
-    } catch {
-      return {
-        state: 'ledger-unavailable',
-        source: 'api',
-        message: 'Unable to reach the verification service right now.',
-      };
-    }
+    return {
+      state: 'malformed',
+      source: 'direct-rpc',
+      message: 'Credential reference must be a 32-byte hash.',
+    };
+  }
+
+  try {
+    if (verifyDirect) return await verifyDirect(reference);
+    const { fetchDirectVerification } = await import('./direct-verification.server');
+    return await fetchDirectVerification(reference);
+  } catch {
+    return {
+      state: 'ledger-unavailable',
+      source: 'direct-rpc',
+      message: 'Unable to check the credential registries directly right now.',
+    };
   }
 }
 

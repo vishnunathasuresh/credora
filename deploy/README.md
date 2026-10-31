@@ -53,6 +53,22 @@ to the private Compose network. The API health check uses `/readyz`; it requires
 the configured registry to be reachable. `/health` alone reports process
 health, not ledger readiness.
 
+Temporary share URLs use `/share#<token>`. The fragment is not sent in the
+initial page request; the browser sends the token in a POST body to the web
+server function, which uses a fixed POST path and body to resolve it at the
+API. The Caddyfile redirects legacy browser `/share/<token>` links to this
+form before they reach the web container and adds `Cache-Control: no-store`
+and `Referrer-Policy: no-referrer`. The API keeps `GET /wallet/shares/<token>`
+for old clients; its bearer necessarily travels in the inbound request path.
+Caddy does not enable access logs. Operators must configure every external
+proxy, CDN, TLS terminator, load balancer, API gateway, and hosting log pipeline
+to redact `/share/<token>` and `/wallet/shares/<token>` paths and never record
+POST bodies containing share tokens. Credora cannot configure or verify
+logging outside this Compose deployment.
+The local production web runtime omits srvx's raw-URL access logger; its error
+records contain only the error type. The Vite development server also redirects
+legacy share paths before route handling.
+
 The `VITE_SUPABASE_*` and `NEXT_PUBLIC_*` values are compiled into public
 browser assets. After changing them, rebuild and recreate the web container
 with the `up -d --build` command above; restarting an old image does not update

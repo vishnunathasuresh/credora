@@ -181,8 +181,40 @@ const { readFile, writeFile } = await import('node:fs/promises');
 const tampered = JSON.parse(await readFile(tamperedPath, 'utf8'));
 tampered.skillLevel = 'Tampered';
 await writeFile(tamperedPath, JSON.stringify(tampered));
-const invalid = await request(`/credentials/${happy.metadata.credentialHash}/verify`, {}, 422);
-assert.equal(invalid.state, 'metadata-invalid');
+const unavailableAfterTamper = await request(
+  `/credentials/${happy.metadata.credentialHash}/verify`,
+  {},
+  503,
+);
+assert.equal(unavailableAfterTamper.state, 'metadata-unavailable');
+assert.equal('metadata' in unavailableAfterTamper, false);
+
+const unboundTamper = await issueDraft(issuerHeaders, 'Route unbound metadata tamper');
+const unboundTransactionHash = await wallet.writeContract({
+  address: registry,
+  abi: issueAbi,
+  functionName: 'issueCredential',
+  args: [unboundTamper.metadata.credentialHash, learner, unboundTamper.metadata.uri],
+});
+await request(`/issuances/${unboundTamper.draft.id}/confirm`, {
+  method: 'POST',
+  headers: issuerHeaders,
+  body: JSON.stringify({
+    transactionHash: unboundTransactionHash,
+    credentialHash: unboundTamper.metadata.credentialHash,
+  }),
+});
+const unboundTamperedPath = resolve(storageRoot, `${unboundTamper.metadata.cid}.json`);
+const unboundTampered = JSON.parse(await readFile(unboundTamperedPath, 'utf8'));
+unboundTampered.description = 'Tampered after issuance';
+await writeFile(unboundTamperedPath, JSON.stringify(unboundTampered));
+const unavailableAfterUnboundTamper = await request(
+  `/credentials/${unboundTamper.metadata.credentialHash}/verify`,
+  {},
+  503,
+);
+assert.equal(unavailableAfterUnboundTamper.state, 'metadata-unavailable');
+assert.equal('metadata' in unavailableAfterUnboundTamper, false);
 
 const missingHash = keccak256(toBytes(`missing-${Date.now()}`));
 const missingTransaction = await wallet.writeContract({
@@ -223,4 +255,4 @@ const revertedResult = await request(
 );
 assert.equal(revertedResult.state, 'transaction-reverted');
 
-console.log(JSON.stringify({ ok: true, cases: 9 }, null, 2));
+console.log(JSON.stringify({ ok: true, cases: 10 }, null, 2));

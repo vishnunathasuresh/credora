@@ -69,7 +69,7 @@
   <path d="M13 19h8" />
   <path d="m3 17 2 2 4-4" />
   <path d="m3 7 2 2 4-4" />
-</svg><text x="1285" y="440" class="title">Resolve active share</text><text x="1285" y="464" class="body">GET /wallet/shares/:token → selected hashes</text><rect x="1220" y="584" width="470" height="108" rx="6" fill="#F5F3FF" stroke="#7C3AED" stroke-width="1.4"/><path d="M 1659 601 l 10 10 l -10 10 l -10 -10 z" fill="white" stroke="#7C3AED"/><svg x="1238" y="609" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+</svg><text x="1285" y="440" class="title">Resolve active share</text><text x="1285" y="464" class="body">POST /wallet/share-resolution (token in body) → selected hashes</text><rect x="1220" y="584" width="470" height="108" rx="6" fill="#F5F3FF" stroke="#7C3AED" stroke-width="1.4"/><path d="M 1659 601 l 10 10 l -10 10 l -10 -10 z" fill="white" stroke="#7C3AED"/><svg x="1238" y="609" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
   <rect x="14" y="14" width="4" height="6" rx="2" />
   <rect x="6" y="4" width="4" height="6" rx="2" />
   <path d="M6 20h4" />

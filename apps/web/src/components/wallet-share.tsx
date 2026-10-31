@@ -91,7 +91,7 @@ export function WalletShare({ credentials }: { credentials: ShareCredential[] })
   const [currentOrigin, setCurrentOrigin] = useState('');
   const qrRef = useRef<ReactQRCodeRef>(null);
   const shareUrl = useMemo(
-    () => (activeShare && currentOrigin ? `${currentOrigin}/share/${activeShare.token}` : ''),
+    () => (activeShare && currentOrigin ? `${currentOrigin}/share#${activeShare.token}` : ''),
     [activeShare, currentOrigin],
   );
   const selectedSet = useMemo(() => new Set(selected), [selected]);

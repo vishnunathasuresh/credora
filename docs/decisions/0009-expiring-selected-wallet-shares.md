@@ -29,6 +29,29 @@ person showing the QR controls a learner wallet.
   authentication factor or proof of wallet control. It is not a permanent
   wallet identifier. Use no-store, no-referrer, and noindex headers on share
   pages and avoid logging raw tokens.
+- New share links carry the bearer in the URL fragment (`/share#<token>`), which
+  browsers do not send in HTTP requests. New clients submit it to the web
+  server function in a POST body; the web server resolves it through the API
+  using a fixed POST path and JSON body. Never include request bodies in
+  access/error logs. The API retains `GET /wallet/shares/<token>` for existing
+  clients with the same active, expired/revoked, and unknown-token responses as
+  POST resolution. This compatibility endpoint necessarily places the bearer
+  in the inbound HTTP request path.
+- The supported Caddy deployment does not enable access logging and redirects
+  legacy browser `/share/<token>` links to the fragment form before proxying
+  them to the web app, with `Cache-Control: no-store` and
+  `Referrer-Policy: no-referrer`. API legacy GET requests still carry their
+  bearer through the proxy path. Operators of any external TLS terminator,
+  proxy, CDN, load balancer, API gateway, or hosting log pipeline must redact
+  `/wallet/shares/<token>` and `/share/<token>` paths and must not capture
+  token-bearing request bodies. Credora cannot control or verify logging in
+  external infrastructure; deployment operators are responsible for these
+  controls.
+- Local Vite and production web runtimes redirect legacy browser share paths
+  before rendering and do not log raw request URLs. API error logs omit query
+  strings and redact legacy API share-path segments; they record neither
+  request bodies nor raw share tokens. Infrastructure access logs are outside
+  this application-level guarantee.
 - Organization logos are reviewed profile decoration and are not included in
   the credential hash or proof claim. Their absence or change cannot alter
   verification.

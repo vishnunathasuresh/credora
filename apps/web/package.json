@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "start": "srvx serve --prod --static ../client --entry dist/server/server.js",
+    "start": "node ./server.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "prettier --check src"
   },

@@ -156,6 +156,27 @@ function stringifyJson(value: unknown) {
   );
 }
 
+function hashBoundPublicMetadata(metadata: CredentialMetadata | OrganizationCredentialMetadata) {
+  if (metadata.schemaVersion === 3)
+    return {
+      schemaVersion: metadata.schemaVersion,
+      organizationId: metadata.organizationId,
+      issuerAddress: metadata.issuerAddress,
+      learnerAddress: metadata.learnerAddress,
+      skillName: metadata.skillName,
+      skillLevel: metadata.skillLevel,
+      issueDate: metadata.issueDate,
+    };
+  return {
+    schemaVersion: metadata.schemaVersion,
+    issuerAddress: metadata.issuerAddress,
+    learnerAddress: metadata.learnerAddress,
+    skillName: metadata.skillName,
+    skillLevel: metadata.skillLevel,
+    issueDate: metadata.issueDate,
+  };
+}
+
 function isSqliteConstraint(error: unknown) {
   return (
     error instanceof Error &&
@@ -207,7 +228,12 @@ function fail(request: IncomingMessage, response: ServerResponse, error: unknown
       level: 'error',
       event: 'api_request_failed',
       method: request.method,
-      path: request.url?.replace(/\/shares\/[^/?]+/g, '/shares/[redacted]'),
+      path: request.url
+        ? new URL(request.url, 'http://localhost').pathname.replace(
+            /((?:^|\/)wallet\/shares\/)[^/]+/g,
+            '$1[redacted]',
+          )
+        : undefined,
       code: normalized.code,
       status: normalized.status,
     }),
@@ -1868,9 +1894,34 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
-  const publicShare = path.match(/^\/wallet\/shares\/([A-Za-z0-9_-]{43})$/);
-  if (method === 'GET' && publicShare) {
-    const token = publicShare[1];
+  if (method === 'POST' && path === '/wallet/share-resolution') {
+    const body = await bodyOf(request);
+    const token = body.token;
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token))
+      throw new CredoraError('Share code is not understood', 'SHARE_NOT_FOUND', 404);
+    const share = database
+      .prepare(
+        'SELECT id, expires_at AS expiresAt, revoked_at AS revokedAt FROM wallet_shares WHERE token_hash = ?',
+      )
+      .get(sha256(token)) as
+      { id: string; expiresAt: string; revokedAt: string | null } | undefined;
+    if (!share) throw new CredoraError('This share code is unavailable', 'SHARE_NOT_FOUND', 404);
+    if (share.revokedAt || Date.parse(share.expiresAt) <= Date.now())
+      throw new CredoraError('This share code has expired or was turned off', 'SHARE_EXPIRED', 410);
+    const credentials = database
+      .prepare(
+        'SELECT credential_hash AS credentialHash FROM wallet_share_credentials WHERE share_id = ? ORDER BY position ASC',
+      )
+      .all(share.id);
+    send(request, response, 200, { expiresAt: share.expiresAt, credentials });
+    return;
+  }
+
+  // Compatibility for clients that resolved bearer tokens in the URL path.
+  // New clients use the fixed POST endpoint so tokens stay out of request URLs.
+  const legacyShareResolution = path.match(/^\/wallet\/shares\/([A-Za-z0-9_-]{43})$/);
+  if (method === 'GET' && legacyShareResolution) {
+    const token = legacyShareResolution[1];
     const share = database
       .prepare(
         'SELECT id, expires_at AS expiresAt, revoked_at AS revokedAt FROM wallet_shares WHERE token_hash = ?',
@@ -4026,9 +4077,12 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         send(request, response, 200, {
           ...record,
           state: 'valid',
-          metadata,
+          metadata: metadataUri.startsWith('local://')
+            ? metadata
+            : hashBoundPublicMetadata(metadata),
           organizationStatus: currentOrganization[4] ? 'suspended' : 'active',
-          message: 'Organization-bound credential verified against the immutable ledger.',
+          message:
+            'Organization credential hash-bound fields match the registry record. Other metadata content was not verified.',
         });
         return;
       }
@@ -4092,8 +4146,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     send(request, response, 200, {
       ...record,
       state: 'valid',
-      metadata,
-      message: 'Credential verified against the immutable ledger.',
+      metadata: record.metadataUri.startsWith('local://')
+        ? metadata
+        : hashBoundPublicMetadata(metadata),
+      message:
+        'Credential hash-bound fields match the registry record. Other metadata content was not verified.',
     });
     return;
   }

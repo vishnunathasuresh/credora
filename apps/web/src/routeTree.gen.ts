@@ -17,13 +17,13 @@ import { Route as JoinRouteImport } from './routes/join'
 import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
 import { Route as OrgRouteImport } from './routes/org'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ShareRouteImport } from './routes/share'
 import { Route as SuperadminRouteImport } from './routes/superadmin'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as SettingsWalletsRouteImport } from './routes/settings.wallets'
-import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
 import { Route as VerifyCredentialRefRouteImport } from './routes/verify_.$credentialRef'
 import { Route as UHandleImageRouteImport } from './routes/u.$handle_.image'
@@ -68,6 +68,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShareRoute = ShareRouteImport.update({
+  id: '/share',
+  path: '/share',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
   path: '/superadmin',
@@ -98,11 +103,6 @@ const SettingsWalletsRoute = SettingsWalletsRouteImport.update({
   path: '/settings/wallets',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShareTokenRoute = ShareTokenRouteImport.update({
-  id: '/share/$token',
-  path: '/share/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UHandleRoute = UHandleRouteImport.update({
   id: '/u/$handle',
   path: '/u/$handle',
@@ -128,13 +128,13 @@ export interface FileRoutesByFullPath {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/org': typeof OrgRoute
   '/profile': typeof ProfileRoute
+  '/share': typeof ShareRoute
   '/superadmin': typeof SuperadminRoute
   '/verify': typeof VerifyRoute
   '/wallet': typeof WalletRoute
   '/api/health': typeof ApiHealthRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/settings/wallets': typeof SettingsWalletsRoute
-  '/share/$token': typeof ShareTokenRoute
   '/u/$handle': typeof UHandleRoute
   '/verify/$credentialRef': typeof VerifyCredentialRefRoute
   '/u/$handle/image': typeof UHandleImageRoute
@@ -148,13 +148,13 @@ export interface FileRoutesByTo {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/org': typeof OrgRoute
   '/profile': typeof ProfileRoute
+  '/share': typeof ShareRoute
   '/superadmin': typeof SuperadminRoute
   '/verify': typeof VerifyRoute
   '/wallet': typeof WalletRoute
   '/api/health': typeof ApiHealthRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/settings/wallets': typeof SettingsWalletsRoute
-  '/share/$token': typeof ShareTokenRoute
   '/u/$handle': typeof UHandleRoute
   '/verify/$credentialRef': typeof VerifyCredentialRefRoute
   '/u/$handle/image': typeof UHandleImageRoute
@@ -169,13 +169,13 @@ export interface FileRoutesById {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/org': typeof OrgRoute
   '/profile': typeof ProfileRoute
+  '/share': typeof ShareRoute
   '/superadmin': typeof SuperadminRoute
   '/verify': typeof VerifyRoute
   '/wallet': typeof WalletRoute
   '/api/health': typeof ApiHealthRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/settings/wallets': typeof SettingsWalletsRoute
-  '/share/$token': typeof ShareTokenRoute
   '/u/$handle': typeof UHandleRoute
   '/verify_/$credentialRef': typeof VerifyCredentialRefRoute
   '/u/$handle_/image': typeof UHandleImageRoute
@@ -191,13 +191,13 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/org'
     | '/profile'
+    | '/share'
     | '/superadmin'
     | '/verify'
     | '/wallet'
     | '/api/health'
     | '/auth/callback'
     | '/settings/wallets'
-    | '/share/$token'
     | '/u/$handle'
     | '/verify/$credentialRef'
     | '/u/$handle/image'
@@ -211,13 +211,13 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/org'
     | '/profile'
+    | '/share'
     | '/superadmin'
     | '/verify'
     | '/wallet'
     | '/api/health'
     | '/auth/callback'
     | '/settings/wallets'
-    | '/share/$token'
     | '/u/$handle'
     | '/verify/$credentialRef'
     | '/u/$handle/image'
@@ -231,13 +231,13 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/org'
     | '/profile'
+    | '/share'
     | '/superadmin'
     | '/verify'
     | '/wallet'
     | '/api/health'
     | '/auth/callback'
     | '/settings/wallets'
-    | '/share/$token'
     | '/u/$handle'
     | '/verify_/$credentialRef'
     | '/u/$handle_/image'
@@ -252,13 +252,13 @@ export interface RootRouteChildren {
   ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
   OrgRoute: typeof OrgRoute
   ProfileRoute: typeof ProfileRoute
+  ShareRoute: typeof ShareRoute
   SuperadminRoute: typeof SuperadminRoute
   VerifyRoute: typeof VerifyRoute
   WalletRoute: typeof WalletRoute
   ApiHealthRoute: typeof ApiHealthRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   SettingsWalletsRoute: typeof SettingsWalletsRoute
-  ShareTokenRoute: typeof ShareTokenRoute
   UHandleRoute: typeof UHandleRoute
   VerifyCredentialRefRoute: typeof VerifyCredentialRefRoute
   UHandleImageRoute: typeof UHandleImageRoute
@@ -322,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/share': {
+      id: '/share'
+      path: '/share'
+      fullPath: '/share'
+      preLoaderRoute: typeof ShareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/superadmin': {
       id: '/superadmin'
       path: '/superadmin'
@@ -364,13 +371,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsWalletsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/share/$token': {
-      id: '/share/$token'
-      path: '/share/$token'
-      fullPath: '/share/$token'
-      preLoaderRoute: typeof ShareTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/u/$handle': {
       id: '/u/$handle'
       path: '/u/$handle'
@@ -404,13 +404,13 @@ const rootRouteChildren: RootRouteChildren = {
   ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
   OrgRoute: OrgRoute,
   ProfileRoute: ProfileRoute,
+  ShareRoute: ShareRoute,
   SuperadminRoute: SuperadminRoute,
   VerifyRoute: VerifyRoute,
   WalletRoute: WalletRoute,
   ApiHealthRoute: ApiHealthRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   SettingsWalletsRoute: SettingsWalletsRoute,
-  ShareTokenRoute: ShareTokenRoute,
   UHandleRoute: UHandleRoute,
   VerifyCredentialRefRoute: VerifyCredentialRefRoute,
   UHandleImageRoute: UHandleImageRoute,
