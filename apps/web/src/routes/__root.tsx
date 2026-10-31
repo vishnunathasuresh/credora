@@ -84,10 +84,10 @@ function RootComponent() {
               <nav className="nav desktop-nav" aria-label="Primary navigation">
                 <Link to="/verify">Verify</Link>
                 <Link to="/credentials">My credentials</Link>
-                <Link className="nav-cta" to="/join">
-                  Create a profile
-                </Link>
               </nav>
+              <Link className="header-cta" to="/join">
+                Create a profile <span aria-hidden="true">↗</span>
+              </Link>
               <ThemeToggle />
               <MobileNavigation />
             </div>
