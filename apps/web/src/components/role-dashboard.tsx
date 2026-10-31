@@ -12,7 +12,7 @@ function shortAddress(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
-type WorkspacePath = '/superadmin' | '/org' | '/issuer' | '/wallet' | '/verify';
+type WorkspacePath = '/superadmin' | '/org' | '/issuer';
 
 export function RoleDashboard() {
   const [session, setSession] = useState<WalletSession>();
@@ -82,20 +82,6 @@ export function RoleDashboard() {
               },
             ]
           : []),
-        ...(session.roles.includes('LEARNER')
-          ? [
-              {
-                href: '/wallet' as const,
-                title: 'Credential wallet',
-                body: 'Find your public proofs and share verification links.',
-              },
-            ]
-          : []),
-        {
-          href: '/verify' as const,
-          title: 'Public verification',
-          body: 'Check a credential without connecting a wallet.',
-        },
       ]
     : [];
 
@@ -103,13 +89,33 @@ export function RoleDashboard() {
     <main className="page-width workspace-page">
       <div className="workspace-heading">
         <div>
-          <h1>Your workspaces</h1>
-          <p className="lede">Choose a workspace available to your connected wallet.</p>
+          <h1>Your space</h1>
+          <p className="lede">Build your profile and bring your achievements together.</p>
         </div>
+      </div>
+      <section className="workspace-overview" aria-label="Your profile and credentials">
+        <Link className="workspace-overview-link" to="/profile">
+          <div>
+            <h2>My profile</h2>
+            <p>Tell your story and choose what to publish.</p>
+          </div>
+          <ArrowUpRightIcon />
+        </Link>
+        <Link className="workspace-overview-link" to="/credentials">
+          <div>
+            <h2>My credentials</h2>
+            <p>Explore and share achievements issued to you.</p>
+          </div>
+          <ArrowUpRightIcon />
+        </Link>
+      </section>
+      <div className="workspace-tools-heading">
+        <h2>Organization tools</h2>
+        <p>For issuing and managing credentials on behalf of an organization.</p>
       </div>
       {!session ? (
         <section className="workspace-panel workspace-connect app-connect-state">
-          <h2>Connect to see your workspaces</h2>
+          <h2>Connect a wallet to continue</h2>
           <p>
             Your wallet determines which organization and issuer tools are available. The session
             uses a signature only.

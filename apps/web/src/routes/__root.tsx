@@ -42,7 +42,7 @@ export const Route = createRootRoute({
 
 const primaryLinks = [
   { to: '/profile', label: 'My profile' },
-  { to: '/wallet', label: 'My credentials' },
+  { to: '/credentials', label: 'My credentials' },
   { to: '/verify', label: 'Verify a credential' },
 ] as const;
 
@@ -52,6 +52,7 @@ function RootComponent() {
   const workspace = [
     '/profile',
     '/wallet',
+    '/credentials',
     '/dashboard',
     '/issuer',
     '/org',
@@ -80,7 +81,7 @@ function RootComponent() {
             <div className="header-controls">
               <nav className="nav desktop-nav" aria-label="Primary navigation">
                 <Link to="/verify">Verify</Link>
-                <Link to="/wallet">My credentials</Link>
+                <Link to="/credentials">My credentials</Link>
                 <Link className="nav-cta" to="/join">
                   Create a profile
                 </Link>
@@ -100,7 +101,9 @@ function RootComponent() {
                     key={item.to}
                     to={item.to}
                     label={item.label}
-                    current={pathname === item.to}
+                    current={
+                      pathname === item.to || (item.to === '/credentials' && pathname === '/wallet')
+                    }
                   />
                 ))}
               </nav>
@@ -162,7 +165,14 @@ function SidebarLink({
   label,
   current,
 }: {
-  to: '/profile' | '/wallet' | '/verify' | '/dashboard' | '/settings/wallets' | '/org' | '/issuer';
+  to:
+    | '/profile'
+    | '/credentials'
+    | '/verify'
+    | '/dashboard'
+    | '/settings/wallets'
+    | '/org'
+    | '/issuer';
   label: string;
   current: boolean;
 }) {
@@ -174,7 +184,8 @@ function SidebarLink({
 }
 function pageTitle(pathname: string) {
   if (pathname.startsWith('/profile')) return 'My profile';
-  if (pathname.startsWith('/wallet')) return 'My credentials';
+  if (pathname.startsWith('/wallet') || pathname.startsWith('/credentials'))
+    return 'My credentials';
   if (pathname.startsWith('/verify')) return 'Verify';
   if (pathname.startsWith('/issuer')) return 'Issuer workspace';
   if (pathname.startsWith('/org')) return 'Organization';

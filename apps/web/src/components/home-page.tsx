@@ -66,7 +66,9 @@ export function HomePage() {
               <span className="preview-label">Independent verification</span>
               <h2>Proof you can check.</h2>
               <p>Explore the public record without signing in or connecting a wallet.</p>
-              <a href="/verify">Verify a credential <ArrowUpRightIcon size={14} /></a>
+              <a href="/verify">
+                Verify a credential <ArrowUpRightIcon size={14} />
+              </a>
             </article>
           </div>
         </div>
@@ -206,7 +208,7 @@ export function HomePage() {
                 </p>
               </div>
               <Button asChild variant="outline">
-                <a href="/wallet">
+                <a href="/credentials">
                   Explore credentials <ArrowUpRightIcon />
                 </a>
               </Button>

@@ -73,7 +73,7 @@ export function JoinPage() {
         ) : null}
         {status === 'checking' || status === 'finishing' ? (
           <p role="status">Checking your account…</p>
-        ) : (
+        ) : status !== 'unavailable' ? (
           <Button
             className="min-h-11 w-full"
             onClick={() => void continueWithGoogle()}
@@ -81,7 +81,7 @@ export function JoinPage() {
           >
             {status === 'redirecting' ? 'Opening Google…' : 'Continue with Google'}
           </Button>
-        )}
+        ) : null}
         {status === 'failed' ? (
           <Button
             className="mt-3 w-full"

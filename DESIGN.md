@@ -1,25 +1,25 @@
 # Credora design direction
 
-Credora presents a person's work first, with independently checkable evidence close at hand. The agreed [product direction](docs/roadmap/product-direction.md) defines the journeys and delivery order; this document describes their visual expression, not feature availability.
+Credora presents a person's work first, with independently checkable evidence close at hand. The [product direction](docs/roadmap/product-direction.md) owns journeys and feature availability; this document describes the interface.
 
-## System
+## Visual system
 
-Use a quiet paper-and-ink foundation, fine dividers and generous spacing. Instrument Serif carries expressive display moments; Geist is the functional face, with monospace reserved for proof references. Navigation and forms remain calm and legible; reserve a focused background treatment for a marketing hero, never for every application panel. Use the existing icon family consistently and keep text labels for consequential actions. Focus indicators must remain visible and motion must respect reduced-motion preferences.
+Paper and ink, fine dividers, deliberate spacing and restrained elevation make the work and its evidence the focus. Instrument Serif is reserved for expressive display moments; Geist carries body text, navigation and controls. Use monospace for actual proof references and technical data. Navigation and forms stay quiet; a hero may use a focused background treatment. The existing icon family and text labels carry actions. Visible keyboard focus, readable contrast and reduced-motion alternatives are required.
 
-The landing page should pair a direct statement with an authentic credential or profile view. A split editorial composition is preferred to a centered stack of decorative cards: it gives proof a meaningful place without implying demo data is live. Do not invent issuer endorsements, user counts, or verification results. Avoid placeholder photography and unnecessary visual effects.
+The landing page pairs a direct claim with an explicitly illustrative profile and credential. Preserve the distinction between a person's own words and an issuer's record. Never invent users, endorsements, counts or verification results. Avoid unrelated photography and decorative effects. Use real screenshots or properly licensed assets only where they improve understanding.
 
-## Component decisions and references
+## Navigation and journeys
 
-- Shared navigation: **custom**, using existing routes and dialog behavior; the initial milestone refines the shell without replacing page workflows.
-- Buttons, inputs and dialogs: **adapt existing local primitives**; review each against actual states before changing it.
-- Hero background and product presentation: **future custom composition**, informed by the [component catalog](https://opensourceui.in/components) and [Opensource UI](https://opensourceui.in/); no upstream component copied in this milestone. Study the [upstream source](https://github.com/bidyut10/opensourceui) and its license before copying any component.
+- The public shell leads to profile creation, credentials and verification; verification requires no account or wallet.
+- Workspace home puts profile and credentials first. Organization tools are a separate, wallet-authorized task.
+- `/credentials` is the primary library URL; `/wallet` remains available for existing links. `/settings/wallets` manages linked wallets.
+- Profile editing and publication are separate from the public `/u/:handle` view. Profiles start private and publication is explicit.
+- Verification and sharing must preserve distinct checking, unavailable, absent, malformed and mismatch outcomes. Never imply an unavailable service makes a proof invalid.
 
-## Route milestones
+## Component decisions
 
-1. Shared public and workspace shell, preserving existing routes and states.
-2. Identity and profile creation, editor, public profile and wallet settings.
-3. Credential library, detail, verification and sharing, including distinct proof and infrastructure states.
-4. Organization and issuer workspaces, retaining explicit recipient confirmation and signing behavior.
-5. Administrative and remaining public routes, followed by a cross-route accessibility and responsive review.
+The shared shell, workspace overview, credential presentations and proof states are custom compositions. Local button, input and dialog primitives are adapted for the product; their use does not make shadcn a design requirement. The profile identity and copy interaction adapt Opensource UI components; source and license details are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The [Opensource UI catalog](https://opensourceui.in/components) is the component reference, while its [source](https://github.com/bidyut10/opensourceui) is authoritative for implementations and licensing.
 
-Apply the product direction's delivery gates independently of this visual sequence. Published identity is opt-in; self-authored claims, issuer-backed evidence and wallet control remain distinct. Registry proof is authoritative, and projections do not become proof through presentation.
+## Boundaries
+
+Registry proof remains authoritative. A profile claim, an issuer-backed achievement and control of a wallet are separate assurances. Publication cannot recall copies or remove public proof. Keep issuer confirmation bound to the exact recipient address and retain existing authorization, privacy and infrastructure-failure behavior when changing presentation.

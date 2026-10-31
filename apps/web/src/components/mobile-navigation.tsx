@@ -20,7 +20,7 @@ export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
     mode === 'workspace'
       ? ([
           ['/profile', 'My profile'],
-          ['/wallet', 'My credentials'],
+          ['/credentials', 'My credentials'],
           ['/dashboard', 'Workspace home'],
           ['/settings/wallets', 'Linked wallets'],
           ['/org', 'Organization'],
@@ -30,7 +30,7 @@ export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
       : ([
           ['/join', 'Create a profile'],
           ['/verify', 'Verify a credential'],
-          ['/wallet', 'My credentials'],
+          ['/credentials', 'My credentials'],
         ] as const);
   return (
     <Dialog open={open} onOpenChange={setOpen}>

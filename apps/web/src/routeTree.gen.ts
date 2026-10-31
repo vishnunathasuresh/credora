@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CredentialsRouteImport } from './routes/credentials'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IssuerRouteImport } from './routes/issuer'
 import { Route as JoinRouteImport } from './routes/join'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CredentialsRoute = CredentialsRouteImport.update({
+  id: '/credentials',
+  path: '/credentials',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -122,6 +128,7 @@ const UHandleImageRoute = UHandleImageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/credentials': typeof CredentialsRoute
   '/dashboard': typeof DashboardRoute
   '/issuer': typeof IssuerRoute
   '/join': typeof JoinRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/credentials': typeof CredentialsRoute
   '/dashboard': typeof DashboardRoute
   '/issuer': typeof IssuerRoute
   '/join': typeof JoinRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/credentials': typeof CredentialsRoute
   '/dashboard': typeof DashboardRoute
   '/issuer': typeof IssuerRoute
   '/join': typeof JoinRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/credentials'
     | '/dashboard'
     | '/issuer'
     | '/join'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/credentials'
     | '/dashboard'
     | '/issuer'
     | '/join'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/credentials'
     | '/dashboard'
     | '/issuer'
     | '/join'
@@ -246,6 +258,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CredentialsRoute: typeof CredentialsRoute
   DashboardRoute: typeof DashboardRoute
   IssuerRoute: typeof IssuerRoute
   JoinRoute: typeof JoinRoute
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/credentials': {
+      id: '/credentials'
+      path: '/credentials'
+      fullPath: '/credentials'
+      preLoaderRoute: typeof CredentialsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -398,6 +418,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CredentialsRoute: CredentialsRoute,
   DashboardRoute: DashboardRoute,
   IssuerRoute: IssuerRoute,
   JoinRoute: JoinRoute,
