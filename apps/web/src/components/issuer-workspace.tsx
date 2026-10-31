@@ -211,6 +211,7 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
   const [reviewers, setReviewers] = useState<{ address: string; active: number }[]>([]);
   const [reviewerWallet, setReviewerWallet] = useState('');
   const [reviewQueue, setReviewQueue] = useState<OrganizationReviewItem[]>([]);
+  const [reviewQueueUnavailable, setReviewQueueUnavailable] = useState(false);
   const [policyBusy, setPolicyBusy] = useState(false);
   const [bulkRecipients, setBulkRecipients] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -309,8 +310,11 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
             current.token,
           );
           setReviewQueue(queue.items);
-        } catch {
+          setReviewQueueUnavailable(false);
+        } catch (cause) {
           setReviewQueue([]);
+          // Non-reviewers may not access the queue; other failures need a retry state.
+          setReviewQueueUnavailable((cause as ApiError).status !== 403);
         }
         if (overview.organizationAdmin) {
           const issuerList = await credoraApi<{ issuers: OrganizationIssuer[] }>(
@@ -1424,14 +1428,34 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
               </Button>
             </section>
           ) : null}
-          {audience === 'organization' && reviewQueue.length ? (
+          {audience === 'organization' && (reviewQueue.length > 0 || reviewQueueUnavailable) ? (
             <section className="workspace-panel" aria-labelledby="issuance-review-queue-title">
               <div className="panel-header">
                 <div>
                   <h2 id="issuance-review-queue-title">Awaiting review</h2>
                 </div>
-                <span className="panel-note">{reviewQueue.length} prepared item(s)</span>
+                <span className="panel-note">
+                  {reviewQueueUnavailable ? 'Unavailable' : `${reviewQueue.length} prepared item(s)`}
+                </span>
               </div>
+              {reviewQueueUnavailable ? (
+                <div className="organization-review-empty" role="alert">
+                  <p>The review queue could not be loaded. No review status has been inferred.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={applicationBusy}
+                    onClick={() => {
+                      setApplicationBusy(true);
+                      void loadWorkspace(session!)
+                        .catch((caught) => setError(friendlyError(caught)))
+                        .finally(() => setApplicationBusy(false));
+                    }}
+                  >
+                    {applicationBusy ? 'Checking…' : 'Retry review queue'}
+                  </Button>
+                </div>
+              ) : null}
               <div className="organization-review-list">
                 {reviewQueue.map((item) => (
                   <article className="organization-review-item" key={item.id}>
