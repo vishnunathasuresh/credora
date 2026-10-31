@@ -1435,7 +1435,9 @@ export function IssuerWorkspace({ audience = 'issuer' }: { audience?: 'issuer' |
                   <h2 id="issuance-review-queue-title">Awaiting review</h2>
                 </div>
                 <span className="panel-note">
-                  {reviewQueueUnavailable ? 'Unavailable' : `${reviewQueue.length} prepared item(s)`}
+                  {reviewQueueUnavailable
+                    ? 'Unavailable'
+                    : `${reviewQueue.length} prepared item(s)`}
                 </span>
               </div>
               {reviewQueueUnavailable ? (
