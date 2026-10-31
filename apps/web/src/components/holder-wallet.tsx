@@ -22,7 +22,7 @@ type Profile = {
   [key: string]: unknown;
 };
 type Library = AccountProfileResponse<Profile> & { items: CredentialRow[] };
-type State = 'loading' | 'signed-out' | 'ready' | 'error';
+type State = 'loading' | 'signed-out' | 'unavailable' | 'ready' | 'error';
 
 export function HolderWallet() {
   const [state, setState] = useState<State>('loading');
@@ -39,7 +39,7 @@ export function HolderWallet() {
     let unsubscribe: (() => void) | undefined;
     const request = ++generation.current;
     if (!accountAuthConfigured()) {
-      setState('signed-out');
+      setState('unavailable');
       return;
     }
     void subscribeAccountSession((session) => {
@@ -144,6 +144,15 @@ export function HolderWallet() {
         )}
       </header>
       {state === 'loading' && <p role="status">Loading your credentials…</p>}
+      {state === 'unavailable' && (
+        <section className="workspace-panel app-connect-state" role="alert">
+          <h2>Account sign-in is unavailable</h2>
+          <p>Your credential library needs an account session. Please try again later.</p>
+          <Link className="text-link" to="/verify">
+            Verify a credential without signing in
+          </Link>
+        </section>
+      )}
       {state === 'signed-out' && (
         <section className="workspace-panel app-connect-state">
           <h2>Your work belongs here.</h2>

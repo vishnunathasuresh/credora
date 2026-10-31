@@ -28,7 +28,6 @@ export function ThemeToggle() {
       onClick={toggle}
       type="button"
       aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-      aria-pressed={dark}
     >
       {dark ? <SunIcon /> : <MoonIcon />}
       <span>{dark ? 'Light' : 'Dark'}</span>

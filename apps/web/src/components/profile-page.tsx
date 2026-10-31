@@ -210,6 +210,8 @@ function ProfileTextField({
 export function ProfileEditor() {
   const [session, setSession] = useState<AccountSession>();
   const [authResolved, setAuthResolved] = useState(false);
+  const [authError, setAuthError] = useState(false);
+  const [authRetry, setAuthRetry] = useState(0);
   const [previewMode, setPreviewMode] = useState(false);
   const [publishedProfile, setPublishedProfile] = useState<{ handle: string; name: string }>();
   const requestVersion = useRef(0);
@@ -264,6 +266,7 @@ export function ProfileEditor() {
     }
     void subscribeAccountSession((current) => {
       if (!active) return;
+      setAuthError(false);
       setSession(current);
       setAuthResolved(true);
       if (current?.user.id === loadedUser.current) return;
@@ -288,6 +291,7 @@ export function ProfileEditor() {
       .catch((cause: unknown) => {
         if (active) {
           setError(cause instanceof Error ? cause.message : 'Account sign-in is unavailable.');
+          setAuthError(true);
           setAuthResolved(true);
         }
       });
@@ -296,7 +300,7 @@ export function ProfileEditor() {
       ++requestVersion.current;
       unsubscribe?.();
     };
-  }, []);
+  }, [authRetry]);
 
   useEffect(() => {
     const handle = profile.handle.trim().toLowerCase();
@@ -466,7 +470,7 @@ export function ProfileEditor() {
           </div>
         )}
       </header>
-      {error && (
+      {error && !authError && (
         <p role="alert" className="form-help form-error">
           {error}
         </p>
@@ -478,6 +482,31 @@ export function ProfileEditor() {
       )}
       {!authResolved ? (
         <p role="status">Checking your account…</p>
+      ) : !accountAuthConfigured() ? (
+        <section className="workspace-panel app-connect-state" role="alert">
+          <h2>Account sign-in is unavailable</h2>
+          <p>Your profile needs an account session. Please try again later.</p>
+          <Link className="text-link" to="/verify">
+            Verify a credential without signing in
+          </Link>
+        </section>
+      ) : authError ? (
+        <section className="workspace-panel app-connect-state" role="alert">
+          <h2>Account session unavailable</h2>
+          <p>{error || 'Your account session could not be checked.'}</p>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => {
+              setError('');
+              setAuthError(false);
+              setAuthResolved(false);
+              setAuthRetry((value) => value + 1);
+            }}
+          >
+            Try again
+          </Button>
+        </section>
       ) : !session ? (
         <section className="workspace-panel app-connect-state">
           <h2>Your professional identity starts here.</h2>

@@ -107,3 +107,71 @@
     min-height: 170px;
   }
 }
+
+/* Keep the next action and its explanation grouped across empty states. */
+.app-connect-state > p,
+.app-empty-state > p {
+  margin: 8px 0 16px;
+  max-width: 60ch;
+  font-size: 0.9375rem;
+}
+.app-connect-state > .text-link {
+  display: inline-flex;
+  margin: 8px 0;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.app-connect-state > [data-slot='button'] + .text-link {
+  margin-left: 16px;
+}
+.verify-qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.verify-reference-fallback > h2 {
+  margin-bottom: 8px;
+}
+.verify-reference-fallback > .form-help {
+  margin: 0 0 20px;
+}
+.verify-reference-fallback > label {
+  display: block;
+  margin-bottom: 8px;
+}
+.verify-reference-fallback .form-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.verify-reference-fallback .form-row input {
+  min-width: 0;
+  flex: 1;
+}
+.verify-reference-fallback #credential-reference-help {
+  margin: 10px 0 0;
+}
+.form-error {
+  color: var(--danger);
+}
+.verify-reference-fallback input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.verify-qr-camera,
+.verify-qr-message {
+  margin: 0 0 24px;
+}
+@media (max-width: 600px) {
+  .app-connect-state > [data-slot='button'] + .text-link {
+    display: flex;
+    margin: 14px 0 0;
+  }
+  .verify-reference-fallback .form-row {
+    flex-direction: column;
+  }
+  .verify-reference-fallback .form-row button {
+    align-self: flex-start;
+  }
+}
