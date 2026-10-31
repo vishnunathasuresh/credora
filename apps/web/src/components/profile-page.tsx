@@ -210,6 +210,8 @@ function ProfileTextField({
 export function ProfileEditor() {
   const [session, setSession] = useState<AccountSession>();
   const [authResolved, setAuthResolved] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [publishedProfile, setPublishedProfile] = useState<{ handle: string; name: string }>();
   const requestVersion = useRef(0);
   const loadedUser = useRef<string | undefined>(undefined);
   const [profile, setProfile] = useState<Profile>(emptyProfile);
@@ -239,6 +241,7 @@ export function ProfileEditor() {
       if (version !== requestVersion.current) return;
       const next = normalizeProfile(result.profile);
       setProfile(next);
+      setPublishedProfile(next.published ? { handle: next.handle, name: next.name } : undefined);
       setLinks(next.links.join('\n'));
       setSavedHandle(next.handle.toLowerCase());
       setAvatarPreviewFailed(false);
@@ -267,6 +270,8 @@ export function ProfileEditor() {
       loadedUser.current = current?.user.id;
       ++requestVersion.current;
       setProfile(emptyProfile);
+      setPublishedProfile(undefined);
+      setPreviewMode(false);
       setLinks('');
       setLoaded(false);
       setCredentials([]);
@@ -331,29 +336,37 @@ export function ProfileEditor() {
       setError('Use an HTTPS URL for your profile photo.');
       return;
     }
+    const version = requestVersion.current;
     setLoading(true);
     setError('');
     setMessage('');
     try {
-      const result = await accountApi<{ profile: Profile }>('/account/profile', {
-        method: 'PUT',
-        body: JSON.stringify({
-          ...profile,
-          links: links
-            .split('\n')
-            .map((link) => link.trim())
-            .filter(Boolean),
-        }),
-      });
+      const result = await accountApi<{ profile: Profile }>(
+        '/account/profile',
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            ...profile,
+            published: profile.id ? profile.published : false,
+            links: links
+              .split('\n')
+              .map((link) => link.trim())
+              .filter(Boolean),
+          }),
+        },
+        session.user.id,
+      );
+      if (version !== requestVersion.current) return;
       const next = normalizeProfile(result.profile);
       setProfile(next);
+      setPublishedProfile(next.published ? { handle: next.handle, name: next.name } : undefined);
       setLinks(next.links.join('\n'));
       setSavedHandle(next.handle.toLowerCase());
       setMessage('Profile saved.');
     } catch (cause) {
-      setError((cause as Error).message);
+      if (version === requestVersion.current) setError((cause as Error).message);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }
 
@@ -383,22 +396,76 @@ export function ProfileEditor() {
     credential: credentials.find((item) => item.credential_hash.toLowerCase() === hash),
   }));
 
+  if (previewMode && loaded)
+    return (
+      <main className="page-width workspace-page">
+        <header className="app-page-header">
+          <div>
+            <h1>Preview your profile</h1>
+            <p>Only you can see these unsaved changes.</p>
+          </div>
+          <Button variant="outline" onClick={() => setPreviewMode(false)}>
+            Back to editing
+          </Button>
+        </header>
+        <PublicProfile
+          key={profile.handle}
+          handle={profile.handle}
+          preview
+          initial={{
+            state: 'found',
+            profile: {
+              ...profile,
+              links: links
+                .split('\n')
+                .map((link) => link.trim())
+                .filter(Boolean),
+              credentialSummaries: profile.credentialHashes.map((hash) => {
+                const credential = credentials.find(
+                  (item) => item.credential_hash.toLowerCase() === hash.toLowerCase(),
+                );
+                return {
+                  credentialHash: hash,
+                  skillName: credential?.skill_name ?? '',
+                  organizationName: credential?.organization_name ?? null,
+                  skillLevel: '',
+                  issueDate: '',
+                };
+              }),
+            },
+          }}
+        />
+      </main>
+    );
+
   return (
     <main className="page-width workspace-page">
       <header className="app-page-header">
         <div>
-          <h1>Edit your profile</h1>
-          <p>Choose the identity and credentials people can see.</p>
+          <h1>{loaded && !profile.id ? 'Claim your handle' : 'Edit your profile'}</h1>
+          <p>
+            {loaded && !profile.id
+              ? 'Start with your name and handle. Your profile stays private.'
+              : 'Your story, work, and issuer-backed achievements.'}
+          </p>
         </div>
+        {loaded && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" type="button" onClick={() => setPreviewMode(true)}>
+              Preview profile
+            </Button>
+            {publishedProfile && (
+              <ProfileShare handle={publishedProfile.handle} name={publishedProfile.name} />
+            )}
+            <Button
+              variant="ghost"
+              onClick={() => void signOutAccount().catch((cause: Error) => setError(cause.message))}
+            >
+              Sign out
+            </Button>
+          </div>
+        )}
       </header>
-      {session && (
-        <Button
-          variant="ghost"
-          onClick={() => void signOutAccount().catch((cause: Error) => setError(cause.message))}
-        >
-          Sign out
-        </Button>
-      )}
       {error && (
         <p role="alert" className="form-help form-error">
           {error}
@@ -476,14 +543,16 @@ export function ProfileEditor() {
                   maxLength={160}
                   onChange={(headline) => setProfile({ ...profile, headline })}
                 />
-                <ProfileTextField
-                  id="profile-bio"
-                  label="About"
-                  value={profile.bio}
-                  maxLength={1000}
-                  rows={5}
-                  onChange={(bio) => setProfile({ ...profile, bio })}
-                />
+                {profile.id && (
+                  <ProfileTextField
+                    id="profile-bio"
+                    label="About"
+                    value={profile.bio}
+                    maxLength={1000}
+                    rows={5}
+                    onChange={(bio) => setProfile({ ...profile, bio })}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="profile-avatar-url">Photo URL</Label>
@@ -522,360 +591,398 @@ export function ProfileEditor() {
                 </p>
               </div>
             </div>
-            <div className="mt-6 flex flex-col gap-2">
-              <Label htmlFor="profile-links">Links</Label>
-              <Textarea
-                id="profile-links"
-                rows={3}
-                value={links}
-                onChange={(event) => setLinks(event.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">One full URL per line, up to 10.</p>
-            </div>
-          </section>
-
-          <section className="workspace-panel" aria-labelledby="profile-projects-title">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="profile-projects-title">Projects</h2>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={profile.projects.length >= 8}
-                onClick={() =>
-                  setProfile({
-                    ...profile,
-                    projects: [
-                      ...profile.projects,
-                      { id: newId(), name: '', description: '', url: '' },
-                    ],
-                  })
-                }
-              >
-                Add project
-              </Button>
-            </div>
-            {profile.projects.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Add work you would like people to see.
-              </p>
+            {profile.id && (
+              <div className="mt-6 flex flex-col gap-2">
+                <Label htmlFor="profile-links">Links</Label>
+                <Textarea
+                  id="profile-links"
+                  rows={3}
+                  value={links}
+                  onChange={(event) => setLinks(event.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">One full URL per line, up to 10.</p>
+              </div>
             )}
-            <div className="grid gap-4">
-              {profile.projects.map((project, index) => (
-                <fieldset className="profile-editor-entry rounded-lg border p-4" key={project.id}>
-                  <legend className="px-1 font-medium">Project {index + 1}</legend>
-                  <div className="grid gap-4">
-                    <ProfileField
-                      id={`project-${project.id}-name`}
-                      label="Project name"
-                      value={project.name}
-                      maxLength={120}
-                      onChange={(name) => updateProject(project.id, { name })}
-                    />
-                    <ProfileTextField
-                      id={`project-${project.id}-description`}
-                      label="Description"
-                      value={project.description}
-                      maxLength={1000}
-                      onChange={(description) => updateProject(project.id, { description })}
-                    />
-                    <ProfileField
-                      id={`project-${project.id}-url`}
-                      label="Project URL"
-                      type="url"
-                      value={project.url}
-                      onChange={(url) => updateProject(project.id, { url })}
-                    />
-                    <ReorderButtons
-                      label={project.name || `project ${index + 1}`}
-                      index={index}
-                      count={profile.projects.length}
-                      onMove={(direction) =>
-                        setProfile({
-                          ...profile,
-                          projects: moveItem(profile.projects, index, direction),
-                        })
-                      }
-                      onRemove={() =>
-                        setProfile({
-                          ...profile,
-                          projects: profile.projects.filter((item) => item.id !== project.id),
-                        })
-                      }
-                    />
-                  </div>
-                </fieldset>
-              ))}
-            </div>
           </section>
 
-          <section className="workspace-panel" aria-labelledby="profile-experience-title">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="profile-experience-title">Experience</h2>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={profile.experience.length >= 8}
-                onClick={() =>
-                  setProfile({
-                    ...profile,
-                    experience: [
-                      ...profile.experience,
-                      { id: newId(), role: '', organization: '', period: '', description: '' },
-                    ],
-                  })
-                }
-              >
-                Add experience
-              </Button>
-            </div>
-            <div className="grid gap-4">
-              {profile.experience.map((experience, index) => (
-                <fieldset
-                  className="profile-editor-entry rounded-lg border p-4"
-                  key={experience.id}
-                >
-                  <legend className="px-1 font-medium">Role {index + 1}</legend>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <ProfileField
-                      id={`experience-${experience.id}-role`}
-                      label="Role"
-                      value={experience.role}
-                      onChange={(role) => updateExperience(experience.id, { role })}
-                    />
-                    <ProfileField
-                      id={`experience-${experience.id}-organization`}
-                      label="Organization"
-                      value={experience.organization}
-                      onChange={(organization) => updateExperience(experience.id, { organization })}
-                    />
-                    <ProfileField
-                      id={`experience-${experience.id}-period`}
-                      label="Period"
-                      value={experience.period}
-                      placeholder="2023 – Present"
-                      onChange={(period) => updateExperience(experience.id, { period })}
-                    />
-                    <ProfileTextField
-                      id={`experience-${experience.id}-description`}
-                      label="Description"
-                      value={experience.description}
-                      onChange={(description) => updateExperience(experience.id, { description })}
-                    />
-                    <ReorderButtons
-                      label={experience.role || `role ${index + 1}`}
-                      index={index}
-                      count={profile.experience.length}
-                      onMove={(direction) =>
-                        setProfile({
-                          ...profile,
-                          experience: moveItem(profile.experience, index, direction),
-                        })
-                      }
-                      onRemove={() =>
-                        setProfile({
-                          ...profile,
-                          experience: profile.experience.filter(
-                            (item) => item.id !== experience.id,
-                          ),
-                        })
-                      }
-                    />
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-          </section>
-
-          <section className="workspace-panel" aria-labelledby="profile-education-title">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="profile-education-title">Education</h2>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={profile.education.length >= 8}
-                onClick={() =>
-                  setProfile({
-                    ...profile,
-                    education: [
-                      ...profile.education,
-                      { id: newId(), school: '', degree: '', period: '', description: '' },
-                    ],
-                  })
-                }
-              >
-                Add education
-              </Button>
-            </div>
-            <div className="grid gap-4">
-              {profile.education.map((education, index) => (
-                <fieldset className="profile-editor-entry rounded-lg border p-4" key={education.id}>
-                  <legend className="px-1 font-medium">Education {index + 1}</legend>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <ProfileField
-                      id={`education-${education.id}-school`}
-                      label="School"
-                      value={education.school}
-                      onChange={(school) => updateEducation(education.id, { school })}
-                    />
-                    <ProfileField
-                      id={`education-${education.id}-degree`}
-                      label="Degree or program"
-                      value={education.degree}
-                      onChange={(degree) => updateEducation(education.id, { degree })}
-                    />
-                    <ProfileField
-                      id={`education-${education.id}-period`}
-                      label="Period"
-                      value={education.period}
-                      placeholder="2021 – 2025"
-                      onChange={(period) => updateEducation(education.id, { period })}
-                    />
-                    <ProfileTextField
-                      id={`education-${education.id}-description`}
-                      label="Description"
-                      value={education.description}
-                      onChange={(description) => updateEducation(education.id, { description })}
-                    />
-                    <ReorderButtons
-                      label={education.school || `education ${index + 1}`}
-                      index={index}
-                      count={profile.education.length}
-                      onMove={(direction) =>
-                        setProfile({
-                          ...profile,
-                          education: moveItem(profile.education, index, direction),
-                        })
-                      }
-                      onRemove={() =>
-                        setProfile({
-                          ...profile,
-                          education: profile.education.filter((item) => item.id !== education.id),
-                        })
-                      }
-                    />
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-          </section>
-
-          <section className="workspace-panel" aria-labelledby="profile-featured-title">
-            <fieldset className="flex flex-col gap-3">
-              <legend id="profile-featured-title" className="text-lg font-semibold">
-                Featured credentials
-              </legend>
-              <p className="text-sm text-muted-foreground">
-                Choose which issuer-backed credentials appear on your public profile.
-              </p>
-              {credentials.length === 0 && (
-                <p className="text-sm text-muted-foreground">No credentials available yet.</p>
-              )}
-              {credentials.map((item) => {
-                const hash = item.credential_hash.toLowerCase();
-                const checked = profile.credentialHashes.includes(hash);
-                return (
-                  <label
-                    key={item.credential_hash}
-                    className="flex min-h-11 items-center gap-3 rounded-md border p-3"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(event) =>
-                        setProfile({
-                          ...profile,
-                          credentialHashes: event.target.checked
-                            ? [...profile.credentialHashes, hash]
-                            : profile.credentialHashes.filter((value) => value !== hash),
-                        })
-                      }
-                    />
-                    <span className="min-w-0 break-all">
-                      {item.skill_name || item.credential_hash}
-                      {item.organization_name ? ` · ${item.organization_name}` : ''}
-                    </span>
-                  </label>
-                );
-              })}
-              {featuredCredentials.map(({ hash, credential }, index) => {
-                return (
-                  <div
-                    key={`featured-${hash}`}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 p-3"
-                  >
-                    <span className="min-w-0 break-all">
-                      {credential?.skill_name || `Credential ${hash.slice(0, 10)}…`}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`Move ${credential?.skill_name || 'credential'} up`}
-                        disabled={index === 0}
-                        onClick={() =>
-                          setProfile({
-                            ...profile,
-                            credentialHashes: moveItem(profile.credentialHashes, index, -1),
-                          })
-                        }
-                      >
-                        Move up
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`Move ${credential?.skill_name || 'credential'} down`}
-                        disabled={index === featuredCredentials.length - 1}
-                        onClick={() =>
-                          setProfile({
-                            ...profile,
-                            credentialHashes: moveItem(profile.credentialHashes, index, 1),
-                          })
-                        }
-                      >
-                        Move down
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </fieldset>
-          </section>
-
-          <section className="workspace-panel" aria-labelledby="profile-publication-title">
-            <h2 id="profile-publication-title">Publication</h2>
-            <label className="flex items-start gap-3 rounded-md border p-4">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={profile.published}
-                onChange={(event) => setProfile({ ...profile, published: event.target.checked })}
-              />
-              <span>
-                <strong>Publish profile</strong>
-                <span className="mt-1 block text-sm text-muted-foreground">
-                  Publishing can connect your identity to public wallet records. Unpublishing
-                  removes this page but cannot remove public proofs or copies.
-                </span>
-              </span>
-            </label>
+          {!profile.id && (
             <div className="flex flex-wrap items-center gap-4">
-              <Button className="min-h-11" disabled={loading || !loaded}>
-                {loading ? 'Saving…' : 'Save profile'}
+              <Button
+                disabled={
+                  loading ||
+                  !profile.name.trim() ||
+                  !/^[a-z0-9_]{3,30}$/i.test(profile.handle.trim()) ||
+                  handleCheck === 'taken' ||
+                  handleCheck === 'invalid'
+                }
+              >
+                {loading ? 'Saving…' : 'Claim handle and continue'}
               </Button>
-              {profile.published && profile.id && (
-                <Link
-                  className="text-primary underline"
-                  to="/u/$handle"
-                  params={{ handle: profile.handle }}
-                >
-                  View public profile
-                </Link>
-              )}
+              <Link className="text-link" to="/settings/wallets">
+                Import an existing wallet profile
+              </Link>
             </div>
-          </section>
+          )}
+          {profile.id && (
+            <>
+              <section className="workspace-panel" aria-labelledby="profile-projects-title">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 id="profile-projects-title">Projects</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={profile.projects.length >= 8}
+                    onClick={() =>
+                      setProfile({
+                        ...profile,
+                        projects: [
+                          ...profile.projects,
+                          { id: newId(), name: '', description: '', url: '' },
+                        ],
+                      })
+                    }
+                  >
+                    Add project
+                  </Button>
+                </div>
+                {profile.projects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Add work you would like people to see.
+                  </p>
+                )}
+                <div className="grid gap-4">
+                  {profile.projects.map((project, index) => (
+                    <fieldset
+                      className="profile-editor-entry rounded-lg border p-4"
+                      key={project.id}
+                    >
+                      <legend className="px-1 font-medium">Project {index + 1}</legend>
+                      <div className="grid gap-4">
+                        <ProfileField
+                          id={`project-${project.id}-name`}
+                          label="Project name"
+                          value={project.name}
+                          maxLength={120}
+                          onChange={(name) => updateProject(project.id, { name })}
+                        />
+                        <ProfileTextField
+                          id={`project-${project.id}-description`}
+                          label="Description"
+                          value={project.description}
+                          maxLength={1000}
+                          onChange={(description) => updateProject(project.id, { description })}
+                        />
+                        <ProfileField
+                          id={`project-${project.id}-url`}
+                          label="Project URL"
+                          type="url"
+                          value={project.url}
+                          onChange={(url) => updateProject(project.id, { url })}
+                        />
+                        <ReorderButtons
+                          label={project.name || `project ${index + 1}`}
+                          index={index}
+                          count={profile.projects.length}
+                          onMove={(direction) =>
+                            setProfile({
+                              ...profile,
+                              projects: moveItem(profile.projects, index, direction),
+                            })
+                          }
+                          onRemove={() =>
+                            setProfile({
+                              ...profile,
+                              projects: profile.projects.filter((item) => item.id !== project.id),
+                            })
+                          }
+                        />
+                      </div>
+                    </fieldset>
+                  ))}
+                </div>
+              </section>
+
+              <section className="workspace-panel" aria-labelledby="profile-experience-title">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 id="profile-experience-title">Experience</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={profile.experience.length >= 8}
+                    onClick={() =>
+                      setProfile({
+                        ...profile,
+                        experience: [
+                          ...profile.experience,
+                          { id: newId(), role: '', organization: '', period: '', description: '' },
+                        ],
+                      })
+                    }
+                  >
+                    Add experience
+                  </Button>
+                </div>
+                <div className="grid gap-4">
+                  {profile.experience.map((experience, index) => (
+                    <fieldset
+                      className="profile-editor-entry rounded-lg border p-4"
+                      key={experience.id}
+                    >
+                      <legend className="px-1 font-medium">Role {index + 1}</legend>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <ProfileField
+                          id={`experience-${experience.id}-role`}
+                          label="Role"
+                          value={experience.role}
+                          onChange={(role) => updateExperience(experience.id, { role })}
+                        />
+                        <ProfileField
+                          id={`experience-${experience.id}-organization`}
+                          label="Organization"
+                          value={experience.organization}
+                          onChange={(organization) =>
+                            updateExperience(experience.id, { organization })
+                          }
+                        />
+                        <ProfileField
+                          id={`experience-${experience.id}-period`}
+                          label="Period"
+                          value={experience.period}
+                          placeholder="2023 – Present"
+                          onChange={(period) => updateExperience(experience.id, { period })}
+                        />
+                        <ProfileTextField
+                          id={`experience-${experience.id}-description`}
+                          label="Description"
+                          value={experience.description}
+                          onChange={(description) =>
+                            updateExperience(experience.id, { description })
+                          }
+                        />
+                        <ReorderButtons
+                          label={experience.role || `role ${index + 1}`}
+                          index={index}
+                          count={profile.experience.length}
+                          onMove={(direction) =>
+                            setProfile({
+                              ...profile,
+                              experience: moveItem(profile.experience, index, direction),
+                            })
+                          }
+                          onRemove={() =>
+                            setProfile({
+                              ...profile,
+                              experience: profile.experience.filter(
+                                (item) => item.id !== experience.id,
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                    </fieldset>
+                  ))}
+                </div>
+              </section>
+
+              <section className="workspace-panel" aria-labelledby="profile-education-title">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 id="profile-education-title">Education</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={profile.education.length >= 8}
+                    onClick={() =>
+                      setProfile({
+                        ...profile,
+                        education: [
+                          ...profile.education,
+                          { id: newId(), school: '', degree: '', period: '', description: '' },
+                        ],
+                      })
+                    }
+                  >
+                    Add education
+                  </Button>
+                </div>
+                <div className="grid gap-4">
+                  {profile.education.map((education, index) => (
+                    <fieldset
+                      className="profile-editor-entry rounded-lg border p-4"
+                      key={education.id}
+                    >
+                      <legend className="px-1 font-medium">Education {index + 1}</legend>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <ProfileField
+                          id={`education-${education.id}-school`}
+                          label="School"
+                          value={education.school}
+                          onChange={(school) => updateEducation(education.id, { school })}
+                        />
+                        <ProfileField
+                          id={`education-${education.id}-degree`}
+                          label="Degree or program"
+                          value={education.degree}
+                          onChange={(degree) => updateEducation(education.id, { degree })}
+                        />
+                        <ProfileField
+                          id={`education-${education.id}-period`}
+                          label="Period"
+                          value={education.period}
+                          placeholder="2021 – 2025"
+                          onChange={(period) => updateEducation(education.id, { period })}
+                        />
+                        <ProfileTextField
+                          id={`education-${education.id}-description`}
+                          label="Description"
+                          value={education.description}
+                          onChange={(description) => updateEducation(education.id, { description })}
+                        />
+                        <ReorderButtons
+                          label={education.school || `education ${index + 1}`}
+                          index={index}
+                          count={profile.education.length}
+                          onMove={(direction) =>
+                            setProfile({
+                              ...profile,
+                              education: moveItem(profile.education, index, direction),
+                            })
+                          }
+                          onRemove={() =>
+                            setProfile({
+                              ...profile,
+                              education: profile.education.filter(
+                                (item) => item.id !== education.id,
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                    </fieldset>
+                  ))}
+                </div>
+              </section>
+
+              <section className="workspace-panel" aria-labelledby="profile-featured-title">
+                <fieldset className="flex flex-col gap-3">
+                  <legend id="profile-featured-title" className="text-lg font-semibold">
+                    Featured credentials
+                  </legend>
+                  <p className="text-sm text-muted-foreground">
+                    Choose which issuer-backed credentials appear on your public profile.
+                  </p>
+                  {credentials.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No credentials available yet.</p>
+                  )}
+                  {credentials.map((item) => {
+                    const hash = item.credential_hash.toLowerCase();
+                    const checked = profile.credentialHashes.includes(hash);
+                    return (
+                      <label
+                        key={item.credential_hash}
+                        className="flex min-h-11 items-center gap-3 rounded-md border p-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) =>
+                            setProfile({
+                              ...profile,
+                              credentialHashes: event.target.checked
+                                ? [...profile.credentialHashes, hash]
+                                : profile.credentialHashes.filter((value) => value !== hash),
+                            })
+                          }
+                        />
+                        <span className="min-w-0 break-all">
+                          {item.skill_name || item.credential_hash}
+                          {item.organization_name ? ` · ${item.organization_name}` : ''}
+                        </span>
+                      </label>
+                    );
+                  })}
+                  {featuredCredentials.map(({ hash, credential }, index) => {
+                    return (
+                      <div
+                        key={`featured-${hash}`}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 p-3"
+                      >
+                        <span className="min-w-0 break-all">
+                          {credential?.skill_name || `Credential ${hash.slice(0, 10)}…`}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Move ${credential?.skill_name || 'credential'} up`}
+                            disabled={index === 0}
+                            onClick={() =>
+                              setProfile({
+                                ...profile,
+                                credentialHashes: moveItem(profile.credentialHashes, index, -1),
+                              })
+                            }
+                          >
+                            Move up
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Move ${credential?.skill_name || 'credential'} down`}
+                            disabled={index === featuredCredentials.length - 1}
+                            onClick={() =>
+                              setProfile({
+                                ...profile,
+                                credentialHashes: moveItem(profile.credentialHashes, index, 1),
+                              })
+                            }
+                          >
+                            Move down
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </fieldset>
+              </section>
+
+              <section className="workspace-panel" aria-labelledby="profile-publication-title">
+                <h2 id="profile-publication-title">Publication</h2>
+                <label className="flex items-start gap-3 rounded-md border p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={profile.published}
+                    onChange={(event) =>
+                      setProfile({ ...profile, published: event.target.checked })
+                    }
+                  />
+                  <span>
+                    <strong>Publish profile</strong>
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                      Publishing can connect your identity to public wallet records. Unpublishing
+                      removes this page but cannot remove public proofs or copies.
+                    </span>
+                  </span>
+                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Button className="min-h-11" disabled={loading || !loaded}>
+                    {loading ? 'Saving…' : 'Save profile'}
+                  </Button>
+                  {publishedProfile && (
+                    <Link
+                      className="text-primary underline"
+                      to="/u/$handle"
+                      params={{ handle: publishedProfile.handle }}
+                    >
+                      View public profile
+                    </Link>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
         </form>
       )}
     </main>
@@ -914,9 +1021,11 @@ function Description({ children }: { children: ReactNode }) {
 export function PublicProfile({
   handle,
   initial,
+  preview = false,
 }: {
   handle: string;
   initial?: PublicProfileResult;
+  preview?: boolean;
 }) {
   const [profile, setProfile] = useState<Profile | undefined>(
     initial?.profile ? normalizeProfile(initial.profile) : undefined,
@@ -954,8 +1063,9 @@ export function PublicProfile({
     };
   }, [handle, initial]);
 
+  const Container = preview ? 'div' : 'main';
   return (
-    <main className="page-width workspace-page public-profile-page">
+    <Container className="page-width workspace-page public-profile-page">
       {(state === 'loading' || (state === 'found' && !isCurrentProfile)) && (
         <p role="status">Loading profile…</p>
       )}
@@ -988,105 +1098,113 @@ export function PublicProfile({
               <h1>{profile.name}</h1>
               {profile.headline && <p className="public-profile-headline">{profile.headline}</p>}
             </div>
-            <ProfileShare handle={profile.handle} name={profile.name} />
+            {!preview && <ProfileShare handle={profile.handle} name={profile.name} />}
           </section>
-          <div className="profile-public-claims">
-            {profile.bio && (
-              <section className="workspace-panel">
-                <h2>About</h2>
-                <Description>{profile.bio}</Description>
-              </section>
-            )}
-            {profile.links.length > 0 && (
-              <section className="workspace-panel" aria-label="Links">
-                <ul className="profile-links">
-                  {profile.links.map((link) => (
-                    <li key={link}>
-                      <a
-                        className="text-link break-all"
-                        href={link}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={link}
-                      >
-                        {(() => {
-                          try {
-                            return new URL(link).hostname;
-                          } catch {
-                            return link;
-                          }
-                        })()}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-            {profile.experience.length > 0 && (
-              <section className="workspace-panel">
-                <h2>Experience</h2>
-                <ol className="profile-timeline">
-                  {profile.experience.map((experience) => (
-                    <li className="profile-timeline-item" key={experience.id}>
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                        <h3>{experience.role}</h3>
-                        <p className="text-sm text-muted-foreground">{experience.period}</p>
-                      </div>
-                      <p className="text-muted-foreground">{experience.organization}</p>
-                      {experience.description && (
-                        <Description>{experience.description}</Description>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            )}
-            {profile.education.length > 0 && (
-              <section className="workspace-panel">
-                <h2>Education</h2>
-                <ol className="profile-timeline">
-                  {profile.education.map((education) => (
-                    <li className="profile-timeline-item" key={education.id}>
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                        <h3>{education.school}</h3>
-                        <p className="text-sm text-muted-foreground">{education.period}</p>
-                      </div>
-                      <p className="text-muted-foreground">{education.degree}</p>
-                      {education.description && <Description>{education.description}</Description>}
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            )}
-            {profile.projects.length > 0 && (
-              <section className="workspace-panel">
-                <h2>Projects</h2>
-                <div className="profile-project-grid grid gap-4 sm:grid-cols-2">
-                  {profile.projects.map((project) => (
-                    <article
-                      className="profile-project-card rounded-lg border p-5"
-                      key={project.id}
-                    >
-                      <h3>{project.name}</h3>
-                      {project.description && <Description>{project.description}</Description>}
-                      {project.url && (
+          {(profile.bio ||
+            profile.links.length > 0 ||
+            profile.experience.length > 0 ||
+            profile.education.length > 0 ||
+            profile.projects.length > 0) && (
+            <div className="profile-public-claims">
+              {profile.bio && (
+                <section className="profile-content-section">
+                  <h2>About</h2>
+                  <Description>{profile.bio}</Description>
+                </section>
+              )}
+              {profile.links.length > 0 && (
+                <section className="profile-content-section" aria-label="Links">
+                  <ul className="profile-links">
+                    {profile.links.map((link) => (
+                      <li key={link}>
                         <a
                           className="text-link break-all"
-                          href={project.url}
+                          href={link}
                           target="_blank"
                           rel="noreferrer"
+                          title={link}
                         >
-                          Visit project
+                          {(() => {
+                            try {
+                              return new URL(link).hostname;
+                            } catch {
+                              return link;
+                            }
+                          })()}
                         </a>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {profile.experience.length > 0 && (
+                <section className="profile-content-section">
+                  <h2>Experience</h2>
+                  <ol className="profile-timeline">
+                    {profile.experience.map((experience) => (
+                      <li className="profile-timeline-item" key={experience.id}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <h3>{experience.role}</h3>
+                          <p className="text-sm text-muted-foreground">{experience.period}</p>
+                        </div>
+                        <p className="text-muted-foreground">{experience.organization}</p>
+                        {experience.description && (
+                          <Description>{experience.description}</Description>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+              {profile.education.length > 0 && (
+                <section className="profile-content-section">
+                  <h2>Education</h2>
+                  <ol className="profile-timeline">
+                    {profile.education.map((education) => (
+                      <li className="profile-timeline-item" key={education.id}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <h3>{education.school}</h3>
+                          <p className="text-sm text-muted-foreground">{education.period}</p>
+                        </div>
+                        <p className="text-muted-foreground">{education.degree}</p>
+                        {education.description && (
+                          <Description>{education.description}</Description>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+              {profile.projects.length > 0 && (
+                <section className="profile-content-section">
+                  <h2>Projects</h2>
+                  <div className="profile-project-grid grid gap-4 sm:grid-cols-2">
+                    {profile.projects.map((project) => (
+                      <article
+                        className="profile-project-card rounded-lg border p-5"
+                        key={project.id}
+                      >
+                        <h3>{project.name}</h3>
+                        {project.description && <Description>{project.description}</Description>}
+                        {project.url && (
+                          <a
+                            className="text-link break-all"
+                            href={project.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Visit project
+                          </a>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
           {profile.credentialHashes.length > 0 && (
-            <section className="workspace-panel">
+            <section className="profile-content-section">
               <h2>Issuer-backed credentials</h2>
               <div className="profile-featured-list grid gap-3">
                 {profile.credentialHashes.map((hash) => {
@@ -1123,6 +1241,6 @@ export function PublicProfile({
           )}
         </article>
       )}
-    </main>
+    </Container>
   );
 }

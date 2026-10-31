@@ -51,9 +51,14 @@ export async function getAccountSession() {
   return data.session ?? undefined;
 }
 
-export async function accountAccessToken() {
+export async function accountAccessToken(expectedUserId?: string) {
   const session = await getAccountSession();
   if (!session) throw new AccountAuthError('Sign in to continue.', 'AUTH_FAILED');
+  if (expectedUserId && session.user.id !== expectedUserId)
+    throw new AccountAuthError(
+      'Your account changed. Review your changes and try again.',
+      'AUTH_FAILED',
+    );
   return session.access_token;
 }
 

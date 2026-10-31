@@ -116,3 +116,17 @@ The built-route suite checks published SSR content, PNG format/dimensions and
 private-profile metadata/image exclusion. A rendered PNG was visually inspected.
 These checks do not prove crawler cache invalidation or live social platform
 rendering. Further responsive journey review and design work remain in progress.
+
+The first-run profile form now saves name, handle, headline and optional photo
+privately before exposing the longer portfolio/publication editor. The editor
+has a local unsaved preview; its share action targets only the last saved public
+handle. A saved private profile with no wallets was created in an isolated mock
+Supabase browser fixture, previewed while public lookup returned 404, then given
+a project and explicitly published. The public page and QR PNG download worked.
+This exercises the real client/API path with a synthetic auth provider, not
+Google's OAuth ceremony. Account-switch guards bind profile mutations to the
+intended Supabase subject. The account security suite now runs in CI.
+
+Development also excludes the native social renderer from Vite dependency
+optimization; this was verified by starting the configured fixture dev server,
+which previously failed while trying to parse a native binary as JavaScript.

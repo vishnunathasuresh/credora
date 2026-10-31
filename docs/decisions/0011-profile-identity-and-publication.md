@@ -1,6 +1,8 @@
 # ADR 0011: Profile identity and publication
 
-Status: accepted
+Status: accepted; transitional wallet-first ownership superseded by
+[ADR 0012](0012-google-account-authentication.md) and
+[ADR 0013](0013-account-wallet-association.md). Privacy and proof boundaries remain in force.
 
 ## Context
 

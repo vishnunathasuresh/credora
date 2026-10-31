@@ -1,8 +1,12 @@
 import { credoraApi } from './credora-api';
 import { accountAccessToken } from './account-session';
 
-export async function accountApi<T>(path: string, options: RequestInit = {}) {
-  const token = await accountAccessToken();
+export async function accountApi<T>(
+  path: string,
+  options: RequestInit = {},
+  expectedUserId?: string,
+) {
+  const token = await accountAccessToken(expectedUserId);
   return credoraApi<T>(path, options, token);
 }
 

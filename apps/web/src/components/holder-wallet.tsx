@@ -32,6 +32,7 @@ export function HolderWallet() {
   const [adding, setAdding] = useState('');
   const [retry, setRetry] = useState(0);
   const generation = useRef(0);
+  const accountUser = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -43,6 +44,7 @@ export function HolderWallet() {
     }
     void subscribeAccountSession((session) => {
       const current = ++generation.current;
+      accountUser.current = session?.user.id;
       setLibrary(undefined);
       setError('');
       setNotice('');
@@ -91,21 +93,31 @@ export function HolderWallet() {
   async function addToProfile(hash: string) {
     if (adding) return;
     const current = generation.current;
+    const userId = accountUser.current;
+    if (!userId) return;
     setAdding(hash);
     setError('');
     setNotice('');
     try {
-      const { profile } = await accountApi<{ profile: Profile | null }>('/account/profile');
+      const { profile } = await accountApi<{ profile: Profile | null }>(
+        '/account/profile',
+        {},
+        userId,
+      );
       if (!profile) throw new Error('Create your profile before featuring a credential.');
       const hashes = profile.credentialHashes;
       if (hashes.some((item) => item.toLowerCase() === hash.toLowerCase())) {
         setNotice('This credential is already featured on your profile.');
         return;
       }
-      const result = await accountApi<{ profile: Profile }>('/account/profile', {
-        method: 'PUT',
-        body: JSON.stringify({ ...profile, credentialHashes: [...hashes, hash] }),
-      });
+      const result = await accountApi<{ profile: Profile }>(
+        '/account/profile',
+        {
+          method: 'PUT',
+          body: JSON.stringify({ ...profile, credentialHashes: [...hashes, hash] }),
+        },
+        userId,
+      );
       if (current === generation.current) {
         setLibrary((previous) => previous && { ...previous, profile: result.profile });
         setNotice('Credential added to your profile.');

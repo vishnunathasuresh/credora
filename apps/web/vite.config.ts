@@ -35,6 +35,8 @@ export default defineConfig(({ mode }) => {
   const legacy = loadEnv(mode, process.cwd(), 'NEXT_PUBLIC_');
   return {
     envPrefix: 'VITE_',
+    optimizeDeps: { exclude: ['@resvg/resvg-js'] },
+    ssr: { external: ['@resvg/resvg-js'] },
     define: Object.fromEntries(
       legacyBrowserVariables.flatMap((name) =>
         legacy[name] === undefined
