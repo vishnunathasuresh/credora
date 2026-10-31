@@ -1,5 +1,10 @@
 # Credora UI/UX audit
 
+Historical review of the earlier interface. The current visual direction and
+component choices are in [DESIGN.md](../../DESIGN.md) and
+[component sources](component-sources.md); references below to Next.js and
+the former design tooling describe the audited version, not the current app.
+
 Audited 4 October 2026 using Impeccable, Credora protocol guidance, source review,
 a production web build and browser interaction checks.
 
@@ -55,8 +60,8 @@ checks. The web Impeccable detector returned no findings.
 | P1       | Wallet connect screens                  | New users had no route from unfamiliar wallet terminology to sign-in   | Shared three-step guide: official wallet setup, public address, signed message; explains no gas for login |
 | P1       | Homepage CTA after component migration  | Primary link text had the same foreground/background                   | Explicit shadcn primary-anchor foreground; measured both themes                                           |
 | P1       | Holder restored-session request failure | API outage could look like a confirmed empty library                   | Loading/unavailable/retry state; empty only after a successful list response                              |
-| P2       | Form placeholders, focus and targets    | Low-contrast placeholders and compact actions impeded interaction      | Token-based placeholder text, focus coverage and 44px target minimums                   |
-| P2       | Hash-only web reference entry           | Public links required manual hash extraction                           | Link-or-hash parser; invalid QR URLs are never automatically followed             |
+| P2       | Form placeholders, focus and targets    | Low-contrast placeholders and compact actions impeded interaction      | Token-based placeholder text, focus coverage and 44px target minimums                                     |
+| P2       | Hash-only web reference entry           | Public links required manual hash extraction                           | Link-or-hash parser; invalid QR URLs are never automatically followed                                     |
 
 ## Organization enrollment update
 
