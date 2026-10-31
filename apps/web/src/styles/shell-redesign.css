@@ -1,0 +1,9 @@
+/* Shared navigation surfaces: intentionally scoped away from page content. */
+.credora-topbar { border-bottom: 1px solid var(--border, #deded8); }
+.credora-topbar .wordmark { letter-spacing: -0.04em; }
+.workspace-shell .app-sidebar { padding-top: 2rem; }
+.workspace-shell .app-sidebar-label { letter-spacing: .1em; text-transform: uppercase; }
+.workspace-shell .app-sidebar-link { border-radius: .5rem; transition: background-color 150ms ease, color 150ms ease; }
+.workspace-shell .app-sidebar-link[aria-current='page'] { font-weight: 650; }
+.credora-shell a:focus-visible, .credora-shell button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .workspace-shell .app-sidebar-link { transition: none; } }

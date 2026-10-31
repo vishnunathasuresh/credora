@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import appCss from '../styles/globals.css?url';
+import shellCss from '../styles/shell-redesign.css?url';
 import { MobileNavigation } from '../components/mobile-navigation';
 import { ThemeToggle } from '../components/theme-toggle';
 
@@ -28,6 +29,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      { rel: 'stylesheet', href: shellCss },
       { rel: 'manifest', href: '/manifest.webmanifest' },
       { rel: 'icon', href: '/icon.svg' },
       { rel: 'apple-touch-icon', href: '/icon.svg' },
