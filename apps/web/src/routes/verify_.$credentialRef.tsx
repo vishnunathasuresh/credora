@@ -135,7 +135,7 @@ function CredentialVerificationPage() {
           </div>
         </div>
       )}
-      {result.source === 'direct-rpc' ? (
+      {result.state === 'valid' && result.source === 'direct-rpc' ? (
         <p className="form-help verification-source">
           Proof checked directly against the configured registry. Metadata came from local API
           storage or the configured IPFS gateway.

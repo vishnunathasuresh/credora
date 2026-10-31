@@ -142,6 +142,7 @@ try {
   assert.match(detail.html, /Reference not understood/);
   assert.match(detail.html, /not-a-hash/);
   assert.doesNotMatch(detail.html, /class="verify-form"/);
+  assert.doesNotMatch(detail.html, /Proof checked directly against the configured registry/);
 
   const syntheticShareToken = 'T'.repeat(43);
   const legacyShare = await fetch(base + '/share/' + syntheticShareToken, { redirect: 'manual' });
