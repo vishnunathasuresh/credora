@@ -23,6 +23,8 @@ export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
           ['/wallet', 'My credentials'],
           ['/dashboard', 'Workspace home'],
           ['/settings/wallets', 'Linked wallets'],
+          ['/org', 'Organization'],
+          ['/issuer', 'Issue credentials'],
           ['/verify', 'Verify a credential'],
         ] as const)
       : ([

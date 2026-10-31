@@ -118,6 +118,16 @@ function RootComponent() {
                   current={pathname === '/settings/wallets'}
                 />
               </nav>
+              <div className="app-sidebar-divider" />
+              <p className="app-sidebar-label">For organizations</p>
+              <nav className="app-sidebar-nav">
+                <SidebarLink to="/org" label="Organization" current={pathname === '/org'} />
+                <SidebarLink
+                  to="/issuer"
+                  label="Issue credentials"
+                  current={pathname === '/issuer'}
+                />
+              </nav>
             </aside>
             <div className="app-main-column">
               <div className="app-mobile-header">
@@ -152,7 +162,7 @@ function SidebarLink({
   label,
   current,
 }: {
-  to: '/profile' | '/wallet' | '/verify' | '/dashboard' | '/settings/wallets';
+  to: '/profile' | '/wallet' | '/verify' | '/dashboard' | '/settings/wallets' | '/org' | '/issuer';
   label: string;
   current: boolean;
 }) {
