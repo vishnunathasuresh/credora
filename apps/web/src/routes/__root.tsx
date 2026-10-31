@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import appCss from '../styles/globals.css?url';
+import shellCss from '../styles/shell-redesign.css?url';
 import { MobileNavigation } from '../components/mobile-navigation';
 import { ThemeToggle } from '../components/theme-toggle';
 
@@ -23,11 +24,12 @@ export const Route = createRootRoute({
           'Build a professional profile around your work and independently verifiable credentials.',
       },
       { name: 'application-name', content: 'Credora' },
-      { name: 'theme-color', content: '#faf9fc' },
+      { name: 'theme-color', content: '#f8f7f1' },
       { name: 'color-scheme', content: 'light dark' },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      { rel: 'stylesheet', href: shellCss },
       { rel: 'manifest', href: '/manifest.webmanifest' },
       { rel: 'icon', href: '/icon.svg' },
       { rel: 'apple-touch-icon', href: '/icon.svg' },
@@ -40,7 +42,7 @@ export const Route = createRootRoute({
 
 const primaryLinks = [
   { to: '/profile', label: 'My profile' },
-  { to: '/wallet', label: 'My credentials' },
+  { to: '/credentials', label: 'My credentials' },
   { to: '/verify', label: 'Verify a credential' },
 ] as const;
 
@@ -50,11 +52,13 @@ function RootComponent() {
   const workspace = [
     '/profile',
     '/wallet',
+    '/credentials',
     '/dashboard',
     '/issuer',
     '/org',
     '/admin',
     '/superadmin',
+    '/settings/wallets',
   ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
   return (
     <RootDocument>
@@ -62,8 +66,10 @@ function RootComponent() {
         className={`shell credora-shell ${landing ? 'landing-shell' : workspace ? 'workspace-shell' : 'public-shell'}`}
       >
         <header className="topbar credora-topbar">
-          <Link className="wordmark" to="/" aria-label="Credora home">
-            <span className="mark">C</span>
+          <Link className="wordmark" to="/">
+            <span className="mark" aria-hidden="true">
+              C
+            </span>
             <span>credora</span>
           </Link>
           {workspace ? (
@@ -76,11 +82,10 @@ function RootComponent() {
           ) : (
             <div className="header-controls">
               <nav className="nav desktop-nav" aria-label="Primary navigation">
-                <Link to="/profile">Profiles</Link>
                 <Link to="/verify">Verify</Link>
-                <Link to="/wallet">Credentials</Link>
-                <Link className="nav-cta" to="/profile">
-                  Get started
+                <Link to="/credentials">My credentials</Link>
+                <Link className="nav-cta" to="/join">
+                  Create a profile
                 </Link>
               </nav>
               <ThemeToggle />
@@ -98,7 +103,9 @@ function RootComponent() {
                     key={item.to}
                     to={item.to}
                     label={item.label}
-                    current={pathname === item.to}
+                    current={
+                      pathname === item.to || (item.to === '/credentials' && pathname === '/wallet')
+                    }
                   />
                 ))}
               </nav>
@@ -109,6 +116,21 @@ function RootComponent() {
                   to="/dashboard"
                   label="Workspace home"
                   current={pathname === '/dashboard'}
+                />
+                <SidebarLink
+                  to="/settings/wallets"
+                  label="Linked wallets"
+                  current={pathname === '/settings/wallets'}
+                />
+              </nav>
+              <div className="app-sidebar-divider" />
+              <p className="app-sidebar-label">For organizations</p>
+              <nav className="app-sidebar-nav">
+                <SidebarLink to="/org" label="Organization" current={pathname === '/org'} />
+                <SidebarLink
+                  to="/issuer"
+                  label="Issue credentials"
+                  current={pathname === '/issuer'}
                 />
               </nav>
             </aside>
@@ -145,7 +167,14 @@ function SidebarLink({
   label,
   current,
 }: {
-  to: '/profile' | '/wallet' | '/verify' | '/dashboard';
+  to:
+    | '/profile'
+    | '/credentials'
+    | '/verify'
+    | '/dashboard'
+    | '/settings/wallets'
+    | '/org'
+    | '/issuer';
   label: string;
   current: boolean;
 }) {
@@ -157,12 +186,14 @@ function SidebarLink({
 }
 function pageTitle(pathname: string) {
   if (pathname.startsWith('/profile')) return 'My profile';
-  if (pathname.startsWith('/wallet')) return 'My credentials';
+  if (pathname.startsWith('/wallet') || pathname.startsWith('/credentials'))
+    return 'My credentials';
   if (pathname.startsWith('/verify')) return 'Verify';
   if (pathname.startsWith('/issuer')) return 'Issuer workspace';
   if (pathname.startsWith('/org')) return 'Organization';
   if (pathname.startsWith('/admin')) return 'Administration';
   if (pathname.startsWith('/superadmin')) return 'Platform admin';
+  if (pathname.startsWith('/settings/wallets')) return 'Linked wallets';
   return 'Workspace';
 }
 

@@ -52,6 +52,8 @@ export type VerificationState =
   | 'valid'
   | 'not-found'
   | 'metadata-unavailable'
+  | 'metadata-malformed'
+  | 'unsupported-version'
   | 'metadata-invalid'
   | 'ledger-unavailable'
   | 'malformed';

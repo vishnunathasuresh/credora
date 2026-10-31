@@ -1,5 +1,9 @@
 {$CREDORA_DOMAIN} {
   encode gzip
+  @legacyShare path_regexp legacyShare ^/share/([A-Za-z0-9_-]{43})/?$
+  header @legacyShare Cache-Control "no-store"
+  header @legacyShare Referrer-Policy "no-referrer"
+  redir @legacyShare /share#{re.legacyShare.1} 303
   reverse_proxy web:3000
 }
 

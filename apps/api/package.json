@@ -16,7 +16,8 @@
     "@credora/credential-core": "workspace:*",
     "@credora/shared": "workspace:*",
     "@credora/storage": "workspace:*",
-    "viem": "^2.31.3",
-    "tsx": "^4.20.3"
+    "@supabase/supabase-js": "^2.118.0",
+    "tsx": "^4.20.3",
+    "viem": "^2.31.3"
   }
 }

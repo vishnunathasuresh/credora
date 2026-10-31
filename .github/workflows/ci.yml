@@ -28,6 +28,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm test:e2e:profiles
+      - run: pnpm test:e2e:accounts
       - run: pnpm build
       - run: pnpm test:e2e:web
 

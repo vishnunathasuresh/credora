@@ -1,121 +1,22 @@
 'use client';
 
-import type { CredentialMetadata } from '@credora/credential-core';
-import type { VerificationState } from '@credora/shared';
 import { ReactQRCode } from '@lglab/react-qr-code';
-import { useCallback, useEffect, useState } from 'react';
-import { apiUrlFor } from '../lib/credora-api';
-import { CredentialCard, type IssuerProfile } from './credential-card';
+import { useEffect, useState } from 'react';
+import { CredentialCard } from './credential-card';
 import { AlertIcon, CheckIcon } from './icons';
 import { Button } from './ui/button';
+import type { ShareVerificationData } from '../lib/share-verification.functions';
 
-type ShareData = { expiresAt: string; credentials: { credentialHash: string }[] };
-type Verification = {
-  state: VerificationState | 'service-unavailable';
-  message?: string;
-  metadata?: CredentialMetadata;
-};
-type VerifiedCredential = {
-  hash: string;
-  result: Verification;
-  issuerProfile: IssuerProfile;
-};
+type VerifiedCredential = ShareVerificationData['credentials'][number];
 
-class ShareRequestError extends Error {
-  constructor(
-    message: string,
-    readonly code?: string,
-  ) {
-    super(message);
-  }
-}
-
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(apiUrlFor(path), { cache: 'no-store', signal });
-  const body = (await response.json().catch(() => ({}))) as T & {
-    message?: string;
-    error?: string;
-  };
-  if (!response.ok)
-    throw new ShareRequestError(body.message ?? 'The sharing service is unavailable.', body.error);
-  return body as T;
-}
-
-async function getVerification(hash: string, signal?: AbortSignal): Promise<Verification> {
-  try {
-    const response = await fetch(apiUrlFor(`/credentials/${encodeURIComponent(hash)}/verify`), {
-      cache: 'no-store',
-      signal,
-    });
-    const body = (await response.json().catch(() => ({}))) as Verification & { error?: string };
-    if (body.state) return body;
-    return {
-      state: body.error === 'LEDGER_UNAVAILABLE' ? 'ledger-unavailable' : 'service-unavailable',
-      message: body.message ?? 'The verification service could not confirm this credential.',
-    };
-  } catch {
-    return {
-      state: 'service-unavailable',
-      message:
-        'Could not reach the verification service. The credential has not been marked invalid.',
-    };
-  }
-}
-
-export function SharePresentation({ token }: { token: string }) {
-  const [credentials, setCredentials] = useState<VerifiedCredential[]>([]);
-  const [expiresAt, setExpiresAt] = useState('');
-  const [busy, setBusy] = useState(true);
-  const [error, setError] = useState('');
-  const [errorCode, setErrorCode] = useState('');
+export function SharePresentation({ data }: { data: ShareVerificationData }) {
+  const [credentials] = useState<VerifiedCredential[]>(data.credentials);
+  const { expiresAt, error = '', errorCode = '' } = data;
   const [shareUrl, setShareUrl] = useState('');
 
-  const load = useCallback(
-    async (signal?: AbortSignal) => {
-      setBusy(true);
-      setError('');
-      setErrorCode('');
-      try {
-        const share = await getJson<ShareData>(
-          `/wallet/shares/${encodeURIComponent(token)}`,
-          signal,
-        );
-        setExpiresAt(share.expiresAt);
-        const verified = await Promise.all(
-          share.credentials.map(async ({ credentialHash }) => {
-            const result = await getVerification(credentialHash, signal);
-            let issuerProfile: IssuerProfile = null;
-            if (result.metadata) {
-              try {
-                const profile = await getJson<{ organization: IssuerProfile }>(
-                  `/organizations/by-issuer/${encodeURIComponent(result.metadata.issuerAddress)}`,
-                  signal,
-                );
-                issuerProfile = profile.organization;
-              } catch {
-                // Branding is optional; it never changes the proof result.
-              }
-            }
-            return { hash: credentialHash, result, issuerProfile };
-          }),
-        );
-        setCredentials(verified);
-      } catch (caught) {
-        setError(caught instanceof Error ? caught.message : 'This share cannot be opened.');
-        setErrorCode(caught instanceof ShareRequestError ? (caught.code ?? '') : '');
-      } finally {
-        setBusy(false);
-      }
-    },
-    [token],
-  );
-
   useEffect(() => {
-    const controller = new AbortController();
     setShareUrl(window.location.href);
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+  }, []);
 
   return (
     <main className="page-width narrow-page workspace-page share-presentation-page">
@@ -123,16 +24,17 @@ export function SharePresentation({ token }: { token: string }) {
         <div>
           <h1>Shared credentials</h1>
           <p className="lede">
-            Each credential below is checked against its public registry record and metadata. This
-            QR groups records for convenience; it does not prove who is presenting them.
+            Each credential below is checked directly against its pinned registry record and its
+            metadata. This QR groups records for convenience; it does not prove who is presenting
+            them.
+          </p>
+          <p className="form-help">
+            Descriptions, images, and linked presentation content are not independently assessed.
+            Proof checks establish only that the fields described in each status match the
+            configured registry and metadata source.
           </p>
         </div>
       </header>
-      {busy ? (
-        <p className="app-empty-state" role="status">
-          Checking shared credentials…
-        </p>
-      ) : null}
       {error ? (
         <section className="share-state share-state-error" role="alert">
           <AlertIcon />
@@ -153,13 +55,13 @@ export function SharePresentation({ token }: { token: string }) {
             </p>
           </div>
           {errorCode !== 'SHARE_EXPIRED' && errorCode !== 'SHARE_NOT_FOUND' ? (
-            <Button type="button" variant="outline" onClick={() => void load()}>
+            <Button type="button" variant="outline" onClick={() => window.location.reload()}>
               Retry
             </Button>
           ) : null}
         </section>
       ) : null}
-      {!busy && !error ? (
+      {!error ? (
         <>
           <section className="wallet-share-public-code">
             {shareUrl ? (
@@ -186,13 +88,15 @@ export function SharePresentation({ token }: { token: string }) {
             </div>
           </section>
           {credentials.map(({ hash, result, issuerProfile }) =>
-            result.state === 'valid' && result.metadata ? (
-              <CredentialCard
-                key={hash}
-                metadata={result.metadata}
-                credentialHash={hash}
-                issuerProfile={issuerProfile}
-              />
+            result.state === 'valid' && result.metadata && result.metadata.schemaVersion !== 2 ? (
+              <div key={hash}>
+                <CredentialCard
+                  metadata={result.metadata}
+                  credentialHash={hash}
+                  issuerProfile={issuerProfile}
+                />
+                {result.message ? <p className="form-help">{result.message}</p> : null}
+              </div>
             ) : (
               <section className="share-credential-state" key={hash}>
                 <span
@@ -208,11 +112,6 @@ export function SharePresentation({ token }: { token: string }) {
                 {result.state === 'ledger-unavailable' ||
                 result.state === 'metadata-unavailable' ? (
                   <p>This may be a temporary outage; it is not a proof failure.</p>
-                ) : null}
-                {result.state === 'service-unavailable' ? (
-                  <p>
-                    The service is unavailable. Retry before drawing a conclusion about the proof.
-                  </p>
                 ) : null}
               </section>
             ),

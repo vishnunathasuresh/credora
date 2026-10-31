@@ -15,7 +15,9 @@ function routeForQrValue(value: string, origin: string) {
     const url = new URL(value.trim(), origin);
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
     const share = url.pathname.match(/^\/share\/([A-Za-z0-9_-]{43})\/?$/);
-    if (share) return `/share/${share[1]}`;
+    if (share) return `/share#${share[1]}`;
+    const fragmentShare = url.pathname === '/share' && url.hash.match(/^#([A-Za-z0-9_-]{43})$/);
+    if (fragmentShare) return `/share#${fragmentShare[1]}`;
   } catch {
     return;
   }
@@ -46,8 +48,8 @@ export function VerifyForm() {
         return;
       }
       setError('');
-      if (route.startsWith('/share/')) {
-        void navigate({ to: '/share/$token', params: { token: route.slice(7) } });
+      if (route.startsWith('/share#')) {
+        window.location.assign(route);
       } else {
         void navigate({
           to: '/verify/$credentialRef',
@@ -155,6 +157,7 @@ export function VerifyForm() {
         <input
           ref={fileInputRef}
           className="verify-qr-file-input"
+          hidden
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
           aria-label="Upload a QR code image"
@@ -189,7 +192,7 @@ export function VerifyForm() {
         aria-labelledby="verify-reference-title"
       >
         <h2 id="verify-reference-title">Enter a verification link or reference</h2>
-        <p className="form-help">Use the credential link, reference, or scan its QR code above.</p>
+        <p className="form-help">Paste the link you received, or enter the credential hash.</p>
         <Label htmlFor="credential-reference">Verification link or reference</Label>
         <div className="form-row">
           <Input
@@ -216,7 +219,7 @@ export function VerifyForm() {
           aria-live="polite"
           role={referenceError ? 'alert' : undefined}
         >
-          {referenceError ?? 'Direct links and existing credential references still work.'}
+          {referenceError ?? 'A credential hash starts with 0x and has 64 hexadecimal characters.'}
         </div>
       </section>
     </form>

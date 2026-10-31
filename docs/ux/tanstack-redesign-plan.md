@@ -1,6 +1,9 @@
 # TanStack Start redesign
 
-Status: implemented and reviewed, 2026-10-29. The agreed product direction is
+Status: historical implementation and review record, 2026-10-29. The current
+Opensource UI Studio direction supersedes this record where visual or route
+details conflict; see [component sources](component-sources.md) and
+[DESIGN.md](../../DESIGN.md). The agreed product direction is
 in [product-direction.md](../roadmap/product-direction.md); the implemented
 visual system is specified in [DESIGN.md](../../DESIGN.md). This record keeps
 the initial audit and design rejection as history, then states the built result
@@ -49,8 +52,9 @@ contract; [DESIGN.md](../../DESIGN.md) owns the current system.
   content-addressed metadata remain authoritative for proof. See
   [ADR 0011](../decisions/0011-profile-identity-and-publication.md).
 
-Pre-wallet signup, account recovery, and wallet reassignment remain future
-work. Follows, feeds, jobs, messaging, discovery, and recommendations are not
+At the time of that review, pre-wallet signup, account recovery, and wallet
+reassignment were future work; the identity-first follow-up below records
+subsequent signup work. Follows, feeds, jobs, messaging, discovery, and recommendations are not
 shipped networking features. Continue to follow the product delivery order.
 
 ## Review and verification
@@ -93,3 +97,40 @@ actual issuer/admin signed transactions. Successful API, route, build, and
 fixture checks do not establish deployed service behavior, a live issuance,
 or real credential summary rendering in a browser. Deployment and production
 performance remain outside the completed review.
+
+## Identity-first follow-up (PR 5, in progress)
+
+ADRs 0012 and 0013 replace the transitional wallet-first profile entry with
+Google sign-in through Supabase, account-owned private profiles, and separately
+signed wallet associations. Legacy issuer authorization is unchanged. Local
+account integration tests cover walletless profiles, account isolation, signature
+binding/replay, ownership selection, unlink suppression and explicit legacy
+migration/conflict behavior. Live Google OAuth still requires provider setup and
+browser validation.
+
+Public profiles now use server loaders and emit published identity in HTML and
+social metadata. `/u/{handle}/image` renders a 1200x630 PNG from published name,
+handle and headline with a server-only native renderer and bundled licensed font;
+it does not fetch an avatar or add verification badges. Private/missing profiles
+use generic metadata and have no image. No-store headers apply to both. Set
+`VITE_SITE_URL` to the public origin for absolute metadata URLs. The Latin font
+subset does not provide complete international-script coverage.
+
+The built-route suite checks published SSR content, PNG format/dimensions and
+private-profile metadata/image exclusion. A rendered PNG was visually inspected.
+These checks do not prove crawler cache invalidation or live social platform
+rendering. Further responsive journey review and design work remain in progress.
+
+The first-run profile form now saves name, handle, headline and optional photo
+privately before exposing the longer portfolio/publication editor. The editor
+has a local unsaved preview; its share action targets only the last saved public
+handle. A saved private profile with no wallets was created in an isolated mock
+Supabase browser fixture, previewed while public lookup returned 404, then given
+a project and explicitly published. The public page and QR PNG download worked.
+This exercises the real client/API path with a synthetic auth provider, not
+Google's OAuth ceremony. Account-switch guards bind profile mutations to the
+intended Supabase subject. The account security suite now runs in CI.
+
+Development also excludes the native social renderer from Vite dependency
+optimization; this was verified by starting the configured fixture dev server,
+which previously failed while trying to parse a native binary as JavaScript.

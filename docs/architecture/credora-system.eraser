@@ -29,7 +29,7 @@ commit [label: "02 · Anchoring, discovery and sharing"] {
 
 verification [label: "03 · Public proof verification"] {
   Verifier [icon: scan-line, color: blue, shape: rectangle, label: "Verifier opens link or scans QR / No login required"]
-  Resolve [icon: list-checks, color: purple, shape: rectangle, label: "Resolve active share / GET /wallet/shares/:token → selected hashes"]
+  Resolve [icon: list-checks, color: purple, shape: rectangle, label: "Resolve active share / POST /wallet/share-resolution (token in body) → selected hashes"]
   Parse [icon: binary, color: purple, shape: diamond, label: "Valid 32-byte reference? / Validate configured credential reference"]
   Route [icon: network, color: purple, shape: diamond, label: "API reachable? / Web verification request"]
   Direct [icon: globe, color: blue, shape: rectangle, label: "Web direct verification / Fallback to configured RPC + public IPFS gateway"]

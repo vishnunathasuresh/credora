@@ -353,6 +353,10 @@ export function verificationMessage(state: VerificationState): string {
       return 'No credential with this reference exists on the selected ledger.';
     case 'metadata-unavailable':
       return 'Credential proof found, but metadata is temporarily unavailable.';
+    case 'metadata-malformed':
+      return 'Credential proof found, but its metadata is malformed.';
+    case 'unsupported-version':
+      return 'This credential protocol version is not supported by the direct verifier.';
     case 'metadata-invalid':
       return 'Credential proof found, but the metadata does not match the ledger record.';
     case 'ledger-unavailable':

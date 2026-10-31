@@ -59,31 +59,46 @@ function CredentialVerificationPage() {
   const { credentialRef } = Route.useParams();
   const { result, issuerProfile, recipientProfile } = Route.useLoaderData();
   const message = result.message ?? verificationMessage(result.state);
-  const metadata = result.state === 'valid' ? result.metadata : undefined;
+  const metadata =
+    result.state === 'valid' && result.metadata && result.metadata.schemaVersion !== 2
+      ? result.metadata
+      : undefined;
   const title =
     result.state === 'valid'
-      ? 'Credential verified.'
+      ? result.protocolVersion === 3
+        ? 'Credential proof matches.'
+        : 'Credential proof matches.'
       : result.state === 'not-found'
         ? 'Credential not found.'
         : result.state === 'metadata-invalid'
           ? 'Proof mismatch.'
           : result.state === 'metadata-unavailable'
             ? 'Metadata unavailable.'
-            : result.state === 'malformed'
-              ? 'Reference not understood.'
-              : 'Registry lookup unavailable.';
+            : result.state === 'metadata-malformed'
+              ? 'Metadata malformed.'
+              : result.state === 'unsupported-version'
+                ? 'Unsupported credential version.'
+                : result.state === 'malformed'
+                  ? 'Reference not understood.'
+                  : 'Registry lookup unavailable.';
   const statusLabel =
     result.state === 'valid'
-      ? 'Verified on chain'
+      ? result.protocolVersion === 3
+        ? 'V3 proof fields match'
+        : 'Proof fields match'
       : result.state === 'not-found'
         ? 'No matching record'
         : result.state === 'metadata-invalid'
           ? 'Proof mismatch'
           : result.state === 'metadata-unavailable'
             ? 'Metadata unavailable'
-            : result.state === 'ledger-unavailable'
-              ? 'Ledger unavailable'
-              : 'Reference needs attention';
+            : result.state === 'metadata-malformed'
+              ? 'Metadata malformed'
+              : result.state === 'unsupported-version'
+                ? 'Unsupported version'
+                : result.state === 'ledger-unavailable'
+                  ? 'Ledger unavailable'
+                  : 'Reference needs attention';
   const statusTone =
     result.state === 'valid' ? 'success' : result.state === 'not-found' ? 'neutral' : 'warning';
   const statusIcon =
@@ -120,10 +135,26 @@ function CredentialVerificationPage() {
           </div>
         </div>
       )}
-      {result.source === 'direct-rpc' ? (
+      {result.state === 'valid' && result.source === 'direct-rpc' ? (
         <p className="form-help verification-source">
-          Checked directly against the registry and public metadata source.
+          Proof checked directly against the configured registry. Metadata came from local API
+          storage or the configured IPFS gateway.
         </p>
+      ) : null}
+      {result.state === 'valid' && result.protocolVersion === 3 ? (
+        <section className="form-help verification-source" aria-label="Proof limits">
+          <p>This v3 check establishes matching proof fields only. These remain unknown:</p>
+          <ul>
+            <li>Real-world issuer identity</li>
+            <li>Control of the recipient wallet</li>
+            <li>Whether the configured contract deployment was independently verified</li>
+            <li>Issuer authorization at the historical issuance time</li>
+            <li>Transaction finality</li>
+          </ul>
+          <p>
+            The displayed issue date is a metadata claim; it is not the registry issuedAt timestamp.
+          </p>
+        </section>
       ) : null}
       {result.state === 'ledger-unavailable' || result.state === 'metadata-unavailable' ? (
         <div className="verification-actions">

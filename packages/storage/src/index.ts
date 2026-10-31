@@ -65,9 +65,10 @@ export class FileStorage implements MetadataStorage {
   async get(uri: string) {
     const cid = uri.replace(/^local:\/\//, '');
     if (!/^sha256-[a-f0-9]{64}$/.test(cid)) throw new Error('invalid local metadata URI');
-    return JSON.parse(
-      readFileSync(join(this.rootDir, `${cid}.json`), 'utf8'),
-    ) as StoredCredentialMetadata;
+    const bytes = readFileSync(join(this.rootDir, `${cid}.json`));
+    const actualCid = `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
+    if (actualCid !== cid) throw new Error('local metadata integrity check failed');
+    return JSON.parse(bytes.toString('utf8')) as StoredCredentialMetadata;
   }
 
   async putAsset(bytes: Uint8Array, contentType: string) {

@@ -20,19 +20,22 @@ export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
     mode === 'workspace'
       ? ([
           ['/profile', 'My profile'],
-          ['/wallet', 'My credentials'],
+          ['/credentials', 'My credentials'],
           ['/dashboard', 'Workspace home'],
+          ['/settings/wallets', 'Linked wallets'],
+          ['/org', 'Organization'],
+          ['/issuer', 'Issue credentials'],
           ['/verify', 'Verify a credential'],
         ] as const)
       : ([
-          ['/profile', 'Create a profile'],
+          ['/join', 'Create a profile'],
           ['/verify', 'Verify a credential'],
-          ['/wallet', 'My credentials'],
+          ['/credentials', 'My credentials'],
         ] as const);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="mobile-menu-trigger" aria-label="Open navigation">
+        <Button variant="outline" className="mobile-menu-trigger" aria-label="Open menu">
           <MenuIcon /> Menu
         </Button>
       </DialogTrigger>

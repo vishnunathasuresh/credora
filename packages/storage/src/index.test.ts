@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -30,6 +30,55 @@ describe('file storage', () => {
     const restored = await new FileStorage(directory).get(stored.uri);
 
     assert.deepEqual(restored, metadata);
+  });
+
+  it('rejects changed local metadata bytes before parsing v1 or v3 metadata', async (t) => {
+    const records = [
+      {
+        name: 'v1',
+        metadata: {
+          schemaVersion: 1 as const,
+          skillName: 'Distributed Systems',
+          skillLevel: 'Advanced',
+          issueDate: '2026-08-11T00:00:00.000Z',
+          issuerAddress: '0x1111111111111111111111111111111111111111' as const,
+          learnerAddress: '0x2222222222222222222222222222222222222222' as const,
+          description: 'Original description',
+        },
+      },
+      {
+        name: 'v3',
+        metadata: {
+          schemaVersion: 3 as const,
+          organizationId: `0x${'33'.repeat(32)}` as `0x${string}`,
+          skillName: 'Distributed Systems',
+          skillLevel: 'Advanced',
+          issueDate: '2026-08-11T00:00:00.000Z',
+          issuerAddress: '0x1111111111111111111111111111111111111111' as const,
+          learnerAddress: '0x2222222222222222222222222222222222222222' as const,
+          description: 'Original description',
+        },
+      },
+    ];
+
+    for (const { name, metadata } of records) {
+      await t.test(name, async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'credora-storage-'));
+        temporaryDirectories.push(directory);
+        const storage = new FileStorage(directory);
+        const stored = await storage.put(metadata);
+        const cid = stored.cid;
+        const path = join(directory, `${cid}.json`);
+        const originalBytes = await readFile(path);
+
+        assert.deepEqual(await storage.get(stored.uri), metadata);
+        await writeFile(
+          path,
+          originalBytes.toString('utf8').replace('Original description', 'Tampered description'),
+        );
+        await assert.rejects(storage.get(stored.uri), /integrity check failed/);
+      });
+    }
   });
 });
 

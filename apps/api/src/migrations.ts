@@ -272,6 +272,30 @@ const migrations: Migration[] = [
       ALTER TABLE profiles ADD COLUMN education_json TEXT NOT NULL DEFAULT '[]';
     `,
   },
+  {
+    version: 16,
+    name: 'account_owned_profiles',
+    sql: `
+      CREATE TABLE accounts (id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
+      CREATE TABLE account_identities (issuer TEXT NOT NULL, subject TEXT NOT NULL, account_id TEXT NOT NULL REFERENCES accounts(id), PRIMARY KEY (issuer, subject));
+      CREATE TABLE wallet_links (address TEXT PRIMARY KEY COLLATE NOCASE, account_id TEXT NOT NULL REFERENCES accounts(id), linked_at TEXT NOT NULL);
+      CREATE INDEX wallet_links_account ON wallet_links(account_id);
+      CREATE TABLE wallet_link_challenges (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), session_binding TEXT NOT NULL, address TEXT NOT NULL COLLATE NOCASE, action TEXT NOT NULL, message TEXT NOT NULL, expires_at TEXT NOT NULL);
+      CREATE TABLE profiles_new (
+        id TEXT PRIMARY KEY, wallet_address TEXT UNIQUE COLLATE NOCASE, account_id TEXT UNIQUE REFERENCES accounts(id),
+        handle TEXT NOT NULL UNIQUE COLLATE NOCASE, handle_changed_at TEXT NOT NULL,
+        name TEXT NOT NULL, headline TEXT NOT NULL, bio TEXT NOT NULL, links_json TEXT NOT NULL,
+        published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0, 1)),
+        avatar_url TEXT NOT NULL DEFAULT '', projects_json TEXT NOT NULL DEFAULT '[]',
+        experience_json TEXT NOT NULL DEFAULT '[]', education_json TEXT NOT NULL DEFAULT '[]',
+        CHECK ((wallet_address IS NOT NULL AND account_id IS NULL) OR (wallet_address IS NULL AND account_id IS NOT NULL))
+      );
+      INSERT INTO profiles_new (id,wallet_address,handle,handle_changed_at,name,headline,bio,links_json,published,avatar_url,projects_json,experience_json,education_json)
+        SELECT id,wallet_address,handle,handle_changed_at,name,headline,bio,links_json,published,avatar_url,projects_json,experience_json,education_json FROM profiles;
+      DROP TABLE profiles;
+      ALTER TABLE profiles_new RENAME TO profiles;
+    `,
+  },
 ];
 
 function isDuplicateColumn(error: unknown) {
@@ -294,18 +318,21 @@ export function migrateDatabase(database: DatabaseSync) {
     if (applied) continue;
 
     try {
+      if (migration.version === 16) database.exec('PRAGMA foreign_keys = OFF');
       database.exec('BEGIN');
       database.exec(migration.sql);
       database
         .prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)')
         .run(migration.version, migration.name, new Date().toISOString());
       database.exec('COMMIT');
+      if (migration.version === 16) database.exec('PRAGMA foreign_keys = ON');
     } catch (error) {
       try {
         database.exec('ROLLBACK');
       } catch {
         // Preserve the original migration error.
       }
+      if (migration.version === 16) database.exec('PRAGMA foreign_keys = ON');
       if (isDuplicateColumn(error)) {
         database
           .prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)')

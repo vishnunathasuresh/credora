@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { migrateDatabase } from './migrations.js';
+import { createAccountAuthenticator } from './account-auth.js';
 import {
   buildAuthMessage,
   createNonce,
@@ -36,7 +37,14 @@ import {
   type Role,
 } from '@credora/shared';
 import { FileStorage, IpfsStorage, type MetadataStorage } from '@credora/storage';
-import { decodeFunctionData, defineChain, isAddress, type Address, type Hex } from 'viem';
+import {
+  decodeFunctionData,
+  defineChain,
+  isAddress,
+  verifyMessage,
+  type Address,
+  type Hex,
+} from 'viem';
 
 const port = Number(process.env.API_PORT ?? 4000);
 const databasePath = process.env.API_DATABASE_PATH ?? './.data/credora.sqlite';
@@ -148,6 +156,27 @@ function stringifyJson(value: unknown) {
   );
 }
 
+function hashBoundPublicMetadata(metadata: CredentialMetadata | OrganizationCredentialMetadata) {
+  if (metadata.schemaVersion === 3)
+    return {
+      schemaVersion: metadata.schemaVersion,
+      organizationId: metadata.organizationId,
+      issuerAddress: metadata.issuerAddress,
+      learnerAddress: metadata.learnerAddress,
+      skillName: metadata.skillName,
+      skillLevel: metadata.skillLevel,
+      issueDate: metadata.issueDate,
+    };
+  return {
+    schemaVersion: metadata.schemaVersion,
+    issuerAddress: metadata.issuerAddress,
+    learnerAddress: metadata.learnerAddress,
+    skillName: metadata.skillName,
+    skillLevel: metadata.skillLevel,
+    issueDate: metadata.issueDate,
+  };
+}
+
 function isSqliteConstraint(error: unknown) {
   return (
     error instanceof Error &&
@@ -199,7 +228,12 @@ function fail(request: IncomingMessage, response: ServerResponse, error: unknown
       level: 'error',
       event: 'api_request_failed',
       method: request.method,
-      path: request.url?.replace(/\/shares\/[^/?]+/g, '/shares/[redacted]'),
+      path: request.url
+        ? new URL(request.url, 'http://localhost').pathname.replace(
+            /((?:^|\/)wallet\/shares\/)[^/]+/g,
+            '$1[redacted]',
+          )
+        : undefined,
       code: normalized.code,
       status: normalized.status,
     }),
@@ -894,10 +928,58 @@ function profileByWallet(address: string): ProfileRow | undefined {
     )
     .get(address) as ProfileRow | undefined;
 }
+function profileByAccount(accountId: string): ProfileRow | undefined {
+  return database
+    .prepare(
+      `SELECT id, handle, handle_changed_at AS handleChangedAt, name, headline, bio, links_json AS linksJson,
+    avatar_url AS avatarUrl, projects_json AS projectsJson, experience_json AS experienceJson,
+    education_json AS educationJson, published FROM profiles WHERE account_id = ?`,
+    )
+    .get(accountId) as ProfileRow | undefined;
+}
+const authenticateAccount = createAccountAuthenticator(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_PUBLISHABLE_KEY,
+);
+async function requireAccount(request: IncomingMessage) {
+  const identity = await authenticateAccount(header(request, 'authorization'));
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    let row = database
+      .prepare('SELECT account_id AS id FROM account_identities WHERE issuer = ? AND subject = ?')
+      .get(identity.issuer, identity.subject) as { id: string } | undefined;
+    if (!row) {
+      row = { id: randomUUID() };
+      database
+        .prepare('INSERT INTO accounts (id, created_at) VALUES (?, ?)')
+        .run(row.id, new Date().toISOString());
+      database
+        .prepare('INSERT INTO account_identities (issuer, subject, account_id) VALUES (?, ?, ?)')
+        .run(identity.issuer, identity.subject, row.id);
+    }
+    database.exec('COMMIT');
+    return { id: row.id, sessionBinding: identity.sessionBinding };
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+}
+function accountWallets(accountId: string) {
+  return database
+    .prepare(
+      'SELECT address, linked_at AS linkedAt FROM wallet_links WHERE account_id = ? ORDER BY linked_at, address',
+    )
+    .all(accountId);
+}
+const eligibleProfileRecipient = `(profiles.account_id IS NULL AND issuances.learner = profiles.wallet_address COLLATE NOCASE OR
+  profiles.account_id IS NOT NULL AND EXISTS (SELECT 1 FROM wallet_links WHERE wallet_links.account_id = profiles.account_id AND wallet_links.address = issuances.learner COLLATE NOCASE))`;
+
 function profileView(row: ProfileRow) {
   const credentials = database
     .prepare(
-      'SELECT credential_hash AS credentialHash FROM profile_credentials WHERE profile_id = ? ORDER BY position',
+      `SELECT pc.credential_hash AS credentialHash FROM profile_credentials pc JOIN profiles ON profiles.id = pc.profile_id
+       JOIN issuances ON lower(issuances.credential_hash) = lower(pc.credential_hash) AND issuances.state = 'confirmed' AND ${eligibleProfileRecipient}
+       WHERE pc.profile_id = ? GROUP BY pc.credential_hash ORDER BY pc.position`,
     )
     .all(row.id) as { credentialHash: string }[];
   const credentialSummaries = database
@@ -906,8 +988,9 @@ function profileView(row: ProfileRow) {
               issuances.skill_name AS skillName, issuances.skill_level AS skillLevel,
               issuances.issue_date AS issueDate, organizations.name AS organizationName
        FROM profile_credentials
+       JOIN profiles ON profiles.id = profile_credentials.profile_id
        JOIN issuances ON lower(issuances.credential_hash) = lower(profile_credentials.credential_hash)
-         AND issuances.learner = (SELECT wallet_address FROM profiles WHERE id = profile_credentials.profile_id) COLLATE NOCASE
+         AND ${eligibleProfileRecipient}
          AND issuances.state = 'confirmed'
        LEFT JOIN organizations ON organizations.id = issuances.organization_id
        WHERE profile_credentials.profile_id = ?
@@ -1279,15 +1362,211 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
-  if (path === '/profile' && method === 'GET') {
-    const session = requireSession(request);
-    const row = profileByWallet(session.address);
+  if (path === '/account' && method === 'GET') {
+    const account = await requireAccount(request);
+    const profile = profileByAccount(account.id);
+    send(request, response, 200, {
+      account: { id: account.id },
+      profile: profile ? profileView(profile) : null,
+      wallets: accountWallets(account.id),
+    });
+    return;
+  }
+
+  const handleLookup = path.match(/^\/account\/handles\/([^/]+)$/);
+  if (method === 'GET' && handleLookup) {
+    await requireAccount(request);
+    const handle = profileHandle(decodeURIComponent(handleLookup[1]));
+    const taken = database
+      .prepare('SELECT 1 FROM profiles WHERE handle = ? COLLATE NOCASE')
+      .get(handle);
+    send(request, response, 200, { handle, available: !taken });
+    return;
+  }
+
+  if (path === '/account/credentials' && method === 'GET') {
+    const account = await requireAccount(request);
+    const items = database
+      .prepare(
+        `SELECT issuances.credential_hash, issuances.issuer, issuances.learner,
+      issuances.metadata_uri, issuances.transaction_hash, issuances.block_number, issuances.state,
+      issuances.issue_date, issuances.skill_name, issuances.skill_level,
+      organizations.name AS organization_name, organizations.logo_url AS organization_logo_url
+      FROM issuances JOIN wallet_links ON wallet_links.address = issuances.learner COLLATE NOCASE
+      LEFT JOIN organizations ON organizations.id = issuances.organization_id
+      WHERE wallet_links.account_id = ? AND issuances.state = 'confirmed' ORDER BY issuances.issue_date DESC LIMIT 100`,
+      )
+      .all(account.id);
+    send(request, response, 200, { items });
+    return;
+  }
+
+  if (path === '/account/wallets/challenge' && method === 'POST') {
+    const account = await requireAccount(request);
+    const body = await bodyOf(request);
+    const address = requiredAddress(body, 'address');
+    const action = requiredString(body, 'action');
+    if (action !== 'link' && action !== 'unlink')
+      throw new CredoraError('Invalid wallet action', 'INVALID_WALLET_ACTION', 400);
+    const linked = database
+      .prepare('SELECT account_id AS accountId FROM wallet_links WHERE address = ? COLLATE NOCASE')
+      .get(address) as { accountId: string } | undefined;
+    if (action === 'link' && linked)
+      throw new CredoraError('Wallet is already linked', 'WALLET_CONFLICT', 409);
+    if (action === 'unlink' && linked?.accountId !== account.id)
+      throw new CredoraError('Wallet is not linked to this account', 'WALLET_NOT_LINKED', 404);
+    const legacy = action === 'link' ? profileByWallet(address) : undefined;
+    const origin = process.env.API_APP_ORIGIN ?? [...allowedOrigins][0];
+    if (!origin || !allowedOrigins.has(origin))
+      throw new CredoraError('Wallet linking is not configured', 'AUTH_UNAVAILABLE', 503);
+    const id = randomUUID();
+    const issuedAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + challengeTtlMs).toISOString();
+    const nonce = createNonce();
+    const message = [
+      `Credora wallet ${action}`,
+      `Origin: ${origin}`,
+      `Chain ID: ${configuredChainId}`,
+      `Account ID: ${account.id}`,
+      `Session: ${createHash('sha256').update(account.sessionBinding).digest('hex')}`,
+      `Address: ${address}`,
+      `Action: ${action}`,
+      `Nonce: ${nonce}`,
+      `Issued At: ${issuedAt}`,
+      `Expires At: ${expiresAt}`,
+    ].join('\n');
+    database
+      .prepare(
+        'INSERT INTO wallet_link_challenges (id, account_id, session_binding, address, action, message, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run(id, account.id, account.sessionBinding, address, action, message, expiresAt);
+    send(request, response, 200, {
+      id,
+      message,
+      expiresAt,
+      ...(legacy ? { legacyProfile: { handle: legacy.handle } } : {}),
+      migrationRequired: Boolean(legacy),
+    });
+    return;
+  }
+
+  if (path === '/account/wallets/verify' && method === 'POST') {
+    const account = await requireAccount(request);
+    const body = await bodyOf(request);
+    const id = requiredString(body, 'challengeId');
+    const signature = requiredString(body, 'signature') as Hex;
+    const challenge = database
+      .prepare('SELECT * FROM wallet_link_challenges WHERE id = ?')
+      .get(id) as
+      | {
+          id: string;
+          account_id: string;
+          session_binding: string;
+          address: string;
+          action: string;
+          message: string;
+          expires_at: string;
+        }
+      | undefined;
+    if (
+      !challenge ||
+      challenge.account_id !== account.id ||
+      challenge.session_binding !== account.sessionBinding ||
+      Date.parse(challenge.expires_at) <= Date.now()
+    )
+      throw new CredoraError('Wallet challenge expired or unavailable', 'CHALLENGE_EXPIRED', 401);
+    let valid = false;
+    try {
+      valid = await verifyMessage({
+        address: challenge.address as Address,
+        message: challenge.message,
+        signature,
+      });
+    } catch {
+      /* Invalid signatures are rejected. */
+    }
+    if (!valid) throw new CredoraError('Wallet signature was not valid', 'INVALID_SIGNATURE', 401);
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      const consumed = database
+        .prepare(
+          'DELETE FROM wallet_link_challenges WHERE id = ? AND account_id = ? AND session_binding = ? AND expires_at > ?',
+        )
+        .run(id, account.id, account.sessionBinding, new Date().toISOString());
+      if (Number(consumed.changes) !== 1)
+        throw new CredoraError(
+          'Wallet challenge has already been used or expired',
+          'CHALLENGE_REPLAY',
+          401,
+        );
+      const linked = database
+        .prepare(
+          'SELECT account_id AS accountId FROM wallet_links WHERE address = ? COLLATE NOCASE',
+        )
+        .get(challenge.address) as { accountId: string } | undefined;
+      if (challenge.action === 'link') {
+        if (linked) throw new CredoraError('Wallet is already linked', 'WALLET_CONFLICT', 409);
+        const legacy = profileByWallet(challenge.address);
+        if (legacy) {
+          if (body.importLegacyProfile !== true)
+            throw new CredoraError(
+              'Explicit consent is required to import the existing profile',
+              'MIGRATION_REQUIRED',
+              409,
+            );
+          if (profileByAccount(account.id))
+            throw new CredoraError(
+              'Both account and wallet have profiles; automatic merging is unavailable',
+              'PROFILE_CONFLICT',
+              409,
+            );
+          database
+            .prepare(
+              'UPDATE profiles SET account_id = ?, wallet_address = NULL WHERE id = ? AND account_id IS NULL',
+            )
+            .run(account.id, legacy.id);
+        }
+        database
+          .prepare('INSERT INTO wallet_links (address, account_id, linked_at) VALUES (?, ?, ?)')
+          .run(challenge.address, account.id, new Date().toISOString());
+      } else if (challenge.action === 'unlink') {
+        if (linked?.accountId !== account.id)
+          throw new CredoraError('Wallet is not linked to this account', 'WALLET_NOT_LINKED', 404);
+        database
+          .prepare(
+            `DELETE FROM profile_credentials WHERE profile_id IN (SELECT id FROM profiles WHERE account_id = ?)
+          AND lower(credential_hash) IN (SELECT lower(credential_hash) FROM issuances WHERE learner = ? COLLATE NOCASE)`,
+          )
+          .run(account.id, challenge.address);
+        database
+          .prepare('DELETE FROM wallet_links WHERE address = ? COLLATE NOCASE AND account_id = ?')
+          .run(challenge.address, account.id);
+      } else throw new CredoraError('Invalid wallet action', 'INVALID_WALLET_ACTION', 400);
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      throw error;
+    }
+    const profile = profileByAccount(account.id);
+    send(request, response, 200, {
+      wallets: accountWallets(account.id),
+      profile: profile ? profileView(profile) : null,
+    });
+    return;
+  }
+
+  if ((path === '/profile' || path === '/account/profile') && method === 'GET') {
+    const account = path === '/account/profile' ? await requireAccount(request) : undefined;
+    const row = account
+      ? profileByAccount(account.id)
+      : profileByWallet(requireSession(request).address);
     send(request, response, 200, { profile: row ? profileView(row) : null });
     return;
   }
 
-  if (path === '/profile' && method === 'PUT') {
-    const session = requireSession(request);
+  if ((path === '/profile' || path === '/account/profile') && method === 'PUT') {
+    const account = path === '/account/profile' ? await requireAccount(request) : undefined;
+    const session = account ? undefined : requireSession(request);
     const body = await bodyOf(request);
     const hasAvatarUrl = Object.hasOwn(body, 'avatarUrl');
     const hasProjects = Object.hasOwn(body, 'projects');
@@ -1355,7 +1634,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const now = new Date().toISOString();
     database.exec('BEGIN IMMEDIATE');
     try {
-      const existing = profileByWallet(session.address);
+      const existing = account ? profileByAccount(account.id) : profileByWallet(session!.address);
       const nextAvatarUrl = avatarUrl ?? existing?.avatarUrl ?? '';
       const nextProjects = projects ?? (existing ? JSON.parse(existing.projectsJson) : []);
       const nextExperience = experience ?? (existing ? JSON.parse(existing.experienceJson) : []);
@@ -1369,9 +1648,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       for (const hash of hashes) {
         const owned = database
           .prepare(
-            "SELECT 1 FROM issuances WHERE lower(credential_hash) = ? AND learner = ? COLLATE NOCASE AND state = 'confirmed' LIMIT 1",
+            account
+              ? "SELECT 1 FROM issuances JOIN wallet_links ON wallet_links.address = issuances.learner COLLATE NOCASE WHERE lower(credential_hash) = ? AND wallet_links.account_id = ? AND state = 'confirmed' LIMIT 1"
+              : "SELECT 1 FROM issuances WHERE lower(credential_hash) = ? AND learner = ? COLLATE NOCASE AND state = 'confirmed' LIMIT 1",
           )
-          .get(hash, session.address);
+          .get(hash, account?.id ?? session!.address);
         if (!owned)
           throw new CredoraError(
             'A selected credential is not a confirmed credential for this wallet',
@@ -1403,12 +1684,13 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       else
         database
           .prepare(
-            `INSERT INTO profiles (id, wallet_address, handle, handle_changed_at, name, headline, bio, links_json,
-             avatar_url, projects_json, experience_json, education_json, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO profiles (id, wallet_address, account_id, handle, handle_changed_at, name, headline, bio, links_json,
+             avatar_url, projects_json, experience_json, education_json, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             id,
-            session.address,
+            session?.address ?? null,
+            account?.id ?? null,
             handle,
             now,
             name,
@@ -1436,7 +1718,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         throw new CredoraError('That handle is already in use', 'HANDLE_TAKEN', 409);
       throw error;
     }
-    send(request, response, 200, { profile: profileView(profileByWallet(session.address)!) });
+    send(request, response, 200, {
+      profile: profileView(
+        (account ? profileByAccount(account.id) : profileByWallet(session!.address))!,
+      ),
+    });
     return;
   }
 
@@ -1469,7 +1755,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
             `SELECT profiles.name, profiles.handle FROM profiles
              JOIN profile_credentials ON profile_credentials.profile_id = profiles.id
              JOIN issuances ON lower(issuances.credential_hash) = lower(profile_credentials.credential_hash)
-               AND issuances.learner = profiles.wallet_address COLLATE NOCASE
+               AND ${eligibleProfileRecipient}
                AND issuances.state = 'confirmed'
              WHERE profiles.published = 1 AND lower(profile_credentials.credential_hash) = ?
              LIMIT 1`,
@@ -1608,9 +1894,34 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     return;
   }
 
-  const publicShare = path.match(/^\/wallet\/shares\/([A-Za-z0-9_-]{43})$/);
-  if (method === 'GET' && publicShare) {
-    const token = publicShare[1];
+  if (method === 'POST' && path === '/wallet/share-resolution') {
+    const body = await bodyOf(request);
+    const token = body.token;
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token))
+      throw new CredoraError('Share code is not understood', 'SHARE_NOT_FOUND', 404);
+    const share = database
+      .prepare(
+        'SELECT id, expires_at AS expiresAt, revoked_at AS revokedAt FROM wallet_shares WHERE token_hash = ?',
+      )
+      .get(sha256(token)) as
+      { id: string; expiresAt: string; revokedAt: string | null } | undefined;
+    if (!share) throw new CredoraError('This share code is unavailable', 'SHARE_NOT_FOUND', 404);
+    if (share.revokedAt || Date.parse(share.expiresAt) <= Date.now())
+      throw new CredoraError('This share code has expired or was turned off', 'SHARE_EXPIRED', 410);
+    const credentials = database
+      .prepare(
+        'SELECT credential_hash AS credentialHash FROM wallet_share_credentials WHERE share_id = ? ORDER BY position ASC',
+      )
+      .all(share.id);
+    send(request, response, 200, { expiresAt: share.expiresAt, credentials });
+    return;
+  }
+
+  // Compatibility for clients that resolved bearer tokens in the URL path.
+  // New clients use the fixed POST endpoint so tokens stay out of request URLs.
+  const legacyShareResolution = path.match(/^\/wallet\/shares\/([A-Za-z0-9_-]{43})$/);
+  if (method === 'GET' && legacyShareResolution) {
+    const token = legacyShareResolution[1];
     const share = database
       .prepare(
         'SELECT id, expires_at AS expiresAt, revoked_at AS revokedAt FROM wallet_shares WHERE token_hash = ?',
@@ -3766,9 +4077,12 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         send(request, response, 200, {
           ...record,
           state: 'valid',
-          metadata,
+          metadata: metadataUri.startsWith('local://')
+            ? metadata
+            : hashBoundPublicMetadata(metadata),
           organizationStatus: currentOrganization[4] ? 'suspended' : 'active',
-          message: 'Organization-bound credential verified against the immutable ledger.',
+          message:
+            'Organization credential hash-bound fields match the registry record. Other metadata content was not verified.',
         });
         return;
       }
@@ -3832,8 +4146,11 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     send(request, response, 200, {
       ...record,
       state: 'valid',
-      metadata,
-      message: 'Credential verified against the immutable ledger.',
+      metadata: record.metadataUri.startsWith('local://')
+        ? metadata
+        : hashBoundPublicMetadata(metadata),
+      message:
+        'Credential hash-bound fields match the registry record. Other metadata content was not verified.',
     });
     return;
   }
