@@ -35,7 +35,7 @@ export function MobileNavigation({ mode = 'public' }: MobileNavigationProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="mobile-menu-trigger" aria-label="Open navigation">
+        <Button variant="outline" className="mobile-menu-trigger" aria-label="Open menu">
           <MenuIcon /> Menu
         </Button>
       </DialogTrigger>

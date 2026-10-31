@@ -157,6 +157,7 @@ export function VerifyForm() {
         <input
           ref={fileInputRef}
           className="verify-qr-file-input"
+          hidden
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
           aria-label="Upload a QR code image"
@@ -191,7 +192,7 @@ export function VerifyForm() {
         aria-labelledby="verify-reference-title"
       >
         <h2 id="verify-reference-title">Enter a verification link or reference</h2>
-        <p className="form-help">Use the credential link, reference, or scan its QR code above.</p>
+        <p className="form-help">Paste the link you received, or enter the credential hash.</p>
         <Label htmlFor="credential-reference">Verification link or reference</Label>
         <div className="form-row">
           <Input
@@ -218,7 +219,7 @@ export function VerifyForm() {
           aria-live="polite"
           role={referenceError ? 'alert' : undefined}
         >
-          {referenceError ?? 'Direct links and existing credential references still work.'}
+          {referenceError ?? 'A credential hash starts with 0x and has 64 hexadecimal characters.'}
         </div>
       </section>
     </form>

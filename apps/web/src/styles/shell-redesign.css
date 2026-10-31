@@ -217,6 +217,9 @@
   color: var(--success);
 }
 .status-warning {
+  color: #87550a;
+}
+:root[data-theme='dark'] .status-warning {
   color: var(--warning);
 }
 .status-error {
@@ -808,4 +811,47 @@
 .credential-card-hash small {
   display: block;
   margin-top: 8px;
+}
+
+.home-preview-proof {
+  display: grid;
+  gap: 6px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.home-preview-proof > span {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+}
+.home-preview-proof strong {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.home-preview-proof strong span {
+  padding: 0 4px;
+  color: var(--ink-muted);
+}
+
+.landing-shell .home-copy > .home-mobile-proof {
+  display: none;
+}
+@media (max-width: 700px) {
+  .landing-shell .home-copy > .home-mobile-proof {
+    display: grid;
+    gap: 4px;
+    margin-top: 24px;
+    padding: 14px 0;
+    border-block: 1px solid var(--line);
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+  .home-mobile-proof > span {
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+  }
+  .home-mobile-proof strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
 }

@@ -37,6 +37,12 @@ export function HomePage() {
           <p className="home-verify-link">
             <span>Profiles start private.</span> Add a wallet only when you need your credentials.
           </p>
+          <p className="home-mobile-proof">
+            <span>Illustrative proof path</span>
+            <strong>
+              Issuer record <span aria-hidden="true">→</span> public check
+            </strong>
+          </p>
         </div>
 
         <div className="home-artifact" aria-label="Illustrative profile and credential composition">
@@ -54,6 +60,12 @@ export function HomePage() {
               <div className="preview-project">
                 {illustrativeCredential.title}
                 <small>{illustrativeCredential.issuerName} · Issuer-backed credential</small>
+              </div>
+              <div className="home-preview-proof">
+                <span>Illustrative proof path</span>
+                <strong>
+                  Issuer record <span aria-hidden="true">→</span> public check
+                </strong>
               </div>
             </article>
             <article className="home-demo-panel home-demo-credential">

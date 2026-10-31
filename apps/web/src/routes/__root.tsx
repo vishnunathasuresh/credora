@@ -66,8 +66,10 @@ function RootComponent() {
         className={`shell credora-shell ${landing ? 'landing-shell' : workspace ? 'workspace-shell' : 'public-shell'}`}
       >
         <header className="topbar credora-topbar">
-          <Link className="wordmark" to="/" aria-label="Credora home">
-            <span className="mark">C</span>
+          <Link className="wordmark" to="/">
+            <span className="mark" aria-hidden="true">
+              C
+            </span>
             <span>credora</span>
           </Link>
           {workspace ? (

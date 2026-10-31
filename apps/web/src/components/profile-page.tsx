@@ -618,7 +618,11 @@ export function ProfileEditor() {
                     setAvatarPreviewFailed(false);
                   }}
                 />
-                <div className="profile-avatar-preview" aria-label="Profile photo preview">
+                <div
+                  className="profile-avatar-preview"
+                  role="img"
+                  aria-label="Profile photo preview"
+                >
                   {profile.avatarUrl && isHttpsUrl(profile.avatarUrl) && !avatarPreviewFailed ? (
                     <img
                       className="profile-avatar-image"
